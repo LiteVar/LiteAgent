@@ -1,11 +1,10 @@
 English · [中文](README-zh_CN.md)
 
 # LiteAgent
-    1. Program description
-	
-        1. [web](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README.md)
-        2. [desktop](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README.md)
-        3. [backend](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README.md)
+## 1. Program description
+  - [web](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README.md)
+  - [desktop](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README.md)
+  - [backend](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README.md)
 		
 ## v0.1.0
 
