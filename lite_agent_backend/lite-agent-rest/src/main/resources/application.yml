@@ -1,0 +1,20 @@
+server:
+  servlet:
+    context-path: /liteAgent
+  port: 8080
+spring:
+  application:
+    name: liteAgent
+  profiles:
+    active: local
+  mail:
+    host: xxxx
+    username: xxxx
+    password: xxxx
+    port: 465
+    default-encoding: utf-8
+    properties:
+      mail:
+        smtp:
+          ssl:
+            enable: true

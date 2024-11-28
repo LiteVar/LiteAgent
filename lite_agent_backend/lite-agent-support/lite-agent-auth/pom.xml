@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.litevar.agent</groupId>
+        <artifactId>lite-agent-support</artifactId>
+        <version>0.0.1</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>lite-agent-auth</artifactId>
+    <name>lite-agent-auth</name>
+    <description>鉴权、权限相关</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.litevar.agent</groupId>
+            <artifactId>lite-agent-base</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-jwt</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>

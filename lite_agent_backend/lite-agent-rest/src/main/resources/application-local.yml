@@ -1,0 +1,19 @@
+spring:
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: xxx
+      database: 6
+    mongodb:
+      host: 127.0.0.1
+      port: 27018
+      username: xxx
+      password: xxxxx
+      authentication-database: admin
+      database: lite-agent
+      auto-index-creation: true
+      field-naming-strategy: org.springframework.data.mapping.model.SnakeCaseFieldNamingStrategy
+
+file:
+  save-path: /home/liteAgent/file/

@@ -1,0 +1,30 @@
+.ant-pro-layout .ant-pro-sider-logo {
+    justify-content: center;
+}
+
+.ant-tabs-tabpane {
+    padding-left: 0!important;
+}
+
+.pageLayoutSider>.ant-layout-sider-children {
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboardDropdown .ant-dropdown-menu-item {
+    padding: 0!important;
+}
+
+.updatePassword .ant-form-item-explain-error {
+    margin-left: 100px;
+}
+
+.chatDrawerContainer .ant-drawer-content-wrapper {
+    width: auto!important;
+}
+
+.chatDrawerContainer .ant-drawer-body {
+    width: 508px;
+    display: flex;
+    justify-content: center;
+}

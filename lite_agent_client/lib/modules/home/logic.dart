@@ -1,0 +1,113 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:get/get.dart';
+import 'package:lite_agent_client/models/dto/account.dart';
+import 'package:lite_agent_client/repositories/account_repository.dart';
+import 'package:lite_agent_client/utils/event_bus.dart';
+import 'package:lite_agent_client/utils/extension/string_extension.dart';
+import 'package:lite_agent_client/widgets/dialog/dialog_login.dart';
+import 'package:window_manager/window_manager.dart';
+
+import '../../config/routes.dart';
+import '../../server/local_server/server.dart';
+import '../../widgets/dialog/dialog_user_setting.dart';
+
+class HomePageLogic extends GetxController with WindowListener {
+  static const String PAGE_CHAT = "chat";
+  static const String PAGE_AGENT = "agent";
+  static const String PAGE_TOOL = "tool";
+  static const String PAGE_MODEL = "model";
+
+  var currentPage = "chat".obs;
+  Rx<AccountDTO?> account = Rx<AccountDTO?>(null);
+  var accountAvatar = "";
+
+  late StreamSubscription _subscription;
+  late StreamSubscription _agentSubscription;
+
+  @override
+  void onInit() async {
+    initWindow();
+    initEventBus();
+    await startServer();
+    super.onInit();
+    if (await accountRepository.isLogin()) {
+      updateUserInfo();
+    }
+  }
+
+  void initWindow() async {
+    windowManager.addListener(this);
+    await windowManager.setPreventClose(true);
+  }
+
+  @override
+  void onClose() {
+    _subscription.cancel();
+    _agentSubscription.cancel();
+    windowManager.removeListener(this);
+    super.onClose();
+  }
+
+  @override
+  void onWindowClose() {
+    if (Get.currentRoute == Routes.home) {
+      exit(0);
+    }
+  }
+
+  void maximize() {
+    windowManager.maximize();
+  }
+
+  void minimize() {
+    windowManager.minimize();
+  }
+
+  void close() {
+    windowManager.close();
+  }
+
+  void switchPage(String page) {
+    currentPage.value = page;
+    //update();
+  }
+
+  void showLoginDialog(bool afterLogout) async {
+    if (!await accountRepository.isLogin()) {
+      Get.dialog(barrierDismissible: false, LoginDialog(noAutoLogin: afterLogout));
+    }
+  }
+
+  void showSettingDialog() async {
+    if (!await accountRepository.isLogin()) {
+      Get.dialog(barrierDismissible: false, LoginDialog(noAutoLogin: true));
+    } else {
+      Get.dialog(barrierDismissible: false, UserSettingDialog());
+    }
+  }
+
+  void initEventBus() {
+    _subscription = eventBus.on<MessageEvent>().listen((event) {
+      if (event.message == EventBusMessage.login) {
+        updateUserInfo();
+      } else if (event.message == EventBusMessage.logout) {
+        account.value = null;
+        showLoginDialog(true);
+      }
+    });
+    _agentSubscription = eventBus.on<AgentMessageEvent>().listen((event) {
+      if (event.message == EventBusMessage.startChat) {
+        switchPage(PAGE_CHAT);
+      }
+    });
+  }
+
+  void updateUserInfo() async {
+    account.value = await accountRepository.updateUserInfoFromNet();
+    if (account.value != null) {
+      accountAvatar = await account.value?.avatar?.fillPicLinkPrefix() ?? "";
+    }
+  }
+}
