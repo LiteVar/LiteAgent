@@ -3,9 +3,9 @@ English · [中文](README-zh_CN.md)
 # LiteAgent
     1. Program description
 	
-        1. [web](lite_agent_web/README.md)
-        2. [desktop](lite_agent_client/README.md)
-        3. [backend](lite_agent_backend/README.md)
+        1. [web](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README.md)
+        2. [desktop](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README.md)
+        3. [backend](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README.md)
 		
 ## v0.1.0
 
@@ -18,7 +18,7 @@ English · [中文](README-zh_CN.md)
 	2. openrpc
 	3. openmodbus
 
-### 3. Functional module 
+### 3. Functional modules
     1. LLM management(web, desktop)
     2. Tool management(web, desktop)
     3. Agent management(web, desktop)

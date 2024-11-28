@@ -3,9 +3,9 @@
 # LiteAgent
     1. 程序说明
 	
-        1. [web端](lite_agent_web/README_zh-CN.md)
-        2. [桌面端](lite_agent_client/README-zh_CN.md)
-        3. [后端](lite_agent_backend/README-zh_CN.md)
+        1. [web端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README_zh-CN.md)
+        2. [桌面端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README-zh_CN.md)
+        3. [后端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README-zh_CN.md)
 		
 ## v0.1.0
 
