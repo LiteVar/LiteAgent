@@ -70,29 +70,29 @@ npm run openapi-ts
 
 The initialization page is displayed. Create the first user and activate the system.
 The domain name + ` / init `, such as: http://localhost:5173/init
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/initSuperUser.jpg)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/initSuperUser.jpg)
 
 ### After login, enter the the management background
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/open-admin.png)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/open-admin.png)
 
 ### Add a new user
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/add-user.png)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/add-user.png)
 
 ### Create Agent
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/create-agent.png)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/create-agent.png)
 
 ### After the Agent is created, you need to create a model and configure the model parameters, such as:
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/create-model.png)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/create-model.png)
 
 ### After the Agent is created, you can create a tool if necessary and configure model parameters, such as:
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/create-tool.png)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/create-tool.png)
 
 ### Go to the Agent page and configure the Agent. (Model parameters are mandatory. Tools can be configured as required.) After the configuration is complete, click Save to release the agent
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/chat-setting.png)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/chat-setting.png)
 
 ### Chat using Agent
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/open-chat.png)
-![](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/chat-page.png)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/open-chat.png)
+![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/chat-page.png)
 
 ---
 

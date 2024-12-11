@@ -32,20 +32,23 @@ docker compose up -d
 ```
 
 ### 2.3 init root user of LiteAgent
-> Open the browser and access the initialization page(http://your_ip:8080/init, please replace with your actual ip or domain name)
-![initSuperUser](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/initSuperUser.jpg)
+1. Open the browser and access the initialization page(http://your_ip:8080/init, please replace with your actual ip or domain name)
 
-> Enter email address, nickname, password, and confirm password, click login to create the root user
+![initSuperUser](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/initSuperUser.jpg)
 
-> Move to the top of the avatar and click on "Manage My Workspace"
-![manageWorkspace](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/open-admin.png)
+2. Enter email address, nickname, password, and confirm password, click login to create the root user
 
-> Then you can manage agents, tools, models and users
+3. Move to the top of the avatar and click on "Manage My Workspace"
 
->- When creating an agent, adding a model is necessary and tools are optional
+![manageWorkspace](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/open-admin.png)
 
-> After creating the agent, you can start chatting  
-![chatPage](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/chat-page.png)
+4. Then you can manage agents, tools, models and users
+
+> When creating an agent, adding a model is necessary and tools are optional
+
+5. After creating the agent, you can start chatting
+  
+![chatPage](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/chat-page.png)
 
 ### 2.4 new user to login
 

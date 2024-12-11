@@ -32,20 +32,23 @@ docker compose up -d
 ```
 
 ### 2.3 初始化LiteAgent的root账号
-> 打开浏览器，访问初始化页面(http://your_ip:8080/init, 请使用您的实际ip或域名替换)
-![initSuperUser](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/initSuperUser.jpg)
+1. 打开浏览器，访问初始化页面(http://your_ip:8080/init, 请使用您的实际ip或域名替换)
 
-> 输入邮件地址，昵称，密码和确认密码，点击登录
+![initSuperUser](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/initSuperUser.jpg)
 
-> 移动到头像的上方，点击"管理我的Workspace"
-![manageWorkspace](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/open-admin.png)
+2. 输入邮件地址，昵称，密码和确认密码，点击登录
 
-> 之后便可管理您的agent,工具，模型以及用户了
+3. 移动到头像的上方，点击"管理我的Workspace"
 
->- 创建agent的时候，添加模型是必须的，工具是可选的
+![manageWorkspace](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/open-admin.png)
 
-> 创建了agent之后，便可开始聊天
-![chatPage](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/chat-page.png)
+4. 之后便可管理您的agent,工具，模型以及用户了
+
+> 创建agent的时候，添加模型是必须的，工具是可选的
+
+5. 创建了agent之后，便可开始聊天
+
+![chatPage](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/chat-page.png)
 
 ### 2.4 新用户登录
 
