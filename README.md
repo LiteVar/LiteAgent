@@ -5,7 +5,55 @@ English · [中文](README-zh_CN.md)
   - [web](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README.md)
   - [desktop](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README.md)
   - [backend](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README.md)
-		
+
+## 2. Quick start
+> Before using LiteAgent, make sure your machine meets the following minimum system requirements:
+> 
+>- CPU >= 2 Core
+>- RAM >= 6 GiB
+
+### 2.1 Configure invitation email addresses and email accounts for creating and inviting users
+
+> Edit 'docker/LiteAgent/config/application.yml', change host, username, password and port
+```
+  mail:
+    host: smtp.xxx.com
+    username: liteagent@xxx.com
+    password: XXXYYYZZZ
+    port: 465
+```
+
+### 2.2 Pull up services by docker compose
+
+> Please make sure docker, docker compose plugin are installed on your machine
+```
+cd docker 
+docker compose up -d
+```
+
+### 2.3 init root user of LiteAgent
+> Open the browser and access the initialization page(http://your_ip:8080/init, please replace with your actual ip or domain name)
+![initSuperUser](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/initSuperUser.jpg)
+
+> Enter email address, nickname, password, and confirm password, click login to create the root user
+
+> Move to the top of the avatar and click on "Manage My Workspace"
+![manageWorkspace](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/open-admin.png)
+
+> Then you can manage agents, tools, models and users
+
+>- When creating an agent, adding a model is necessary and tools are optional
+
+> After creating the agent, you can start chatting  
+![chatPage](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/docs/chat-page.png)
+
+### 2.4 new user to login
+
+> Access the login page(http://your_ip:8080, please replace with your actual ip or domain name)
+
+
+# Features
+
 ## v0.1.0
 
 ### 1. agent

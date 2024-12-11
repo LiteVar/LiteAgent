@@ -1,0 +1,61 @@
+version: '3.3'
+
+services:
+  mongo:
+    image: mongo:5.0.5
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=LiteAgent
+      - MONGO_INITDB_DATABASE=admin  
+    volumes:
+      - ./mongo/mongo_data:/data/db
+    command: --auth
+
+  redis:
+    image: redis:6.2.14
+    container_name: redis
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=LiteAgent	  
+    command: ["redis-server", "--requirepass", "LiteAgent", "--appendonly", "yes"]
+    volumes:
+      - ./redis/redis_data:/data
+
+  lite-agent-app:
+    image: openjdk:17-jdk
+    container_name: lite-agent-app
+    working_dir: /home/LiteAgent
+    volumes:
+      - ./LiteAgent/app:/home/LiteAgent/app
+      - ./LiteAgent/config:/home/LiteAgent/config
+      - ./LiteAgent/logs:/home/LiteAgent/logs
+      - ./LiteAgent/file:/home/LiteAgent/file
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:LiteAgent@mongo:27017/lite-agent?authSource=admin
+      - SPRING_DATA_MONGODB_AUTO_INDEX_CREATION=true
+      - SPRING_DATA_MONGODB_FIELD_NAMING_STRATEGY=org.springframework.data.mapping.model.SnakeCaseFieldNamingStrategy  
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_PASSWORD=LiteAgent
+    command: ["java", "-jar", "/home/LiteAgent/app/lite-agent-0.1.0.jar", "--spring.config.location=/home/LiteAgent/config/", "-Dlogback.configurationFile=/home/LiteAgent/config/logback-spring.xml"]
+    depends_on:
+      - mongo
+      - redis
+    ports:
+      - "8086:8086"
+
+  nginx:
+    image: nginx
+    container_name: lite-agent-web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/html:/usr/share/nginx/html
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - lite-agent-app
