@@ -19,7 +19,7 @@ Add the following dependency in your `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  liteagent_sdk_dart: ^0.1.0
+  liteagent_sdk_dart: ^0.1.1
 ```
 
 Then run:

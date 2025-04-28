@@ -1,6 +1,6 @@
 name: liteagent_sdk_dart
 description: A LiteAgent Dart SDK, easy way to access your agent.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk/dart
 
 environment:

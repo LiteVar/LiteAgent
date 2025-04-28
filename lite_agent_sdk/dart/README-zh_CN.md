@@ -19,7 +19,7 @@ LiteAgent的Dart SDK，用于Dart和Flutter应用程序中与LiteAgent进行交�
 
 ```yaml
 dependencies:
-  liteagent_sdk_dart: ^0.1.0
+  liteagent_sdk_dart: ^0.1.1
 ```
 
 并运行:
