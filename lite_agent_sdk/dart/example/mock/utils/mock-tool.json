@@ -1,0 +1,111 @@
+{
+  "opentool": "1.0.0",
+  "info": {
+    "title": "CRUD API for mock",
+    "version": "1.0.0"
+  },
+  "functions": [
+    {
+      "name": "count",
+      "description": "Get storage size.",
+      "parameters": [],
+      "return": {
+        "name": "Count",
+        "schema": {
+          "$ref": "#/schemas/Count"
+        },
+        "description": "Storage size"
+      }
+    },
+    {
+      "name": "create",
+      "description": "Create a text in storage",
+      "parameters":[
+        {
+          "name": "text",
+          "schema": {
+            "type": "string"
+          },
+          "description": "Text should be added.",
+          "required": true
+        }
+      ],
+      "return": {
+        "name": "Id",
+        "schema": {
+          "$ref": "#/schemas/Id"
+        }
+      }
+    },
+    {
+      "name": "read",
+      "description": "Read text from storage by id",
+      "parameters": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/schemas/Id"
+          },
+          "description": "Text Id in storage",
+          "required": true
+        }
+      ],
+      "return": {
+        "name": "text",
+        "schema": {
+          "$ref": "#/schemas/Text"
+        },
+        "description": "Text find by Id in storage"
+      }
+    },
+    {
+      "name": "update",
+      "description": "Update a text in storage by id",
+      "parameters": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/schemas/Id"
+          },
+          "description": "Text Id in storage.",
+          "required": true
+        },
+        {
+          "name": "text",
+          "schema": {
+            "$ref": "#/schemas/Text"
+          },
+          "description": "Text should be updated.",
+          "required": true
+        }
+      ],
+      "return": null
+    },
+    {
+      "name": "delete",
+      "description": "Delete a text in storage",
+      "parameters": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/schemas/Id"
+          },
+          "description": "Text Id in storage.",
+          "required": true
+        }
+      ],
+      "return": null
+    }
+  ],
+  "schemas": {
+    "Count": {
+      "type": "integer"
+    },
+    "Id": {
+      "type": "integer"
+    },
+    "Text": {
+      "type": "string"
+    }
+  }
+}
