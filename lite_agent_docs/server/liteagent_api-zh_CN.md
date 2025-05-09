@@ -1,5 +1,7 @@
 # API for LiteAgent Server
 
+[English](liteagent_api_en.md) · 中文
+
 版本：`1.0.0`
 
 ## 目录
@@ -135,9 +137,11 @@ POST /chat?sessionId=1901883204734947328
 
 - 采用SSE，`Content-Type: text/event-stream`
 
-- 消息类型`event`有两种类型:`message`和`chunk`。其中，`chunk`类型只有`stream`为`true`时，且`role`为`assistant`或`subagent`有效。
+- 消息类型`event`有三种类型:`message`、`chunk`和`functionCall`
+  - `chunk`类型只有`stream`为`true`时，且`role`为`assistant`或`subagent`有效。
+  - `functionCall`类型只有`role`为`agent`或`subagent`，`to`为`client`，`type`为`functionCall`有效。
 
-当`event`为`message`时，`data`类型为`object`类型，`data`结构如下:
+当`event`为`message`或`functionCall`时，`data`类型为`object`类型，`data`结构如下:
 
 | 字段                                   | 类型        | 说明                                                                                                                        |
 |--------------------------------------|-----------|---------------------------------------------------------------------------------------------------------------------------|
@@ -322,6 +326,27 @@ POST /chat?sessionId=1901883204734947328
     "createTime": "2023-06-18T15:45:30.000+0800"
   }
   ```
+#### `data`为`functionCall`示例：
+
+- `functionCall`函数调用示例
+```json
+{
+  "sessionId":"1901883204734947328",
+  "taskId":"1901883415867822080",
+  "role":"assistant",
+  "to":"agent",
+  "type": "text",
+  "content": {
+    "id": "<大模型返回的 `function calling` 的id>",
+    "function": "createItem",
+    "arguments": {
+      "item": "test",
+      "itemId": "0"
+    }
+  },
+  "createTime": "2023-06-18T15:45:30.000+0800"
+}
+```
 
 当`stream`=`true`时，LLM的消息返回`event`为`chunk`，`role`为`agent` `assistant`或`subagent`。`data`类型为`object`类型，`data`结构如下:
 
@@ -344,7 +369,7 @@ POST /chat?sessionId=1901883204734947328
 
 #### `data`为`chunk`示例：
 
-- 
+- `chunk`文本片段示例
   ```json
   {
     "sessionId":"1901883204734947328",
@@ -605,11 +630,11 @@ GET /clear?sessionId=1901883204734947328
 
 - `type`为`toolCalls`，类型为`array`，元素结构为：
 
-| `type`       | content数据类型                | 说明                            |
-|--------------|----------------------------|-------------------------------|
-| `id`         | `string`                   | 大模型返回的 `function calling` 的id |
-| `name`       | `string`                   | `function`的名称                 |
-| `parameters` | Map\[`string`, `dynamic`\] | 大模型返回的参数map                   |
+| `type`      | content数据类型                | 说明                            |
+|-------------|----------------------------|-------------------------------|
+| `id`        | `string`                   | 大模型返回的 `function calling` 的id |
+| `name`      | `string`                   | `function`的名称                 |
+| `arguments` | Map\[`string`, `dynamic`\] | 大模型返回的参数map                   |
 
 - `type`为`toolReturn`，类型为`object`，元素结构为：
 
@@ -663,11 +688,11 @@ GET /clear?sessionId=1901883204734947328
 
 - `type`为`funtionCall`，类型为`object`，元素结构为：
 
-| `type`       | content数据类型                | 说明                            |
-|--------------|----------------------------|-------------------------------|
-| `id`         | `string`                   | 大模型返回的 `function calling` 的id |
-| `name`       | `string`                   | `function`的名称                 |
-| `parameters` | Map\[`string`, `dynamic`\] | 大模型返回的参数map                   |
+| `type`      | content数据类型                | 说明                            |
+|-------------|----------------------------|-------------------------------|
+| `id`        | `string`                   | 大模型返回的 `function calling` 的id |
+| `name`      | `string`                   | `function`的名称                 |
+| `arguments` | Map\[`string`, `dynamic`\] | 大模型返回的参数map                   |
 
 ### 2. `to`为`client`时，content的几个状态字符串
 
