@@ -686,7 +686,7 @@ GET /clear?sessionId=1901883204734947328
 | `contentList.type`    | `string`    | 可选类型为`text`、`imageUrl`                                                                                                                                                          |
 | `contentList.message` | `string`    | 消息内容，例如："给我一个随机数"; <br/>如果消息类型为imageUrl，message的String可选为：<br/>1. 图片链接："https://example.com/path/to/image.png" ，且确保公网可访问<br/>2. base64格式："data:image/jpeg;base64,{图片的base64编码}" |
 
-- `type`为`funtionCall`，类型为`object`，元素结构为：
+- `type`为`functionCall`，类型为`object`，元素结构为：
 
 | `type`      | content数据类型                | 说明                            |
 |-------------|----------------------------|-------------------------------|
