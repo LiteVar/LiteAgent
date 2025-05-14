@@ -10,8 +10,8 @@
         <Company>LiteVar</Company>
         <Description>LiteAgent SDK for .NET Standard and .NET Framework</Description>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <RepositoryUrl>https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk/CSharp</RepositoryUrl>
-        <PackageProjectUrl>https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk/CSharp/LiteAgentSDK.DotNet</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk/csharp</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk/csharp/LiteAgentSDK.DotNet</PackageProjectUrl>
         <Copyright>Copyright © 2025</Copyright>
     </PropertyGroup>
 
