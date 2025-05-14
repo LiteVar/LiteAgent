@@ -1,0 +1,24 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiteAgentSDK.DotNet", "LiteAgentSDK.DotNet\LiteAgentSDK.DotNet.csproj", "{0933B3D5-1C6D-4E24-8462-4F59504AD183}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SdkExample", "SdkExample\SdkExample.csproj", "{2C0639E1-7A4D-4851-B5EE-0DE4CE9A2924}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0933B3D5-1C6D-4E24-8462-4F59504AD183}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0933B3D5-1C6D-4E24-8462-4F59504AD183}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0933B3D5-1C6D-4E24-8462-4F59504AD183}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0933B3D5-1C6D-4E24-8462-4F59504AD183}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C0639E1-7A4D-4851-B5EE-0DE4CE9A2924}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C0639E1-7A4D-4851-B5EE-0DE4CE9A2924}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C0639E1-7A4D-4851-B5EE-0DE4CE9A2924}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C0639E1-7A4D-4851-B5EE-0DE4CE9A2924}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+	EndGlobalSection
+EndGlobal

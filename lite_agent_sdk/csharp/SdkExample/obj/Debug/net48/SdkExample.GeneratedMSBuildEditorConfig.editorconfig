@@ -1,0 +1,9 @@
+is_global = true
+build_property.RefitInternalNamespace = SdkExample
+build_property.RootNamespace = SdkExample
+build_property.ProjectDir = /Users/jan/Projects/LiteAgent/lite_agent_sdk/csharp/SdkExample/
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.CsWinRTUseWindowsUIXamlProjections = false
+build_property.EffectiveAnalysisLevelStyle = 
+build_property.EnableCodeStyleSeverity = 

@@ -1,0 +1,86 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/jan/Projects/LiteAgent/lite_agent_sdk/csharp/LiteAgentSDK.DotNet/LiteAgentSDK.DotNet.csproj": {}
+  },
+  "projects": {
+    "/Users/jan/Projects/LiteAgent/lite_agent_sdk/csharp/LiteAgentSDK.DotNet/LiteAgentSDK.DotNet.csproj": {
+      "version": "0.1.0",
+      "restore": {
+        "projectUniqueName": "/Users/jan/Projects/LiteAgent/lite_agent_sdk/csharp/LiteAgentSDK.DotNet/LiteAgentSDK.DotNet.csproj",
+        "projectName": "LiteAgentSDK",
+        "projectPath": "/Users/jan/Projects/LiteAgent/lite_agent_sdk/csharp/LiteAgentSDK.DotNet/LiteAgentSDK.DotNet.csproj",
+        "packagesPath": "/Users/jan/.nuget/packages/",
+        "outputPath": "/Users/jan/Projects/LiteAgent/lite_agent_sdk/csharp/LiteAgentSDK.DotNet/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/jan/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "netstandard2.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netstandard2.0": {
+            "targetAlias": "netstandard2.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.200"
+      },
+      "frameworks": {
+        "netstandard2.0": {
+          "targetAlias": "netstandard2.0",
+          "dependencies": {
+            "LaunchDarkly.EventSource": {
+              "target": "Package",
+              "version": "[5.2.0, )"
+            },
+            "NETStandard.Library": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[2.0.3, )",
+              "autoReferenced": true
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.3, )"
+            },
+            "Refit": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Refit.Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.203/RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

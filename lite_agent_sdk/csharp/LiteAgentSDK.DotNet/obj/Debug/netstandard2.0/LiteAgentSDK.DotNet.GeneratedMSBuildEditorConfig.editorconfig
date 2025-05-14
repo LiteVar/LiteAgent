@@ -1,0 +1,9 @@
+is_global = true
+build_property.RefitInternalNamespace = LiteAgentSDK.DotNet
+build_property.RootNamespace = LiteAgentSDK.DotNet
+build_property.ProjectDir = /Users/jan/Projects/LiteAgent/lite_agent_sdk/csharp/LiteAgentSDK.DotNet/
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.CsWinRTUseWindowsUIXamlProjections = false
+build_property.EffectiveAnalysisLevelStyle = 
+build_property.EnableCodeStyleSeverity = 

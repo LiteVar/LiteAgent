@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <ImplicitUsings>false</ImplicitUsings>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageId>LiteAgentSDK</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>LiteVar</Authors>
+        <Company>LiteVar</Company>
+        <Description>LiteAgent SDK for .NET Standard and .NET Framework</Description>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <RepositoryUrl>https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk/CSharp</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk/CSharp/LiteAgentSDK.DotNet</PackageProjectUrl>
+        <Copyright>Copyright © 2025</Copyright>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="LaunchDarkly.EventSource" Version="5.2.0" />
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+      <PackageReference Include="Refit" Version="8.0.0" />
+      <PackageReference Include="Refit.Newtonsoft.Json" Version="8.0.0" />
+    </ItemGroup>
+
+</Project>
