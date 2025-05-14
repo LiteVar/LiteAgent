@@ -36,7 +36,7 @@ namespace SdkExample
             for (var i = seconds; i > 0; i--)
             {
                 Console.WriteLine(i);
-                await Task.Delay(1000); // 1秒 = 1000毫秒
+                await Task.Delay(1000);
             }
         }
     }
