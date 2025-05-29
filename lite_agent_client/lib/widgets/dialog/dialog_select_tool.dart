@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
 import 'package:lite_agent_client/repositories/tool_repository.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
 
@@ -74,55 +75,6 @@ class SelectToolDialog extends StatelessWidget {
               //_buildAgentListView()
             ])));
   }
-
-  /*Widget _buildTabContainer() {
-    return Obx(() {
-      var allColor = currentTab == TAB_ALL ? Colors.black : Colors.grey;
-      var sysColor = currentTab == TAB_SYSTEM ? Colors.black : Colors.grey;
-      var shareColor = currentTab == TAB_SHARE ? Colors.black : Colors.grey;
-      var meColor = currentTab == TAB_MINE ? Colors.black : Colors.grey;
-      return Container(
-        margin: EdgeInsets.symmetric(vertical: 10),
-        child: Row(children: [
-          TextButton(
-              onPressed: () {
-                switchSecondaryTab(TAB_ALL);
-              },
-              child: Text('全部', style: TextStyle(fontSize: 16, color: allColor))),
-          TextButton(
-              onPressed: () {
-                switchSecondaryTab(TAB_SYSTEM);
-              },
-              child: Text('系统', style: TextStyle(fontSize: 16, color: sysColor))),
-          TextButton(
-              onPressed: () {
-                switchSecondaryTab(TAB_SHARE);
-              },
-              child: Text('分享', style: TextStyle(fontSize: 16, color: shareColor))),
-          TextButton(
-              onPressed: () {
-                switchSecondaryTab(TAB_MINE);
-              },
-              child: Text('我的', style: TextStyle(fontSize: 16, color: meColor))),
-          Spacer(),
-          TextButton(
-              style: ButtonStyle(
-                  padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 15)),
-                  backgroundColor: WidgetStateProperty.all(Color(0xFF2a82f5)),
-                  shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4.0),
-                    ),
-                  )),
-              onPressed: () {
-                _showEditToolDialog(null);
-              },
-              child: Text("新建工具", style: TextStyle(color: Colors.white, fontSize: 14))),
-          SizedBox(width: 20)
-        ]),
-      );
-    });
-  }*/
 
   Widget _buildTabContainer() {
     return Container(
@@ -229,19 +181,22 @@ class SelectToolDialog extends StatelessWidget {
         EditToolDialog(
             tool: null,
             isEdit: false,
-            onConfirmCallback: (String name, String description, String schemaType, String schemaText, String apiType, String apiText) {
-              _updateTool("", name, description, schemaType, schemaText, apiType, apiText);
-            }));
+            onConfirmCallback: (String name, String description, String schemaType, String schemaText, String thirdSchemaText,
+                    String apiType, String apiText) =>
+                _updateTool("", name, description, schemaType, schemaText, thirdSchemaText, apiType, apiText)));
   }
 
-  void _updateTool(String id, String name, String description, String schemaType, String schemaText, String apiType, String apiText) {
+  void _updateTool(String id, String name, String description, String schemaType, String schemaText, String thirdSchemaText, String apiType,
+      String apiText) {
     ToolBean targetTool = ToolBean();
-    targetTool.id = DateTime.now().microsecondsSinceEpoch.toString();
+    targetTool.id = snowFlakeUtil.getId();
+    targetTool.createTime = DateTime.now().microsecondsSinceEpoch;
     toolList.add(targetTool);
 
     targetTool.name = name;
     targetTool.description = description;
     targetTool.schemaText = schemaText;
+    targetTool.thirdSchemaText = thirdSchemaText;
     targetTool.schemaType = schemaType;
     targetTool.apiText = apiText;
     targetTool.apiType = apiType;

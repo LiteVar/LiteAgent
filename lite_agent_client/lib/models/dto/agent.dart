@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:lite_agent_client/models/dto/function.dart';
 
 part 'agent.g.dart';
 
@@ -60,6 +61,23 @@ class AgentDTO extends Object {
   @JsonKey(name: 'updateTime')
   String? updateTime;
 
+  @JsonKey(name: 'toolFunctionList')
+  List<FunctionDto>? toolFunctionList;
+
+  @JsonKey(name: 'subAgentIds')
+  List<String>? subAgentIds;
+
+  @JsonKey(name: 'type')
+  int? type;
+
+  @JsonKey(name: 'mode')
+  int? mode;
+
+  @JsonKey(name: 'datasetIds')
+  List<String>? datasetIds;
+
+  bool? isCloud = false; // just for local data flag
+
   AgentDTO(
     this.id,
     this.userId,
@@ -77,6 +95,12 @@ class AgentDTO extends Object {
     this.maxTokens,
     this.createTime,
     this.updateTime,
+    this.toolFunctionList,
+    this.subAgentIds,
+    this.type,
+    this.mode,
+    this.datasetIds,
+    this.isCloud,
   );
 
   factory AgentDTO.fromJson(Map<String, dynamic> srcJson) => _$AgentDTOFromJson(srcJson);

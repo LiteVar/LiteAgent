@@ -5,79 +5,55 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.dto.ToolDTO;
-import com.litevar.agent.base.entity.QToolProvider;
 import com.litevar.agent.base.entity.ToolFunction;
 import com.litevar.agent.base.entity.ToolProvider;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.enums.ToolSchemaType;
 import com.litevar.agent.base.exception.ServiceException;
-import com.litevar.agent.base.repository.ToolFunctionRepository;
-import com.litevar.agent.base.repository.ToolProviderRepository;
 import com.litevar.agent.base.util.LoginContext;
+import com.litevar.agent.base.vo.FunctionVO;
 import com.litevar.agent.base.vo.ToolVO;
+import com.litevar.agent.core.module.llm.ModelService;
+import com.litevar.agent.core.module.local.ToolFunctionService;
 import com.litevar.agent.core.module.tool.parser.ToolParser;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
-import com.querydsl.core.types.dsl.BooleanExpression;
+import com.mongoplus.service.impl.ServiceImpl;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author uncle
  * @since 2024/8/13 17:34
  */
 @Service
-public class ToolService {
-
-    @Autowired
-    private ToolProviderRepository toolProviderRepository;
+public class ToolService extends ServiceImpl<ToolProvider> {
     @Autowired
     private WorkspaceMemberService workspaceMemberService;
     @Autowired
-    private ToolFunctionRepository toolFunctionRepository;
+    private ToolFunctionService toolFunctionService;
+    @Autowired
+    private ModelService modelService;
 
     @Cacheable(value = CacheKey.TOOL_INFO, key = "#id", unless = "#result == null")
     public ToolProvider findById(String id) {
         if (StrUtil.isEmpty(id)) {
             return null;
         }
-        return toolProviderRepository.findById(id).orElse(null);
+        return Optional.ofNullable(this.getById(id)).orElseThrow();
     }
 
-    public List<ToolProvider> findByIds(List<String> ids) {
-        if (ObjectUtil.isNotEmpty(ids)) {
-            return toolProviderRepository.findAllById(ids);
-        }
-        return Collections.emptyList();
-    }
-
-    /**
-     * 只返回能用的tool
-     */
-    public List<ToolProvider> findByIdsWithPermission(List<String> ids) {
-        List<ToolProvider> list = new ArrayList<>();
-        ids.forEach(id -> {
-            ToolProvider tool = proxy().findById(id);
-            if (tool != null && getReadPermission(tool)) {
-                list.add(tool);
-            }
-        });
-        return list;
-    }
-
-    @Transactional(rollbackFor = Exception.class)
     public void addTool(ToolVO vo, String workspaceId) {
-        ToolProvider tool = toolProviderRepository.findByWorkspaceIdAndName(workspaceId, vo.getName());
+        ToolProvider tool = this.one(lambdaQuery()
+                .projectDisplay(ToolProvider::getId)
+                .eq(ToolProvider::getWorkspaceId, workspaceId)
+                .eq(ToolProvider::getName, vo.getName()));
         if (tool != null) {
             throw new ServiceException(ServiceExceptionEnum.NAME_DUPLICATE);
         }
@@ -85,57 +61,85 @@ public class ToolService {
         BeanUtil.copyProperties(vo, tool);
         tool.setWorkspaceId(workspaceId);
         tool.setUserId(LoginContext.currentUserId());
+        List<ToolFunction> functionList = parseFunctionFromTool(tool);
 
-        ToolParser parser = ToolHandleFactory.getParseInstance(ToolSchemaType.of(tool.getSchemaType()));
-        List<ToolFunction> functionList = parser.parse(tool.getSchemaStr());
-
-        String id = toolProviderRepository.insert(tool).getId();
+        this.save(tool);
+        String id = tool.getId();
         functionList.forEach(i -> i.setToolId(id));
-        toolFunctionRepository.insert(functionList);
+        toolFunctionService.saveBatch(functionList);
     }
 
     @CacheEvict(value = CacheKey.TOOL_INFO, key = "#vo.id")
-    @Transactional(rollbackFor = Exception.class)
     public void updateTool(ToolVO vo) {
         ToolProvider tool = Optional.ofNullable(proxy().findById(vo.getId())).orElseThrow();
 
-        if (!getEditPermission(tool.getUserId(), tool.getWorkspaceId())) {
-            throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
-        }
-
         if (!tool.getName().equals(vo.getName())) {
-            ToolProvider dbTool = toolProviderRepository.findByWorkspaceIdAndName(tool.getWorkspaceId(), vo.getName());
+            ToolProvider dbTool = this.one(lambdaQuery()
+                    .eq(ToolProvider::getWorkspaceId, tool.getWorkspaceId())
+                    .eq(ToolProvider::getName, vo.getName()));
             if (dbTool != null) {
                 throw new ServiceException(ServiceExceptionEnum.NAME_DUPLICATE);
             }
         }
         BeanUtil.copyProperties(vo, tool);
 
-        ToolParser parser = ToolHandleFactory.getParseInstance(ToolSchemaType.of(tool.getSchemaType()));
-        List<ToolFunction> functionList = parser.parse(tool.getSchemaStr());
-        functionList.forEach(i -> i.setToolId(tool.getId()));
-        List<String> ids = getFunctionList(List.of(tool.getId())).stream().map(ToolFunction::getId).toList();
-        if (!ids.isEmpty()) {
-            toolFunctionRepository.deleteAllById(ids);
-        }
-        toolFunctionRepository.insert(functionList);
+        List<ToolFunction> functionList = parseFunctionFromTool(tool);
 
-        toolProviderRepository.save(tool);
+        //以requestMethod(post,get) resource(/abc) 来区分
+        Map<String, String> originFunction = getFunctionList(List.of(tool.getId())).stream()
+                .collect(Collectors.toMap(i -> i.getRequestMethod() + i.getResource(), ToolFunction::getId));
+
+        List<ToolFunction> updateList = new ArrayList<>();
+        List<ToolFunction> insertList = new ArrayList<>();
+        functionList.forEach(f -> {
+            String key = f.getRequestMethod() + f.getResource();
+            f.setToolId(tool.getId());
+            String id = originFunction.get(key);
+            if (StrUtil.isNotEmpty(id)) {
+                f.setId(id);
+                updateList.add(f);
+                originFunction.remove(key);
+            } else {
+                insertList.add(f);
+            }
+        });
+        if (!updateList.isEmpty()) {
+            toolFunctionService.updateBatchByIds(updateList);
+        }
+        if (!insertList.isEmpty()) {
+            toolFunctionService.saveBatch(insertList);
+        }
+        if (!originFunction.isEmpty()) {
+            Set<String> ids = new HashSet<>(originFunction.values());
+            toolFunctionService.removeBatchByIds(ids);
+        }
+        this.updateById(tool);
+    }
+
+    public List<ToolFunction> parseFunctionFromTool(ToolProvider tool) {
+        List<ToolFunction> functionList = new ArrayList<>();
+        if (StrUtil.isNotEmpty(tool.getSchemaStr()) && ObjectUtil.isNotEmpty(tool.getSchemaType())) {
+            ToolParser parser = ToolHandleFactory.getParseInstance(ToolSchemaType.of(tool.getSchemaType()));
+            functionList.addAll(parser.parse(tool.getSchemaStr()));
+        }
+        if (StrUtil.isNotEmpty(tool.getOpenSchemaStr())) {
+            ToolParser openToolParser = ToolHandleFactory.getParseInstance(ToolSchemaType.OPEN_TOOL);
+            functionList.addAll(openToolParser.parse(tool.getOpenSchemaStr()));
+        }
+        if (functionList.isEmpty()) {
+            throw new ServiceException(ServiceExceptionEnum.TOOL_NO_FUNCTION);
+        }
+        return functionList;
     }
 
     @CacheEvict(value = CacheKey.TOOL_INFO, key = "#id")
-    @Transactional(rollbackFor = Exception.class)
     public void deleteTool(String id) {
-        ToolProvider tool = Optional.ofNullable(proxy().findById(id)).orElseThrow();
-        if (!getDeletePermission(tool, tool.getWorkspaceId())) {
-            throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
-        }
-        toolProviderRepository.deleteById(id);
+        this.removeById(id);
 
         //delete function
         List<ToolFunction> functionList = getFunctionList(List.of(id));
         List<String> functionIds = functionList.stream().map(ToolFunction::getId).toList();
-        toolFunctionRepository.deleteAllById(functionIds);
+        toolFunctionService.removeBatchByIds(functionIds);
     }
 
     public List<ToolDTO> toolList(String workspaceId, String name, Integer tab) {
@@ -145,72 +149,70 @@ public class ToolService {
         }
 
         String userId = LoginContext.currentUserId();
+        List<ToolProvider> list = this.lambdaQuery()
+                .projectNone(ToolProvider::getSchemaStr)
+                .eq(ToolProvider::getWorkspaceId, workspaceId)
+                .eq(tab == 3, ToolProvider::getUserId, userId)
+                .like(StrUtil.isNotEmpty(name), ToolProvider::getName, name)
+                .orderByDesc(ToolProvider::getCreateTime)
+                .list();
 
-        QToolProvider qToolProvider = QToolProvider.toolProvider;
-        BooleanExpression expression = qToolProvider.workspaceId.eq(workspaceId);
-
-        if (StrUtil.isNotEmpty(name)) {
-            expression = expression.and(qToolProvider.name.like(name));
-        }
-        if (tab == 0) {
-            //全部:工作空间内分享的,和自己创建的
-            expression = expression.and(qToolProvider.shareFlag.isTrue().or(qToolProvider.userId.eq(userId)));
-
-        } else if (tab == 2) {
-            //来自分享: 管理员、开发者分享的
-            expression = expression.and(qToolProvider.shareFlag.isTrue());
-
-        } else {
-            //我的: 自己创建的
-            expression = expression.and(qToolProvider.userId.eq(userId));
-        }
-
-        Iterable<ToolProvider> list = toolProviderRepository.findAll(expression, Sort.by(Sort.Direction.DESC, "createTime"));
         List<ToolDTO> res = new ArrayList<>();
         for (ToolProvider toolProvider : list) {
             ToolDTO dto = BeanUtil.copyProperties(toolProvider, ToolDTO.class);
-            dto.setShareTip(toolProvider.getUserId().equals(userId) && toolProvider.getShareFlag());
+            dto.setCreateUser(modelService.userInfo(toolProvider.getUserId()).getName());
             //权限
-            dto.setCanEdit(getEditPermission(toolProvider.getUserId(), toolProvider.getWorkspaceId()));
-            dto.setCanDelete(getDeletePermission(toolProvider, workspaceId));
+            dto.setCanEdit(getEditPermission(toolProvider.getWorkspaceId()));
+            dto.setCanDelete(getEditPermission(toolProvider.getWorkspaceId()));
             res.add(dto);
         }
 
         return res;
     }
 
-    public List<ToolFunction> getFunctionList(List<String> toolIds) {
-        return toolFunctionRepository.findByToolIdIn(toolIds);
+    public List<ToolDTO> toolList(String workspaceId, Integer tab) {
+        List<ToolDTO> res = toolList(workspaceId, null, tab);
+        if (ObjectUtil.isEmpty(res)) {
+            return res;
+        }
+
+        List<String> toolIds = res.stream().map(ToolDTO::getId).toList();
+        Map<String, List<ToolFunction>> functionMap = toolFunctionService.list(toolFunctionService.lambdaQuery()
+                        .projectDisplay(ToolFunction::getId, ToolFunction::getResource, ToolFunction::getToolId,
+                                ToolFunction::getDescription, ToolFunction::getRequestMethod)
+                        .in(ToolFunction::getToolId, toolIds))
+                .stream().collect(Collectors.groupingBy(ToolFunction::getToolId));
+
+        res.forEach(tool -> {
+            List<ToolFunction> functionList = functionMap.get(tool.getId());
+            List<FunctionVO> functionVOS = new ArrayList<>();
+            if (ObjectUtil.isNotEmpty(functionList)) {
+                functionList.forEach(f -> {
+                    FunctionVO vo = new FunctionVO();
+                    vo.setFunctionName(f.getResource());
+                    vo.setFunctionId(f.getId());
+                    vo.setFunctionDesc(f.getDescription());
+                    vo.setRequestMethod(f.getRequestMethod());
+                    functionVOS.add(vo);
+                });
+            }
+            tool.setFunctionList(functionVOS);
+        });
+        return res;
     }
 
-    /**
-     * 删除权限
-     */
-    private boolean getDeletePermission(ToolProvider tool, String workspaceId) {
-        String userId = LoginContext.currentUserId();
-        RoleEnum role = workspaceMemberService.userRole(workspaceId, userId);
-
-        //管理员: 可以删除自己及他人分享的工具
-        //开发者:只能删除自己创建的工具
-        return role == RoleEnum.ROLE_ADMIN
-                || (role == RoleEnum.ROLE_DEVELOPER && StrUtil.equals(tool.getUserId(), userId));
+    public List<ToolFunction> getFunctionList(List<String> toolIds) {
+        return toolFunctionService.list(toolFunctionService.lambdaQuery().in(ToolFunction::getToolId, toolIds));
     }
 
     /**
      * 编辑权限
      */
-    private boolean getEditPermission(String creatorId, String workspaceId) {
-        //谁创建谁有权限编辑,并且普通成员没有权限修改
+    private boolean getEditPermission(String workspaceId) {
+        //非普通成员都有编辑权限
         String userId = LoginContext.currentUserId();
         RoleEnum role = workspaceMemberService.userRole(workspaceId, userId);
-
-        return role != RoleEnum.ROLE_USER && StrUtil.equals(creatorId, LoginContext.currentUserId());
-    }
-
-    private boolean getReadPermission(ToolProvider tool) {
-        String userId = LoginContext.currentUserId();
-        return StrUtil.equals(userId, tool.getUserId())
-                || (!StrUtil.equals(userId, tool.getUserId()) && tool.getShareFlag());
+        return role != RoleEnum.ROLE_USER;
     }
 
     private ToolService proxy() {

@@ -1,9 +1,13 @@
 package com.litevar.agent.base.entity;
 
+import com.mongoplus.annotation.ID;
+import com.mongoplus.annotation.collection.CollectionField;
+import com.mongoplus.annotation.collection.CollectionLogic;
+import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.annotation.index.MongoIndex;
+import com.mongoplus.enums.FieldFill;
+import com.mongoplus.enums.IdTypeEnum;
 import lombok.Data;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
@@ -14,19 +18,20 @@ import java.time.LocalDateTime;
  * @since 2024/8/1 11:58
  */
 @Data
-@Document("workspace_member")
+@CollectionName("workspace_member")
 public class WorkspaceMember {
 
+    @ID(type = IdTypeEnum.ASSIGN_ID)
     private String id;
     /**
      * 空间id
      */
-    @Indexed
+    @MongoIndex
     private String workspaceId;
     /**
      * 成员用户id
      */
-    @Indexed
+    @MongoIndex
     private String userId;
 
     /**
@@ -40,6 +45,12 @@ public class WorkspaceMember {
     /**
      * 加入时间
      */
-    @CreatedDate
+    @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    /**
+     * 逻辑删除
+     */
+    @CollectionLogic
+    private String deleted = "0";
 }

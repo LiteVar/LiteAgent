@@ -11,11 +11,6 @@ ModelDTO _$ModelDTOFromJson(Map<String, dynamic> json) => ModelDTO(
       json['name'] as String,
       json['baseUrl'] as String,
       json['apiKey'] as String,
-      json['userId'] as String,
-      json['workspaceId'] as String,
-      json['shareFlag'] as bool,
-      json['createTime'] as String,
-      json['updateTime'] as String,
     );
 
 Map<String, dynamic> _$ModelDTOToJson(ModelDTO instance) => <String, dynamic>{
@@ -23,9 +18,4 @@ Map<String, dynamic> _$ModelDTOToJson(ModelDTO instance) => <String, dynamic>{
       'name': instance.name,
       'baseUrl': instance.baseUrl,
       'apiKey': instance.apiKey,
-      'userId': instance.userId,
-      'workspaceId': instance.workspaceId,
-      'shareFlag': instance.shareFlag,
-      'createTime': instance.createTime,
-      'updateTime': instance.updateTime,
     };

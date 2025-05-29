@@ -1,15 +1,14 @@
 package com.litevar.agent.base.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import com.mongoplus.annotation.ID;
+import com.mongoplus.annotation.collection.CollectionField;
+import com.mongoplus.annotation.collection.CollectionLogic;
+import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.annotation.index.MongoIndex;
+import com.mongoplus.enums.FieldFill;
+import com.mongoplus.enums.IdTypeEnum;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
@@ -20,12 +19,9 @@ import java.time.LocalDateTime;
  * @since 2024/7/25
  */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Document(collection = "account")
+@CollectionName("account")
 public class Account {
-    @Id
+    @ID(type = IdTypeEnum.ASSIGN_ID)
     private String id;
 
     /**
@@ -36,7 +32,7 @@ public class Account {
     /**
      * 邮箱
      */
-    @Indexed(unique = true)
+    @MongoIndex
     private String email;
 
     @JsonIgnore
@@ -54,9 +50,14 @@ public class Account {
      */
     private Integer status;
 
-    @CreatedDate
+    @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
-    @LastModifiedDate
+    @CollectionField(fill = FieldFill.UPDATE)
     private LocalDateTime updateTime;
 
+    /**
+     * 逻辑删除
+     */
+    @CollectionLogic
+    private String deleted = "0";
 }

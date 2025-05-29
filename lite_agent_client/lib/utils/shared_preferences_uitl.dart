@@ -39,4 +39,12 @@ class SharedPreferencesUtil {
   Future<void> setBool(String key, bool value) async {
     await (await prefs).setBool(key, value);
   }
+
+  Future<int?> getInt(String key) async {
+    return ((await prefs).getInt(key));
+  }
+
+  Future<void> setInt(String key, int value) async {
+    await (await prefs).setInt(key, value);
+  }
 }

@@ -19,9 +19,7 @@ class ConversationRepository {
   Future<List<AgentConversationBean>> getConversationListFromBox() async {
     List<AgentConversationBean> list = [];
     list.addAll((await _conversationBox).values);
-    list.sort((a, b) {
-      return (b.updateTime ?? 0) - (a.updateTime ?? 0);
-    });
+    list.sort((a, b) => (b.updateTime ?? 0) - (a.updateTime ?? 0));
     return list;
   }
 

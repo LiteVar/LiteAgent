@@ -10,9 +10,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --foreground-rgb: 255, 255, 255;
+    /* --foreground-rgb: 255, 255, 255;
     --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0; */
   }
 }
 
@@ -27,31 +27,10 @@ body {
   }
 }
 
-
-.agentResult div,
-.agentResult p,
-.agentResult img,
-.agentResult ul,
-.agentResult li,
-.agentResult ol,
-.agentResult h1,
-.agentResult h2,
-.agentResult h3,
-.agentResult h4,
-.agentResult h5,
-.agentResult table,
-.agentResult dl,
-.agentResult address,
-.agentResult article,
-.agentResult aside,
-.agentResult footer,
-.agentResult header,
-.agentResult main,
-.agentResult nav,
-.agentResult section,
-.agentResult video {
-  max-width: 100%;
+.customeSvg svg path {
+  fill: currentColor;
 }
-.agentResult p:first-child {
-    margin-top: 0;
+.customeSvg svg {
+  width: 100%;
+  height: 100%;
 }

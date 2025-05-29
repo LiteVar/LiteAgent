@@ -1,9 +1,13 @@
 package com.litevar.agent.base.entity;
 
 import com.litevar.agent.base.vo.OutMessage;
+import com.mongoplus.annotation.ID;
+import com.mongoplus.annotation.collection.CollectionField;
+import com.mongoplus.annotation.collection.CollectionLogic;
+import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.enums.FieldFill;
+import com.mongoplus.enums.IdTypeEnum;
 import lombok.Data;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,8 +19,9 @@ import java.util.List;
  * @since 2024/9/2 18:04
  */
 @Data
-@Document("agent_chat_message")
+@CollectionName("agent_chat_message")
 public class AgentChatMessage {
+    @ID(type = IdTypeEnum.ASSIGN_ID)
     private String id;
 
     private String userId;
@@ -30,29 +35,27 @@ public class AgentChatMessage {
     private List<TaskMessage> taskMessage;
 
     /**
+     * @see com.litevar.agent.base.enums.AgentCallType
+     */
+    private Integer callType = 0;
+
+    /**
      * 0-正常聊天,1-调试
      */
     private Integer debugFlag = 0;
 
-    @CreatedDate
+    @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
     /**
      * 逻辑删除
      */
-    private Boolean deleted = Boolean.FALSE;
+    @CollectionLogic
+    private String deleted = "0";
 
     @Data
     public static class TaskMessage {
         private String taskId;
         private List<OutMessage> message;
-        private TokenUsage tokenUsage;
-    }
-
-    @Data
-    public static class TokenUsage {
-        private Integer promptTokens;
-        private Integer completionTokens;
-        private Integer totalTokens;
     }
 }

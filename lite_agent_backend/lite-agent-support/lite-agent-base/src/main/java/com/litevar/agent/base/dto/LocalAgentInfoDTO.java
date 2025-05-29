@@ -44,6 +44,7 @@ public class LocalAgentInfoDTO {
     /**
      * 关联的工具列表
      */
+    @Deprecated
     private List<String> toolIds = Collections.emptyList();
 
     /**
@@ -60,10 +61,56 @@ public class LocalAgentInfoDTO {
      * 最大 token 数
      */
     private Integer maxTokens;
+    /**
+     * 方法列表
+     */
+    private List<FunctionVO> toolFunctionList;
+    /**
+     * 子agent(普通,分发,分思) id
+     */
+    private List<String> subAgentIds;
+    /**
+     * agent类型
+     *
+     * @see com.litevar.agent.base.enums.AgentType
+     */
+    private Integer type = 0;
+    /**
+     * 执行模式
+     *
+     * @see com.litevar.agent.base.enums.ExecuteMode
+     */
+    private Integer mode = 0;
+    /**
+     * 知识库id
+     */
+    private List<String> datasetIds;
 
     /**
      * 创建时间
      */
     @NotNull
     private LocalDateTime createTime;
+
+    @Data
+    public static class FunctionVO {
+        /**
+         * 工具id
+         */
+        private String toolId;
+        /**
+         * 方法名字
+         */
+        private String functionName;
+        /**
+         * 请求方式
+         */
+        private String requestMethod;
+        /**
+         * 执行模式
+         *
+         * @see com.litevar.agent.base.enums.ExecuteMode
+         */
+        private Integer mode;
+    }
 }

@@ -1,6 +1,7 @@
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lite_agent_client/widgets/common_widget.dart';
 
 import '../../models/local_data_model.dart';
 import 'logic.dart';
@@ -29,13 +30,21 @@ class ModelPage extends StatelessWidget {
             ]),
             const SizedBox(height: 10),
             Expanded(child: Obx(() {
-              return GridView.count(
-                  crossAxisCount: 4,
-                  childAspectRatio: 3 / 2.2,
-                  children: List.generate(
-                    logic.modelList.length,
-                    (index) => _buildModelItem(logic.modelList[index]),
-                  ));
+              if (logic.modelList.isNotEmpty) {
+                return GridView.count(
+                    crossAxisCount: 4,
+                    childAspectRatio: 3 / 2.2,
+                    children: List.generate(logic.modelList.length, (index) => _buildModelItem(logic.modelList[index])));
+              } else {
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(height: 330, width: 400, child: Image.asset('assets/images/icon_list_empty.png', fit: BoxFit.contain)),
+                    const Text("暂无模型，请创建", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    const SizedBox(height: 40)
+                  ],
+                );
+              }
             }))
           ],
         ),
@@ -65,7 +74,7 @@ class ModelPage extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.android, color: Colors.grey, size: 30),
+              Container(width: 30, height: 30, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(6))),
               const SizedBox(width: 16),
               Expanded(
                   child: Text(model.name,
@@ -94,19 +103,19 @@ class ModelPage extends StatelessWidget {
               onTap: () {
                 logic.showEditModelDialog(model);
               },
-              child: const Row(children: [
-                Icon(Icons.newspaper, color: Colors.blue, size: 16),
-                SizedBox(width: 4),
-                Text('编辑', style: TextStyle(color: Colors.blue, fontSize: 14))
+              child: Row(children: [
+                buildAssetImage("icon_file_text.png", 16, Colors.blue),
+                const SizedBox(width: 4),
+                const Text('编辑', style: TextStyle(color: Colors.blue, fontSize: 14))
               ]),
             ),
             DropdownButtonHideUnderline(
                 child: DropdownButton2(
-                    customButton: const Row(
+                    customButton: Row(
                       children: [
-                        Icon(Icons.more, color: Colors.blue, size: 16),
-                        SizedBox(width: 4),
-                        Text('更多', style: TextStyle(color: Colors.blue, fontSize: 14)),
+                        buildAssetImage("icon_menu.png", 16, Colors.blue),
+                        const SizedBox(width: 4),
+                        const Text('更多', style: TextStyle(color: Colors.blue, fontSize: 14)),
                       ],
                     ),
                     dropdownStyleData: const DropdownStyleData(

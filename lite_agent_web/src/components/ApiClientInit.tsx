@@ -2,12 +2,12 @@ import React, {useEffect} from 'react'
 import {client} from "@/client";
 import {getAccessToken, removeAccessToken} from "@/utils/cache";
 import { useNavigate, useLocation } from 'react-router-dom';
-import {ROUTES} from "@/config/constants";
+import {ROUTES} from "@/constants/routes";
 
 export const ApiClientInit = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const whiteList = ['/init', '/login', '/activate'];
+  const whiteList = ['/init', '/login', '/activate', '/reset'];
 
   useEffect(() => {
     const currentPath = location.pathname;

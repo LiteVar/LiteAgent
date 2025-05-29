@@ -33,6 +33,9 @@ class ToolDTO extends Object {
   @JsonKey(name: 'schemaStr')
   String? schemaStr;
 
+  @JsonKey(name: 'openSchemaStr')
+  String? openSchemaStr;
+
   @JsonKey(name: 'apiKey')
   String? apiKey;
 
@@ -56,6 +59,7 @@ class ToolDTO extends Object {
     this.description,
     this.schemaType,
     this.schemaStr,
+    this.openSchemaStr,
     this.apiKey,
     this.apiKeyType,
     this.shareFlag,

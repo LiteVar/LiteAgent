@@ -12,6 +12,7 @@ import cn.hutool.jwt.signers.JWTSignerUtil;
 import com.litevar.agent.auth.annotation.IgnoreAuth;
 import com.litevar.agent.auth.annotation.WorkspaceRole;
 import com.litevar.agent.auth.service.RoleService;
+import com.litevar.agent.auth.util.JwtUtil;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.constant.CommonConstant;
 import com.litevar.agent.base.enums.RoleEnum;
@@ -70,7 +71,8 @@ public class TokenFilter extends OncePerRequestFilter {
 
         if (!match) {
             try {
-                String token = getTokenFromRequest(request);
+                String token = JwtUtil.getTokenFromRequest(request);
+
                 if (StrUtil.isNotEmpty(token)) {
                     //校验token有效性
                     JWT jwt = JWT.of(token)
@@ -126,30 +128,6 @@ public class TokenFilter extends OncePerRequestFilter {
         }
         filterChain.doFilter(request, response);
         LoginContext.remove();
-    }
-
-    /**
-     * 从request中获取token
-     *
-     * @param request
-     * @return
-     */
-    private String getTokenFromRequest(HttpServletRequest request) {
-        String authToken = request.getHeader(CommonConstant.HEADER_AUTH);
-        if (ObjectUtil.isEmpty(authToken)) {
-            return null;
-        } else {
-            //token不是以Bearer开头，则响应回格式不正确
-            if (!authToken.startsWith(CommonConstant.JWT_TOKEN_PREFIX)) {
-                throw new ServiceException(ServiceExceptionEnum.ERROR_JWT_TOKEN);
-            }
-            try {
-                authToken = authToken.substring(CommonConstant.JWT_TOKEN_PREFIX.length() + 1);
-            } catch (StringIndexOutOfBoundsException e) {
-                throw new ServiceException(ServiceExceptionEnum.ERROR_JWT_TOKEN);
-            }
-        }
-        return authToken;
     }
 
     /**

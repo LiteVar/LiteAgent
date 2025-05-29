@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/modules/agent/view.dart';
 import 'package:lite_agent_client/modules/chat/view.dart';
+import 'package:lite_agent_client/modules/library/view.dart';
 import 'package:lite_agent_client/modules/model/view.dart';
 import 'package:lite_agent_client/modules/tool/view.dart';
 
+import '../../widgets/common_widget.dart';
 import 'logic.dart';
 
 class HomePage extends GetResponsiveView<HomePageLogic> {
@@ -18,7 +22,7 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
     return Scaffold(
       body: Row(
         children: [
-          _buildMenu(logic),
+          if (Platform.isMacOS) _buildMacOSMenu(logic),
           Container(
             width: 72,
             color: bgColor,
@@ -40,33 +44,26 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
                               ],
                             ));
                       } else {
-                        var defaultImageWidget = Image.asset('assets/images/icon_default_user.png', fit: BoxFit.cover);
-                        return SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: Image.network(
-                              logic.accountAvatar,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, result, progress) => progress == null ? result : defaultImageWidget,
-                              errorBuilder: (context, exception, stackTrace) => defaultImageWidget,
-                            ));
+                        return SizedBox(height: 24, width: 24, child: buildUserProfileImage(logic.accountAvatar));
                       }
                     }))),
                 const SizedBox(height: 40),
                 Obx(() => Column(
                       children: [
-                        _createFuncItem('聊天', Icons.chat, logic.currentPage.value == HomePageLogic.PAGE_CHAT,
+                        _createFuncItem('聊天', "icon_message.png", logic.currentPage.value == HomePageLogic.PAGE_CHAT,
                             () => logic.switchPage(HomePageLogic.PAGE_CHAT)),
-                        _createFuncItem('Agents', Icons.android, logic.currentPage.value == HomePageLogic.PAGE_AGENT,
+                        _createFuncItem('Agents', "icon_robot.png", logic.currentPage.value == HomePageLogic.PAGE_AGENT,
                             () => logic.switchPage(HomePageLogic.PAGE_AGENT)),
-                        _createFuncItem('工具', Icons.print, logic.currentPage.value == HomePageLogic.PAGE_TOOL,
+                        _createFuncItem('工具', "icon_printer.png", logic.currentPage.value == HomePageLogic.PAGE_TOOL,
                             () => logic.switchPage(HomePageLogic.PAGE_TOOL)),
-                        _createFuncItem('大模型', Icons.mode, logic.currentPage.value == HomePageLogic.PAGE_MODEL,
-                            () => logic.switchPage(HomePageLogic.PAGE_MODEL))
+                        _createFuncItem('大模型', "icon_table.png", logic.currentPage.value == HomePageLogic.PAGE_MODEL,
+                            () => logic.switchPage(HomePageLogic.PAGE_MODEL)),
+                        _createFuncItem('知识库', "icon_document.png", logic.currentPage.value == HomePageLogic.PAGE_LIBRARY,
+                            () => logic.switchPage(HomePageLogic.PAGE_LIBRARY))
                       ],
                     )),
                 const Spacer(),
-                _createFuncItem('设置', Icons.settings, false, () => logic.showSettingDialog()),
+                _createFuncItem('设置', "icon_setting.png", false, () => logic.showSettingDialog()),
               ],
             ),
           ),
@@ -80,6 +77,8 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
                 return ToolPage();
               case HomePageLogic.PAGE_MODEL:
                 return ModelPage();
+              case HomePageLogic.PAGE_LIBRARY:
+                return LibraryPage();
               default:
                 return Container();
             }
@@ -89,7 +88,7 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
     );
   }
 
-  Widget _createFuncItem(String title, IconData iconData, bool isSelect, Function()? onTap) {
+  Widget _createFuncItem(String title, String iconFileName, bool isSelect, Function()? onTap) {
     var itemColor = isSelect ? Colors.blue : Colors.white;
     return InkWell(
         onTap: onTap,
@@ -100,7 +99,7 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
               child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(iconData, color: itemColor, size: 16),
+              buildAssetImage(iconFileName, 16, itemColor),
               const SizedBox(height: 4),
               Text(title, style: TextStyle(color: itemColor, fontSize: 12))
             ],
@@ -108,7 +107,7 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
         ));
   }
 
-  Widget _buildMenu(HomePageLogic logic) {
+  Widget _buildMacOSMenu(HomePageLogic logic) {
     return PlatformMenuBar(menus: <PlatformMenuItem>[
       const PlatformMenu(
         label: 'LiteAgent',

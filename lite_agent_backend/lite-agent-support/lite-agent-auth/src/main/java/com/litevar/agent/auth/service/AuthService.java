@@ -1,24 +1,19 @@
 package com.litevar.agent.auth.service;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
-import cn.hutool.jwt.JWT;
-import com.litevar.agent.base.vo.LoginUser;
-import com.litevar.agent.base.constant.CacheKey;
-import com.litevar.agent.base.constant.CommonConstant;
+import com.litevar.agent.auth.util.JwtUtil;
 import com.litevar.agent.base.entity.Account;
 import com.litevar.agent.base.enums.AccountStatus;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
-import com.litevar.agent.base.repository.AccountRepository;
-import com.litevar.agent.base.util.RedisUtil;
+import com.litevar.agent.base.vo.LoginUser;
+import com.mongoplus.mapper.BaseMapper;
+import com.mongoplus.support.SFunction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
 
 /**
  * @author uncle
@@ -26,15 +21,16 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 public class AuthService {
-
     @Autowired
-    private AccountRepository accountRepository;
+    private BaseMapper baseMapper;
 
     public String login(String email, String password) {
-        Account account = accountRepository.findByEmail(email);
-        if (account == null) {
+        SFunction<Account, String> getEmail = Account::getEmail;
+        List<Account> accounts = baseMapper.getByColumn(getEmail.getFieldNameLine(), email, Account.class);
+        if (accounts.isEmpty()) {
             throw new ServiceException(ServiceExceptionEnum.WRONG_ACCOUNT);
         }
+        Account account = accounts.get(0);
         if (!account.getStatus().equals(AccountStatus.ACTIVE.getValue())) {
             throw new ServiceException(ServiceExceptionEnum.BAN_ACCOUNT);
         }
@@ -43,26 +39,8 @@ public class AuthService {
         if (!StrUtil.equals(encryptPwd, account.getPassword())) {
             throw new ServiceException(ServiceExceptionEnum.WRONG_PASSWORD);
         }
-        LoginUser loginUser = buildLoginUser(account.getId(), account.getName(), account.getEmail());
-        //7天过期
-        int expire = 1000 * 3600 * 24 * 7;
-        Date expirationDate = new Date(System.currentTimeMillis() + expire);
-        String token = JWT.create()
-                .addPayloads(BeanUtil.beanToMap(loginUser))
-                .setKey(CommonConstant.JWT_SECRET.getBytes())
-                .setExpiresAt(expirationDate)
-                .sign();
-        RedisUtil.setValue(String.format(CacheKey.LOGIN_TOKEN, loginUser.getUuid()), token, expire, TimeUnit.MILLISECONDS);
 
-        return token;
-    }
-
-    private LoginUser buildLoginUser(String userId, String username, String email) {
-        LoginUser loginUser = new LoginUser();
-        loginUser.setUuid(IdUtil.simpleUUID());
-        loginUser.setId(userId);
-        loginUser.setUsername(username);
-        loginUser.setEmail(email);
-        return loginUser;
+        LoginUser loginUser = LoginUser.build(account.getId(), account.getName(), account.getEmail());
+        return JwtUtil.createToken(loginUser);
     }
 }

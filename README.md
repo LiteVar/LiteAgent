@@ -77,3 +77,32 @@ docker compose up -d
 ### 4. LLM support
 	Only support openai，other models(like Zhipu-AI、QianFan、ChatGLM、Chroma、Ollama、qwen and so on), please use the oneapi tool to convert to openai style.
 
+
+## v0.2.0 
+## new features
+### 1. agent
+- [x] 1.1. Knowledge base reference agent
+- [x] 1.2. multi-agent
+  - [x] 1. General agent(web)
+  - [x] 2. Distribution agent(web, desktop)
+  - [x] 3. Reflection agent(web, desktop)
+
+### 2.agent mode support
+- [x] 1. Parallel
+- [x] 2. Serial
+- [x] 3. Reject
+
+### 3. Tool mode support
+- [x] 3.1 Tool Mode：
+  - [x] 1. Parallel
+  - [x] 2. Serial
+  - [x] 3. Reject
+- [x] 3.2 Tool Sequence: Reflection on Tool Order
+
+### 4. Functional modules
+- [x] 1. Cloud agent management(web, desktop)
+- [x] 2. Local agent management(web, desktop)
+- [x] 3. Knowledge base management (web)
+
+### 5. Other
+- [x] 1. Supports third-party open tool callbacks

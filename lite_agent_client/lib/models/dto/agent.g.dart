@@ -23,6 +23,14 @@ AgentDTO _$AgentDTOFromJson(Map<String, dynamic> json) => AgentDTO(
       (json['maxTokens'] as num?)?.toInt(),
       json['createTime'] as String?,
       json['updateTime'] as String?,
+      (json['toolFunctionList'] as List<dynamic>?)
+          ?.map((e) => FunctionDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      (json['subAgentIds'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      (json['type'] as num?)?.toInt(),
+      (json['mode'] as num?)?.toInt(),
+      (json['datasetIds'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      json['isCloud'] as bool?,
     );
 
 Map<String, dynamic> _$AgentDTOToJson(AgentDTO instance) => <String, dynamic>{
@@ -42,4 +50,10 @@ Map<String, dynamic> _$AgentDTOToJson(AgentDTO instance) => <String, dynamic>{
       'maxTokens': instance.maxTokens,
       'createTime': instance.createTime,
       'updateTime': instance.updateTime,
+      'toolFunctionList': instance.toolFunctionList,
+      'subAgentIds': instance.subAgentIds,
+      'type': instance.type,
+      'mode': instance.mode,
+      'datasetIds': instance.datasetIds,
+      'isCloud': instance.isCloud,
     };

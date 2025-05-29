@@ -1,8 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
-import 'package:lite_agent_client/utils/file_util.dart';
+import 'package:lite_agent_client/config/constants.dart';
+import 'package:lite_agent_client/utils/alarm_util.dart';
+import 'package:lite_agent_client/utils/extension/function_extension.dart';
+import 'package:lite_agent_client/widgets/common_widget.dart';
+
+import '../../utils/file_util.dart';
 
 class EditAgentDialog extends StatefulWidget {
   final String name;
@@ -41,7 +47,7 @@ class _EditToolDialogState extends State<EditAgentDialog> {
     String name = _nameController!.text;
     String description = _desController!.text;
     if (name.trim().isEmpty) {
-      _showAlertDialog();
+      AlarmUtil.showAlertDialog("Agent名称必填项不能为空");
       return;
     }
     widget.onConfirmCallback(name, _iconPath.value, description);
@@ -62,25 +68,24 @@ class _EditToolDialogState extends State<EditAgentDialog> {
       child: Container(
         width: 538,
         height: 596,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.all(Radius.circular(6)),
-        ),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(6))),
         child: Column(
           children: [
             _buildTitleContainer(),
             Expanded(
-                child: SingleChildScrollView(
-                    child: Container(
-              margin: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildToolDesColumn(),
-                  const SizedBox(height: 10),
-                  _buildBottomButton(),
-                ],
+              child: SingleChildScrollView(
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _buildToolDesColumn(),
+                      const SizedBox(height: 10),
+                      _buildBottomButton(),
+                    ],
+                  ),
+                ),
               ),
-            ))),
+            ),
           ],
         ),
       ),
@@ -96,13 +101,9 @@ class _EditToolDialogState extends State<EditAgentDialog> {
                 padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                   RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(2),
-                    side: const BorderSide(color: Color(0xFFd9d9d9), width: 1.0),
-                  ),
+                      borderRadius: BorderRadius.circular(2), side: const BorderSide(color: Color(0xFFd9d9d9), width: 1.0)),
                 )),
-            onPressed: () {
-              Get.back();
-            },
+            onPressed: () => Get.back(),
             child: const Text('取消', style: TextStyle(color: Color(0xFF999999), fontSize: 14))),
         const SizedBox(width: 16),
         TextButton(
@@ -110,13 +111,9 @@ class _EditToolDialogState extends State<EditAgentDialog> {
                 padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
                 backgroundColor: WidgetStateProperty.all(const Color(0xFF2a82f5)),
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
                 )),
-            onPressed: () {
-              _confirm();
-            },
+            onPressed: () => _confirm(),
             child: const Text('确定', style: TextStyle(color: Colors.white, fontSize: 14)))
       ],
     );
@@ -135,10 +132,7 @@ class _EditToolDialogState extends State<EditAgentDialog> {
           height: 40,
           margin: const EdgeInsets.symmetric(vertical: 16),
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            border: Border.all(color: itemBorderColor),
-            borderRadius: BorderRadius.circular(2),
-          ),
+          decoration: BoxDecoration(border: Border.all(color: itemBorderColor), borderRadius: BorderRadius.circular(2)),
           child: Center(
             child: TextField(
                 controller: _nameController,
@@ -160,43 +154,22 @@ class _EditToolDialogState extends State<EditAgentDialog> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Container(
-                width: 82,
-                height: 82, // 设置背景
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Obx(() {
-                  if (_iconPath.value.isEmpty) {
-                    return Container();
-                  } else {
-                    return Image(
-                      image: FileImage(File(_iconPath.value)),
-                      height: 82,
-                      width: 82,
-                      fit: BoxFit.cover,
-                    );
-                  }
-                })),
+            SizedBox(width: 82, height: 82, child: Obx(() => buildAgentProfileImage(_iconPath.value))),
             const SizedBox(width: 10),
             Obx(() {
               return Row(children: [
                 InkWell(
-                    onTap: () async {
-                      String path = await fileUtils.saveImage(150) ?? "";
-                      if (path.isNotEmpty) {
-                        _iconPath.value = path;
-                      }
-                    },
-                    child: const Text('上传图标', style: TextStyle(fontSize: 14, color: Colors.blue))),
+                  onTap: () {
+                    selectImgFile();
+                  }.throttle(),
+                  child: const Text('选择图标', style: TextStyle(fontSize: 14, color: Colors.blue)),
+                ),
                 const SizedBox(width: 10),
                 if (_iconPath.value.isNotEmpty)
                   InkWell(
-                      onTap: () {
-                        _iconPath.value = "";
-                      },
-                      child: const Text('恢复默认', style: TextStyle(fontSize: 14, color: Colors.blue))),
+                    onTap: () => _iconPath.value = "",
+                    child: const Text('恢复默认', style: TextStyle(fontSize: 14, color: Colors.blue)),
+                  ),
               ]);
             })
           ],
@@ -204,27 +177,23 @@ class _EditToolDialogState extends State<EditAgentDialog> {
       ),
       const Text("描述", style: TextStyle(fontSize: 14, color: Colors.black)),
       Container(
-          margin: const EdgeInsets.symmetric(vertical: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          height: 188,
-          decoration: BoxDecoration(
-            border: Border.all(color: itemBorderColor),
-            borderRadius: BorderRadius.circular(2),
-          ),
-          child: Expanded(
-            child: TextField(
-                controller: _desController,
-                maxLines: null,
-                maxLength: 200,
-                minLines: 1,
-                decoration: const InputDecoration(
-                  hintText: '用简单几句话将Agent介绍给用户',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(8),
-                  counterText: "",
-                ),
-                style: const TextStyle(fontSize: 14)),
-          ))
+        margin: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        height: 188,
+        decoration: BoxDecoration(border: Border.all(color: itemBorderColor), borderRadius: BorderRadius.circular(2)),
+        child: TextField(
+            controller: _desController,
+            maxLines: null,
+            maxLength: 200,
+            minLines: 1,
+            decoration: const InputDecoration(
+              hintText: '用简单几句话将Agent介绍给用户',
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.all(8),
+              counterText: "",
+            ),
+            style: const TextStyle(fontSize: 14)),
+      )
     ]);
   }
 
@@ -240,43 +209,54 @@ class _EditToolDialogState extends State<EditAgentDialog> {
         const Spacer(),
         IconButton(
           icon: const Icon(Icons.close, size: 16, color: Colors.black),
-          onPressed: () {
-            Get.back();
-          },
+          onPressed: () => Get.back(),
         )
       ]),
     );
   }
 
-  void _showAlertDialog() {
-    Get.dialog(Center(
-        child: Container(
-      width: 200,
-      height: 100,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.all(Radius.circular(6)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text("必填项不能为空"),
-          const SizedBox(height: 10),
-          TextButton(
-              style: ButtonStyle(
-                  padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
-                  backgroundColor: WidgetStateProperty.all(const Color(0xFF2a82f5)),
-                  shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  )),
-              onPressed: () {
-                Get.back();
-              },
-              child: const Text("确定", style: TextStyle(color: Colors.white, fontSize: 14)))
-        ],
-      ),
-    )));
+  /*Future<void> uploadImgFile() async {
+    var result = await FilePicker.platform.pickFiles(type: FileType.image);
+    if (result != null && result.files.single.path != null) {
+      print("path:${result.files.single.path}");
+      String imgPath = result.files.single.path ?? "";
+      if (imgPath.isNotEmpty) {
+        EasyLoading.show();
+        try {
+          BaseResponse<String?> response = await FileServer.uploadFile(imgPath);
+          EasyLoading.dismiss();
+          if (response.code == 200) {
+            String fileName = response.data ?? "";
+            if (fileName.isNotEmpty) {
+              _iconPath.value = await fileName.fillPicLinkPrefix();
+            }
+          }
+        } catch (e) {
+          EasyLoading.dismiss();
+          print("上传失败");
+        }
+      }
+    }
+  }*/
+
+  Future<void> selectImgFile() async {
+    String path = await fileUtils.selectImgFile() ?? "";
+    if (path.isNotEmpty) {
+      EasyLoading.show();
+      File imageFile = File(path);
+      var size = imageFile.readAsBytesSync().length / 1024;
+      if (size > (1024 * 2)) {
+        AlarmUtil.showAlertToast("图片大小不能超过2M");
+        EasyLoading.dismiss();
+        return;
+      }
+
+      String? iconPath = await FileUtils.processImage(imageFile);
+      if (iconPath != null && iconPath.isNotEmpty) {
+        _iconPath.value = "${Constants.localFilePrefix}$iconPath";
+        _iconPath.refresh();
+      }
+      EasyLoading.dismiss();
+    }
   }
 }

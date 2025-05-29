@@ -6,39 +6,35 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.dto.AgentDTO;
-import com.litevar.agent.base.dto.ToolDTO;
 import com.litevar.agent.base.entity.*;
+import com.litevar.agent.base.enums.AgentType;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
-import com.litevar.agent.base.repository.AgentRepository;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.base.vo.AgentCreateForm;
 import com.litevar.agent.base.vo.AgentDetailVO;
 import com.litevar.agent.base.vo.AgentUpdateForm;
+import com.litevar.agent.base.vo.FunctionVO;
 import com.litevar.agent.core.module.llm.ModelService;
+import com.litevar.agent.core.module.local.LocalAgentService;
+import com.litevar.agent.core.module.local.ToolFunctionService;
 import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
-import com.querydsl.core.types.dsl.BooleanExpression;
+import com.mongoplus.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author reid
  * @since 2024/8/12
  */
 @Service
-public class AgentService {
-    @Autowired
-    private AgentRepository repository;
+public class AgentService extends ServiceImpl<Agent> {
     @Autowired
     private ToolService toolService;
     @Autowired
@@ -47,102 +43,108 @@ public class AgentService {
     private WorkspaceMemberService workspaceMemberService;
     @Autowired
     private LocalAgentService localAgentService;
+    @Autowired
+    private ToolFunctionService toolFunctionService;
+    @Autowired
+    private AgentApiKeyService agentApiKeyService;
 
     public Agent findById(String id) {
-        return repository.findById(id).orElseThrow();
-    }
-
-    public List<Agent> findByIds(Collection<String> ids) {
-        return repository.findAllById(ids);
+        Agent agent = this.getById(id);
+        return Optional.ofNullable(agent).orElseThrow();
     }
 
     public AgentDetailVO info(String agentId) {
+        Agent agent = getById(agentId);
+        if (agent == null) {
+            agent = localAgentService.getById(agentId);
+        }
+
         AgentDetailVO vo = new AgentDetailVO();
-
-        Agent agent = repository.findById(agentId).orElseThrow();
         vo.setAgent(agent);
-
-        if (StrUtil.isNotBlank(agent.getLlmModelId())) {
-            LlmModel model = modelService.getModelById(agent.getLlmModelId(), agent.getUserId());
-            vo.setModel(model);
-        }
-        if (ObjectUtil.isNotEmpty(agent.getToolIds())) {
-            // 只返回能用的tool
-            List<ToolProvider> list = toolService.findByIdsWithPermission(agent.getToolIds());
-            List<ToolDTO> toolList = BeanUtil.copyToList(list, ToolDTO.class);
-            vo.setToolList(toolList);
-        }
-
         return vo;
     }
 
     public AgentDetailVO adminInfo(String agentId) {
+        Agent agent = findById(agentId);
+
+        Agent cache = (Agent) RedisUtil.getValue(String.format(CacheKey.AGENT_DRAFT, agentId));
+        if (cache != null) {
+            agent = cache;
+        }
+
+        return agentDetail(agent);
+    }
+
+    public AgentDetailVO agentDetail(Agent agent) {
         AgentDetailVO vo = new AgentDetailVO();
 
-        Agent agent = repository.findById(agentId).orElseThrow();
-        if (StrUtil.equals(agent.getUserId(), LoginContext.currentUserId())) {
-            //为创建者,查缓存草稿
-            Agent cache = (Agent) RedisUtil.getValue(String.format(CacheKey.AGENT_DRAFT, agentId));
-            if (cache != null) {
-                agent = cache;
-                vo.setCanRelease(true);
-            }
-        }
         vo.setAgent(agent);
-        if (ObjectUtil.isNotEmpty(agent.getToolIds())) {
-            List<ToolProvider> list = toolService.findByIds(agent.getToolIds());
-            List<String> toolIds = list.stream().map(ToolProvider::getId).toList();
-            vo.getAgent().setToolIds(toolIds);
 
-            List<ToolDTO> toolList = new ArrayList<>();
-            for (ToolProvider toolProvider : list) {
-                ToolDTO dto = BeanUtil.copyProperties(toolProvider, ToolDTO.class);
-                dto.setCanRead(toolProvider.getShareFlag() || StrUtil.equals(toolProvider.getUserId(), LoginContext.currentUserId()));
-                toolList.add(dto);
-            }
-            vo.setToolList(toolList);
+        List<AgentApiKey> apiKeyList = agentApiKeyService.list(agentApiKeyService.lambdaQuery().eq(AgentApiKey::getAgentId, agent.getId()));
+        vo.setApiKeyList(apiKeyList);
+
+        if (ObjectUtil.isNotEmpty(agent.getFunctionList())) {
+            List<ToolFunction> functionList = toolFunctionService.getByIds(
+                    agent.getFunctionList().stream().map(Agent.AgentFunction::getFunctionId).toList());
+            List<String> functionIds = functionList.stream().map(ToolFunction::getId).toList();
+            agent.getFunctionList().removeIf(i -> !functionIds.contains(i.getFunctionId()));
+
+            List<String> toolIds = functionList.stream().map(ToolFunction::getToolId).toList();
+            Map<String, ToolProvider> toolMap = toolService.getByIds(toolIds).stream().collect(Collectors.toMap(ToolProvider::getId, i -> i));
+
+            Map<String, ToolFunction> functionMap = functionList.stream().collect(Collectors.toMap(ToolFunction::getId, i -> i));
+
+            List<FunctionVO> fvList = new ArrayList<>();
+            agent.getFunctionList().forEach(v -> {
+                FunctionVO fv = new FunctionVO();
+                fv.setMode(v.getMode());
+                fv.setFunctionId(v.getFunctionId());
+                ToolFunction function = functionMap.get(v.getFunctionId());
+                fv.setToolId(function.getToolId());
+                fv.setFunctionName(function.getResource());
+                fv.setFunctionDesc(function.getDescription());
+                fv.setProtocol(function.getProtocol());
+                ToolProvider tool = toolMap.get(function.getToolId());
+                fv.setToolName(tool.getName());
+                fv.setIcon(tool.getIcon());
+                fv.setRequestMethod(function.getRequestMethod());
+                fvList.add(fv);
+            });
+            vo.setFunctionList(fvList);
         }
 
         if (StrUtil.isNotBlank(agent.getLlmModelId())) {
-            LlmModel model = modelService.getModelById(agent.getLlmModelId(), agent.getUserId());
+            LlmModel model = modelService.getById(agent.getLlmModelId());
             vo.setModel(model);
             if (model == null) {
                 vo.getAgent().setLlmModelId("");
             }
         }
 
-        vo.setCanDelete(getDeletePermission(agent, agent.getWorkspaceId()));
-        vo.setCanEdit(getEditPermission(agent.getUserId(), agent.getWorkspaceId()));
+        vo.setCanDelete(getEditPermission(agent.getWorkspaceId()));
+        vo.setCanEdit(getEditPermission(agent.getWorkspaceId()));
+        vo.setCanRelease(RedisUtil.exists(String.format(CacheKey.AGENT_DRAFT, agent.getId())));
 
         return vo;
     }
 
-    @Transactional
     public Agent addAgent(String workspaceId, AgentCreateForm form) {
         Agent agent = new Agent();
         BeanUtil.copyProperties(form, agent, CopyOptions.create().setIgnoreNullValue(true));
         agent.setWorkspaceId(workspaceId);
         agent.setUserId(LoginContext.currentUserId());
-        repository.save(agent);
+        this.save(agent);
 
         return agent;
     }
 
-    @Transactional
     public void removeAgent(String id) {
-        Agent agent = repository.findById(id).orElseThrow();
-        if (!getDeletePermission(agent, agent.getWorkspaceId())) {
-            throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
-        }
-        repository.deleteById(id);
+        this.removeById(id);
     }
 
-    @Transactional
     public Agent updateAgent(String id, AgentUpdateForm form) {
-        Agent agent = repository.findById(id).orElseThrow();
-        if (!getEditPermission(agent.getUserId(), agent.getWorkspaceId())) {
-            throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
-        }
+        Agent agent = findById(id);
+
         if (ObjectUtil.isNotEmpty(form.getMaxTokens()) && StrUtil.isNotEmpty(form.getLlmModelId())) {
             LlmModel model = modelService.findById(form.getLlmModelId());
             Integer modelMaxToken = (ObjectUtil.isNotEmpty(model) && ObjectUtil.isNotEmpty(model.getMaxTokens())) ?
@@ -151,22 +153,44 @@ public class AgentService {
                 throw new ServiceException(ServiceExceptionEnum.MAX_TOKEN_LARGER);
             }
         }
+
+        if (ObjectUtil.isNotEmpty(form.getSequence())) {
+            List<String> functionIds = ObjectUtil.isNotEmpty(form.getFunctionList()) ?
+                    form.getFunctionList().stream().map(Agent.AgentFunction::getFunctionId).toList()
+                    : Collections.emptyList();
+            for (String fid : form.getSequence()) {
+                if (!functionIds.contains(fid)) {
+                    throw new ServiceException(ServiceExceptionEnum.FUNCTION_NOT_CHOOSE);
+                }
+            }
+        }
+
+        if (ObjectUtil.isNotEmpty(form.getSubAgentIds())) {
+            //反思agent不能有子agent
+            if (ObjectUtil.equal(agent.getType(), AgentType.REFLECTION.getType())) {
+                throw new ServiceException(ServiceExceptionEnum.REFLECT_AGENT_WITHOUT_SUB_AGENT);
+            }
+
+            //反思agent个数不能超过5个
+            List<Agent> subAgentList = this.list(lambdaQuery()
+                    .projectDisplay(Agent::getId, Agent::getName, Agent::getType)
+                    .in(Agent::getId, form.getSubAgentIds()));
+            List<Agent> reflectAgent = subAgentList.parallelStream()
+                    .filter(i -> ObjectUtil.equal(i.getType(), AgentType.REFLECTION.type))
+                    .toList();
+            if (reflectAgent.size() > 5) {
+                throw new ServiceException(ServiceExceptionEnum.REFLECT_AGENT_OVERSIZE);
+            }
+        }
+
         BeanUtil.copyProperties(form, agent, CopyOptions.create().setIgnoreNullValue(true));
 
         RedisUtil.setValue(String.format(CacheKey.AGENT_DRAFT, id), agent);
-
-        return agent;
-    }
-
-    @Transactional
-    public void enableShare(String id) {
-        Agent agent = repository.findById(id).orElseThrow();
-        if (!getEditPermission(agent.getUserId(), agent.getWorkspaceId())) {
-            throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
+        RedisUtil.delKey(String.format(CacheKey.AGENT_DATASET_DRAFT, id));
+        if (ObjectUtil.isNotEmpty(form.getDatasetIds())) {
+            RedisUtil.setValue(String.format(CacheKey.AGENT_DATASET_DRAFT, id), form.getDatasetIds());
         }
-        Boolean flag = agent.getShareFlag();
-        agent.setShareFlag(!flag);
-        repository.save(agent);
+        return agent;
     }
 
     public void release(String id) {
@@ -175,13 +199,12 @@ public class AgentService {
             throw new ServiceException(30001, "请先保存信息再发布");
         }
 
-        if (!getEditPermission(value.getUserId(), value.getWorkspaceId())) {
-            throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
+        if (StrUtil.isBlank(value.getLlmModelId())) {
+            throw new ServiceException(ServiceExceptionEnum.MODEL_NOT_EXIST_OR_NOT_SHARE);
         }
 
         value.setStatus(1);
-
-        repository.save(value);
+        this.updateById(value);
 
         RedisUtil.delKey(String.format(CacheKey.AGENT_DRAFT, id));
     }
@@ -192,7 +215,6 @@ public class AgentService {
             return Collections.emptyList();
         }
 
-        QAgent qAgent = QAgent.agent;
         String userId = LoginContext.currentUserId();
         List<AgentDTO> res = new ArrayList<>();
 
@@ -200,10 +222,14 @@ public class AgentService {
             //本地agent
             String spaceId = localAgentService.userAdminWorkspaceId(userId);
             if (StrUtil.equals(spaceId, workspaceId)) {
-                List<LocalAgent> list = localAgentService.agentsByUserId(userId);
+                List<LocalAgent> list = localAgentService.list(localAgentService.lambdaQuery()
+                        .projectDisplay(Agent::getId, Agent::getUserId, Agent::getName, Agent::getIcon,
+                                Agent::getDescription, Agent::getStatus, Agent::getType, Agent::getMode)
+                        .eq(Agent::getUserId, userId));
                 for (LocalAgent agent : list) {
                     AgentDTO agentDTO = new AgentDTO();
                     BeanUtil.copyProperties(agent, agentDTO);
+                    agentDTO.setCreateUser(modelService.userInfo(agentDTO.getUserId()).getName());
                     res.add(agentDTO);
                 }
 
@@ -211,29 +237,18 @@ public class AgentService {
                 return Collections.emptyList();
             }
         } else {
-            BooleanExpression expression = qAgent.workspaceId.eq(workspaceId);
-            if (ObjectUtil.isNotEmpty(status)) {
-                expression = expression.and(qAgent.status.eq(status));
-            }
-            if (StrUtil.isNotBlank(agentName)) {
-                expression = expression.and(qAgent.name.like(agentName));
-            }
-            if (tab == 0) {
-                //全部:工作空间内分享的,和自己创建的
-                expression = expression.and(qAgent.shareFlag.isTrue().or(qAgent.userId.eq(userId)));
-
-            } else if (tab == 2) {
-                //来自分享: 管理员,开发者分享的
-                expression = expression.and(qAgent.shareFlag.isTrue());
-
-            } else if (tab == 3) {
-                //自己创建的
-                expression = expression.and(qAgent.userId.eq(userId));
-            }
-            Iterable<Agent> list = repository.findAll(expression, Sort.by(Sort.Direction.DESC, "createTime"));
+            List<Agent> list = this.lambdaQuery()
+                    .projectDisplay(Agent::getId, Agent::getUserId, Agent::getName, Agent::getIcon, Agent::getDescription,
+                            Agent::getStatus, Agent::getType, Agent::getMode)
+                    .eq(Agent::getWorkspaceId, workspaceId)
+                    .eq(tab == 3, Agent::getUserId, userId)
+                    .eq(ObjectUtil.isNotEmpty(status), Agent::getStatus, status)
+                    .like(StrUtil.isNotBlank(agentName), Agent::getName, agentName)
+                    .orderByDesc(Agent::getCreateTime)
+                    .list();
             for (Agent agent : list) {
                 AgentDTO dto = BeanUtil.copyProperties(agent, AgentDTO.class);
-                dto.setShareTip(agent.getUserId().equals(userId) && agent.getShareFlag());
+                dto.setCreateUser(modelService.userInfo(dto.getUserId()).getName());
                 res.add(dto);
             }
         }
@@ -242,14 +257,10 @@ public class AgentService {
 
     public List<AgentDTO> agentAdminList(String workspaceId, Integer tab, String agentName) {
         List<AgentDTO> res = agentList(workspaceId, tab, agentName, null);
-        String userId = LoginContext.currentUserId();
-        //如果agent是自己的,查出缓存的版本
         res.forEach(dto -> {
-            if (StrUtil.equals(dto.getUserId(), userId)) {
-                Object value = RedisUtil.getValue(String.format(CacheKey.AGENT_DRAFT, dto.getId()));
-                if (value != null) {
-                    BeanUtil.copyProperties(value, dto, CopyOptions.create().setIgnoreNullValue(true));
-                }
+            Object value = RedisUtil.getValue(String.format(CacheKey.AGENT_DRAFT, dto.getId()));
+            if (value != null) {
+                BeanUtil.copyProperties(value, dto, CopyOptions.create().setIgnoreNullValue(true));
             }
         });
         return res;
@@ -258,23 +269,10 @@ public class AgentService {
     /**
      * 编辑权限
      */
-    private boolean getEditPermission(String creatorId, String workspaceId) {
+    private boolean getEditPermission(String workspaceId) {
         String userId = LoginContext.currentUserId();
         RoleEnum role = workspaceMemberService.userRole(workspaceId, userId);
-        //谁创建谁有权限编辑,并且普通成员没有权限修改
-        return role != RoleEnum.ROLE_USER && StrUtil.equals(creatorId, LoginContext.currentUserId());
-    }
-
-    /**
-     * 删除权限
-     */
-    private boolean getDeletePermission(Agent agent, String workspaceId) {
-        String userId = LoginContext.currentUserId();
-        RoleEnum role = workspaceMemberService.userRole(workspaceId, userId);
-
-        //管理员: 可以删除自己及他人分享的模型
-        //开发者:只能删除自己创建的模型
-        return role == RoleEnum.ROLE_ADMIN
-                || (role == RoleEnum.ROLE_DEVELOPER && StrUtil.equals(agent.getUserId(), userId));
+        //非普通成员都有编辑权限
+        return role != RoleEnum.ROLE_USER;
     }
 }

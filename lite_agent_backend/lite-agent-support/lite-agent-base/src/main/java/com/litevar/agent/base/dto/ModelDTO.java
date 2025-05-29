@@ -24,19 +24,23 @@ public class ModelDTO {
     private String apiKey;
 
     /**
-     * 是否共享
-     */
-    private Boolean shareFlag;
-
-    /**
      * 创建者id
      */
     private String userId;
 
     /**
+     * 创建人名称
+     */
+    private String createUser;
+
+    /**
      * 限制最大token
      */
     private Integer maxTokens;
+    /**
+     * 模型类型: text, embedding, image, video...
+     */
+    private String type = "text";
 
     /**
      * 是否能编辑

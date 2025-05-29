@@ -1,4 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:lite_agent_client/models/dto/function.dart';
+import 'package:lite_agent_client/models/dto/library.dart';
 import 'package:lite_agent_client/models/dto/tool.dart';
 
 import 'agent.dart';
@@ -9,18 +11,22 @@ part 'agent_detail.g.dart';
 @JsonSerializable()
 class AgentDetailDTO extends Object {
   @JsonKey(name: 'agent')
-  AgentDTO agent;
+  AgentDTO? agent;
 
   @JsonKey(name: 'model')
   ModelDTO? model;
 
-  @JsonKey(name: 'toolList')
-  List<ToolDTO>? toolList;
+  @JsonKey(name: 'functionList')
+  List<FunctionDto>? functionList;
+
+  @JsonKey(name: 'datasetList')
+  List<LibraryDto>? datasetList;
 
   AgentDetailDTO(
     this.agent,
     this.model,
-    this.toolList,
+    this.functionList,
+    this.datasetList,
   );
 
   factory AgentDetailDTO.fromJson(Map<String, dynamic> srcJson) => _$AgentDetailDTOFromJson(srcJson);

@@ -1,6 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:openapi_dart/openapi_dart.dart';
+import 'package:openmodbus_dart/openmodbus_dart.dart';
+import 'package:openrpc_dart/openrpc_dart.dart';
+import 'package:opentool_dart/opentool_dart.dart';
+import 'package:yaml/yaml.dart';
+
 import '../../repositories/account_repository.dart';
 
 extension StringHomeAbbreviation on String {
@@ -42,12 +48,86 @@ extension StringHomeAbbreviation on String {
     return utf8.decode(bytes); // 将字节转换回字符串
   }
 
-  bool isNumeric() {
-    return RegExp(r'^\d+$').hasMatch(this);
-  }
-
   Future<String> fillPicLinkPrefix() async {
+    if (startsWith("http")) {
+      return this;
+    }
     String serverUrl = await accountRepository.getApiServerUrl();
     return "$serverUrl/v1/file/download?filename=$this";
+  }
+
+  String fillPicLinkPrefixNoAsync() {
+    if (startsWith("http") || isEmpty) {
+      return this;
+    }
+    String serverUrl = accountRepository.getApiServerUrlNoAsync();
+    return "$serverUrl/v1/file/download?filename=$this";
+  }
+
+  bool isJson() {
+    try {
+      json.decode(this) as Map<String, dynamic>;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> isOpenAIJson() async {
+    try {
+      json.decode(this) as Map<String, dynamic>;
+      await OpenAPILoader().load(this);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> isOpenModBusJson() async {
+    try {
+      json.decode(this) as Map<String, dynamic>;
+      await OpenModbusLoader().load(this);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> isOpenPPCJson() async {
+    try {
+      json.decode(this) as Map<String, dynamic>;
+      await OpenRPCLoader().load(this);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  bool isYaml() {
+    try {
+      loadYaml(this) as YamlMap;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  bool isOpenAIYaml() {
+    try {
+      var yaml = loadYaml(this) as YamlMap;
+      return yaml["openapi"] != null && yaml["info"] != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> isOpenToolJson() async {
+    try {
+      json.decode(this) as Map<String, dynamic>;
+      await OpenToolLoader().load(this);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 }

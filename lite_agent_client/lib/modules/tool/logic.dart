@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
+import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
 import 'package:lite_agent_client/repositories/tool_repository.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
 import 'package:lite_agent_client/widgets/dialog/dialog_tool_detail.dart';
@@ -127,7 +128,8 @@ class ToolLogic extends GetxController with WindowListener {
         ));
   }
 
-  void updateLocalTool(String id, String name, String description, String schemaType, String schemaText, String apiType, String apiText) {
+  void updateLocalTool(String id, String name, String description, String schemaType, String schemaText, String thirdSchemaText,
+      String apiType, String apiText) async {
     var localList = _toolListMap[TAB_LOCAL];
     if (localList == null) {
       return;
@@ -142,17 +144,22 @@ class ToolLogic extends GetxController with WindowListener {
         }
       }
     } else {
-      targetId = DateTime.now().microsecondsSinceEpoch.toString();
-      var tool = ToolDTO(targetId, "", "", name, description, 0, schemaText, apiText, apiType, false, "", "");
+      targetId = snowFlakeUtil.getId();
+      var tool = ToolDTO(targetId, "", "", name, description, 0, "", "", "", "", false, "", ""); //just for showing
       localList.add(tool);
     }
     currentToolList.refresh();
 
-    ToolBean targetTool = ToolBean();
-    targetTool.id = targetId;
+    ToolBean? targetTool = await toolRepository.getToolFromBox(targetId);
+    if (targetTool == null) {
+      targetTool = ToolBean();
+      targetTool.id = targetId;
+      targetTool.createTime = DateTime.now().microsecondsSinceEpoch;
+    }
     targetTool.name = name;
     targetTool.description = description;
     targetTool.schemaText = schemaText;
+    targetTool.thirdSchemaText = thirdSchemaText;
     targetTool.schemaType = schemaType;
     targetTool.apiText = apiText;
     targetTool.apiType = apiType;
@@ -186,8 +193,9 @@ class ToolLogic extends GetxController with WindowListener {
         EditToolDialog(
           tool: tool,
           isEdit: tool != null,
-          onConfirmCallback: (String name, String description, String schemaType, String schemaText, String apiType, String apiText) {
-            updateLocalTool(tool?.id ?? "", name, description, schemaType, schemaText, apiType, apiText);
+          onConfirmCallback: (String name, String description, String schemaType, String schemaText, String thirdSchemaText, String apiType,
+              String apiText) {
+            updateLocalTool(tool?.id ?? "", name, description, schemaType, schemaText, thirdSchemaText, apiType, apiText);
             switchTab(TAB_LOCAL);
           },
         ));

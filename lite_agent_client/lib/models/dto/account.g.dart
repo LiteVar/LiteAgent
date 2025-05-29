@@ -11,9 +11,9 @@ AccountDTO _$AccountDTOFromJson(Map<String, dynamic> json) => AccountDTO(
       json['name'] as String,
       json['email'] as String,
       json['avatar'] as String?,
-      (json['status'] as num).toInt(),
-      json['createTime'] as String,
-      json['updateTime'] as String,
+      (json['status'] as num?)?.toInt(),
+      json['createTime'] as String?,
+      json['updateTime'] as String?,
     );
 
 Map<String, dynamic> _$AccountDTOToJson(AccountDTO instance) =>

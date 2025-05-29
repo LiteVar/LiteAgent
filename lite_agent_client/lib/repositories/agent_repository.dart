@@ -1,10 +1,15 @@
+import 'dart:convert';
+
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:lite_agent_client/models/dto/agent.dart';
 import 'package:lite_agent_client/models/dto/agent_detail.dart';
+import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/server/api_server/agent_server.dart';
 
 import '../models/dto/chat.dart';
 import '../models/local_data_model.dart';
+import 'model_repository.dart';
 
 final agentRepository = AgentRepository();
 
@@ -25,28 +30,30 @@ class AgentRepository {
   }
 
   Future<List<AgentDTO>> getAgentDTOListFromBox() async {
-    List<AgentDTO> list = [];
-    var iterable = (await _agentBox).values.iterator;
-    while (iterable.moveNext()) {
-      var agent = iterable.current;
+    List<AgentBean> list = [];
+    list.assignAll((await _agentBox).values);
+    list.sort((a, b) => (b.createTime ?? 0) - (a.createTime ?? 0));
+    List<AgentDTO> dtoList = [];
+    for (var agent in list) {
       var dto = agent.translateToDTO();
-      list.add(dto);
+      dtoList.add(dto);
     }
-    list.sort((a, b) {
-      if (a.id.isEmpty || b.id.isEmpty) {
-        return 0;
-      }
-      return double.parse(b.id).toInt() - double.parse(a.id).toInt();
-    });
-    return list;
+    return dtoList;
   }
 
   Future<void> removeAgent(String key) async {
     await (await _agentBox).delete(key);
+    if (await accountRepository.isLogin()) {
+      await AgentServer.removeAgent(key);
+    }
   }
 
   Future<void> updateAgent(String key, AgentBean agent) async {
     await (await _agentBox).put(key, agent);
+    if (await accountRepository.isLogin()) {
+      await uploadToServer([agent]);
+    }
+    print("updateAgent:$key");
   }
 
   Future<AgentBean?> getAgentFromBox(String key) async {
@@ -62,6 +69,7 @@ class AgentRepository {
     var response = await AgentServer.getAgentList(tab);
     if (response.data != null) {
       list.addAll(response.data!);
+      list.forEach((element) => element.isCloud = true);
     }
     return list;
   }
@@ -78,5 +86,31 @@ class AgentRepository {
       list.addAll(response.data!);
     }
     return list;
+  }
+
+  Future<void> uploadToServer(List<AgentBean> agents) async {
+    var list = <AgentDTO>[];
+    for (var agent in agents) {
+      var dto = agent.translateToDTO();
+      dto.icon = "";
+      var model = await modelRepository.getModelFromBox(agent.modelId);
+      if (model == null) {
+        dto.llmModelId = "";
+      }
+      list.add(dto);
+    }
+    String jsonString = json.encode(list);
+    List<dynamic> jsonArray = json.decode(jsonString);
+    //print("jsonString:$jsonString");
+    var response = await AgentServer.agentSync(jsonArray);
+    if (response.code == 200) {
+      print("agentUploadServer:${list.length}");
+    }
+  }
+
+  Future<void> uploadAllToServer() async {
+    var agents = <AgentBean>[];
+    agents.addAll(((await _agentBox).values));
+    uploadToServer(agents);
   }
 }

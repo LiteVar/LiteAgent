@@ -1,10 +1,13 @@
 spring:
   data:
     redis:
+      database: 6
       host: 127.0.0.1
       port: 6379
       password: xxx
-      database: 6
+
+mongo-plus:
+  data:
     mongodb:
       host: 127.0.0.1
       port: 27018
@@ -12,8 +15,11 @@ spring:
       password: xxxxx
       authentication-database: admin
       database: lite-agent
-      auto-index-creation: true
-      field-naming-strategy: org.springframework.data.mapping.model.SnakeCaseFieldNamingStrategy
+      connect-timeout-m-s: 50000
 
-file:
-  save-path: /home/liteAgent/file/
+milvus:
+  host: 127.0.0.1
+  port: 19530
+  username: xxx
+  password: xxxxx
+  database: lite_agent

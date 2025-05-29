@@ -26,7 +26,14 @@ public enum ToolSchemaType {
      * open modbus
      */
     OPEN_MODBUS(3, "openmodbus"),
-    ;
+    /**
+     * open tool
+     */
+    OPEN_TOOL(4, "opentool"),
+    /**
+     * mcp
+     */
+    MCP(5, "mcp");
 
     private final Integer value;
     private final String name;

@@ -2,37 +2,45 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/local_data_model.dart';
-import 'package:lite_agent_core_dart/lite_agent_core.dart';
+import 'package:lite_agent_client/utils/alarm_util.dart';
+import 'package:lite_agent_client/utils/extension/function_extension.dart';
+import 'package:lite_agent_client/utils/extension/string_extension.dart';
+import 'package:lite_agent_core_dart/lite_agent_service.dart';
 
 class SchemaType {
-  static const String openapi = "OpenAPI3(YAML/JSON)";
-  static const String openmodbus = "OpenModbus(JSON)";
-  static const String jsonrpcHttp = "OpenRPC(JSON)";
+  static const String OPENAPI = "OpenAPI3(YAML/JSON)";
+  static const String OPENMODBUS = "OpenModbus(JSON)";
+  static const String JSONRPCHTTP = "OpenRPC(JSON)";
+  static const String OPENTOOL = Protocol.OPENTOOL;
 }
 
-class EditToolDialog extends StatefulWidget {
+class EditToolDialog extends StatelessWidget {
   ToolBean? tool;
   late String name;
   late String description;
   late String schemaType;
   late String schemaText;
+  late String thirdSchemaText;
   late String apiType;
   late String apiText;
   late bool isEdit;
-  void Function(String name, String description, String schemaType, String schemaText, String apiType, String apiText) onConfirmCallback;
+  void Function(
+          String name, String description, String schemaType, String schemaText, String thirdSchemaText, String apiType, String apiText)
+      onConfirmCallback;
 
   EditToolDialog({super.key, required this.tool, required this.isEdit, required this.onConfirmCallback}) {
     name = tool?.name ?? "";
     description = tool?.description ?? "";
     schemaType = tool?.schemaType ?? "";
-    if (schemaType == Protocol.openapi) {
-      schemaType = SchemaType.openapi;
-    } else if (schemaType == Protocol.jsonrpcHttp) {
-      schemaType = SchemaType.jsonrpcHttp;
-    } else if (schemaType == Protocol.openmodbus) {
-      schemaType = SchemaType.openmodbus;
+    if (schemaType == Protocol.OPENAPI) {
+      schemaType = SchemaType.OPENAPI;
+    } else if (schemaType == Protocol.JSONRPCHTTP) {
+      schemaType = SchemaType.JSONRPCHTTP;
+    } else if (schemaType == Protocol.OPENMODBUS) {
+      schemaType = SchemaType.OPENMODBUS;
     }
     schemaText = tool?.schemaText ?? "";
+    thirdSchemaText = tool?.thirdSchemaText ?? "";
     apiType = tool?.apiType ?? "";
     if (apiType == "Bearer") {
       apiType == "bearer";
@@ -42,101 +50,81 @@ class EditToolDialog extends StatefulWidget {
     apiText = tool?.apiText ?? "";
   }
 
-  @override
-  State<EditToolDialog> createState() {
-    return _EditToolDialogState();
-  }
-}
-
-class _EditToolDialogState extends State<EditToolDialog> {
-  final schemaTypeList = <String>[SchemaType.openapi, SchemaType.jsonrpcHttp, SchemaType.openmodbus];
-  final apiTypeList = <String>['Bearer', 'Basic'];
+  final schemaTypeList = <String>[SchemaType.OPENAPI, SchemaType.JSONRPCHTTP, SchemaType.OPENMODBUS];
 
   final itemBorderColor = const Color(0xFFd9d9d9);
+  final logic = Get.put(EditToolDialogController());
 
-  late TextEditingController _nameController;
-  late TextEditingController _desController;
-  late TextEditingController _schemaTextController;
-  late TextEditingController _apiTextController;
-
-  bool _needInit = true;
-  String? _selectSchemaType;
-  String? _selectAPIType;
-
-  void initData() {
-    _nameController = TextEditingController(text: widget.name);
-    _desController = TextEditingController(text: widget.description);
-    _schemaTextController = TextEditingController(text: widget.schemaText);
-    if (widget.schemaType.isNotEmpty) {
-      _selectSchemaType = widget.schemaType;
+  Future<void> _confirm() async {
+    String name = logic.nameController.text;
+    String description = logic.desController.text;
+    String schemaType = logic.selectSchemaType.value ?? "";
+    String schemaText = logic.schemaTextController.text;
+    String thirdSchemaText = logic.thirdSchemaTextController.text;
+    String apiType = "";
+    if (logic.selectAPIType.value == "Bearer" || logic.selectAPIType.value == "Basic") {
+      apiType = logic.selectAPIType.value ?? "";
     }
-    _apiTextController = TextEditingController(text: widget.apiText);
-    if (widget.apiType.isNotEmpty) {
-      _selectAPIType = widget.apiType;
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _desController.dispose();
-    _schemaTextController.dispose();
-    _apiTextController.dispose();
-    widget.tool = null;
-    super.dispose();
-  }
-
-  void _confirm() {
-    String name = _nameController.text;
-    String description = _desController.text;
-    String schemaType = _selectSchemaType ?? "";
-    String schemaText = _schemaTextController.text;
-    String apiType = _selectAPIType ?? "";
-    String apiText = _apiTextController.text;
-    if (name.isEmpty || schemaText.isEmpty || schemaType.isEmpty || apiText.isEmpty || apiType.isEmpty) {
-      showAlertDialog();
+    String apiText = logic.apiTextController.text;
+    if (name.isEmpty) {
+      AlarmUtil.showAlertDialog("工具名称不能为空");
       return;
     }
-    widget.onConfirmCallback(name, description, schemaType, schemaText, apiType, apiText);
+    if ((schemaText.isEmpty || schemaType.isEmpty) && thirdSchemaText.isEmpty) {
+      AlarmUtil.showAlertDialog("以下内容至少有一项不能为空：\n    * 类型和文稿\n    * 第三方open tool");
+      return;
+    }
+    if (thirdSchemaText.isNotEmpty && !(await thirdSchemaText.isOpenToolJson())) {
+      AlarmUtil.showAlertDialog("第三方Tool Schema解析失败");
+      return;
+    }
+    if (schemaText.isNotEmpty &&!(await isSchemaTextCorrect(schemaType, schemaText))) {
+      AlarmUtil.showAlertDialog("Schema解析失败");
+      return;
+    }
+    onConfirmCallback(name, description, schemaType, schemaText, thirdSchemaText, apiType, apiText);
     Get.back();
+  }
+
+  Future<bool> isSchemaTextCorrect(String schemaType, String schemaText) async {
+    if (schemaType == SchemaType.OPENAPI) {
+      if ((await schemaText.isOpenAIJson()) || schemaText.isOpenAIYaml()) {
+        return true;
+      }
+    } else if (schemaType == SchemaType.OPENMODBUS) {
+      if ((await schemaText.isOpenModBusJson())) {
+        return true;
+      }
+    } else if (schemaType == SchemaType.JSONRPCHTTP) {
+      if ((await schemaText.isOpenPPCJson())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_needInit) {
-      initData();
-      _needInit = false;
-    }
+    logic.initData(name, description, schemaType, schemaText, thirdSchemaText, apiType, apiText);
     return Center(
-      child: Container(
-        width: 538,
-        height: 438,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.all(Radius.circular(6)),
-        ),
-        child: Column(
-          children: [
-            buildTitleContainer(),
-            Expanded(
-              child: SingleChildScrollView(
-                  child: Container(
-                margin: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    buildToolDesColumn(),
-                    buildSchemaInputColumn(),
-                    buildAPIInputColumn(),
-                    const SizedBox(height: 10),
-                    buildBottomButton()
-                  ],
-                ),
-              )),
-            )
-          ],
-        ),
-      ),
-    );
+        child: Container(
+            width: 538,
+            height: 538,
+            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(6))),
+            child: Column(children: [
+              buildTitleContainer(),
+              Expanded(
+                  child: SingleChildScrollView(
+                      child: Container(
+                          margin: const EdgeInsets.all(16),
+                          child: Column(children: [
+                            buildToolDesColumn(),
+                            buildSchemaInputColumn(),
+                            buildAPIInputColumn(),
+                            const SizedBox(height: 10),
+                            buildBottomButton()
+                          ])))),
+            ])));
   }
 
   Row buildBottomButton() {
@@ -147,9 +135,7 @@ class _EditToolDialogState extends State<EditToolDialog> {
             style: ButtonStyle(
                 padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(2),
-                  side: const BorderSide(color: Color(0xFFd9d9d9), width: 1.0),
-                ))),
+                    borderRadius: BorderRadius.circular(2), side: const BorderSide(color: Color(0xFFd9d9d9), width: 1.0)))),
             onPressed: () {
               Get.back();
             },
@@ -163,7 +149,7 @@ class _EditToolDialogState extends State<EditToolDialog> {
             ),
             onPressed: () {
               _confirm();
-            },
+            }.throttle(),
             child: const Text('确定', style: TextStyle(color: Colors.white, fontSize: 14)))
       ],
     );
@@ -173,57 +159,36 @@ class _EditToolDialogState extends State<EditToolDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        /*const Row(
-        children: [
-          Text("API Key", style: TextStyle(fontSize: 14, color: Colors.black)),
-          SizedBox(width: 10),
-          Icon(Icons.privacy_tip_sharp, size: 14)
-        ],
-      ),*/
         const Text("API Key", style: TextStyle(fontSize: 14, color: Colors.black)),
         Container(margin: const EdgeInsets.fromLTRB(0, 18, 0, 12), child: const Divider(height: 0.1)),
         Container(
             margin: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(children: [
-              Row(
-                children: [
-                  const Text("类型", style: TextStyle(fontSize: 14, color: Colors.black)),
-                  Container(
-                    margin: const EdgeInsets.only(left: 10),
-                    child: const Text("*", style: TextStyle(fontSize: 14, color: Colors.red)),
-                  ),
-                ],
-              ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text("类型", style: TextStyle(fontSize: 14, color: Colors.black)),
               Container(
                   height: 36,
                   margin: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: itemBorderColor),
-                    borderRadius: const BorderRadius.all(Radius.circular(4)),
-                  ),
+                  decoration:
+                      BoxDecoration(border: Border.all(color: itemBorderColor), borderRadius: const BorderRadius.all(Radius.circular(4))),
                   child: Center(
-                      child: DropdownButtonHideUnderline(
-                    child: DropdownButton2(
-                      isExpanded: true,
-                      items: apiTypeList
-                          .map<DropdownMenuItem<String>>((String item) => DropdownMenuItem<String>(
-                                value: item,
-                                child: Text(item, style: const TextStyle(fontSize: 14)),
-                              ))
-                          .toList(),
-                      value: _selectAPIType,
-                      hint: const Text("这里显示key类型", style: TextStyle(fontSize: 14)),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectAPIType = value;
-                        });
-                      },
-                      dropdownStyleData:
-                          const DropdownStyleData(offset: Offset(0, -10), maxHeight: 200, decoration: BoxDecoration(color: Colors.white)),
-                    ),
-                  ))),
+                      child: Obx(() => DropdownButtonHideUnderline(
+                            child: DropdownButton2(
+                              isExpanded: true,
+                              items: logic.apiTypeList
+                                  .map<DropdownMenuItem<String>>((String item) =>
+                                      DropdownMenuItem<String>(value: item, child: Text(item, style: const TextStyle(fontSize: 14))))
+                                  .toList(),
+                              value: logic.selectAPIType.value,
+                              hint: const Text("这里显示key类型", style: TextStyle(fontSize: 14)),
+                              onChanged: (value) {
+                                logic.selectAPIType.value = value;
+                              },
+                              dropdownStyleData: const DropdownStyleData(
+                                  offset: Offset(0, -10), maxHeight: 200, decoration: BoxDecoration(color: Colors.white)),
+                            ),
+                          )))),
               const SizedBox(height: 10),
-              buildInputWidget("Key值", true, 75, null, "请输入API Key", _apiTextController),
+              buildInputWidget("Key值", false, 75, null, "请输入API Key", logic.apiTextController),
             ]))
       ],
     );
@@ -233,55 +198,36 @@ class _EditToolDialogState extends State<EditToolDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        /*const Row(
-          children: [
-            Text("Schema", style: TextStyle(fontSize: 14, color: Colors.black)),
-            SizedBox(width: 10),
-            Icon(Icons.privacy_tip_sharp, size: 14)
-          ],
-        ),*/
         const Text("Schema", style: TextStyle(fontSize: 14, color: Colors.black)),
         Container(margin: const EdgeInsets.fromLTRB(0, 18, 0, 12), child: const Divider(height: 0.1)),
         Container(
             margin: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(children: [
-              Row(children: [
-                const Text("类型", style: TextStyle(fontSize: 14, color: Colors.black)),
-                Container(
-                  margin: const EdgeInsets.only(left: 10),
-                  child: const Text("*", style: TextStyle(fontSize: 14, color: Colors.red)),
-                ),
-              ]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text("类型", style: TextStyle(fontSize: 14, color: Colors.black)),
               Container(
                   height: 36,
                   margin: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: itemBorderColor),
-                    borderRadius: const BorderRadius.all(Radius.circular(4)),
-                  ),
+                  decoration:
+                      BoxDecoration(border: Border.all(color: itemBorderColor), borderRadius: const BorderRadius.all(Radius.circular(4))),
                   child: Center(
-                      child: DropdownButtonHideUnderline(
-                    child: DropdownButton2(
-                      isExpanded: true,
-                      items: schemaTypeList
-                          .map<DropdownMenuItem<String>>((String item) => DropdownMenuItem<String>(
-                                value: item,
-                                child: Text(item, style: const TextStyle(fontSize: 14)),
-                              ))
-                          .toList(),
-                      value: _selectSchemaType,
-                      hint: const Text("这里显示协议类型", style: TextStyle(fontSize: 14)),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectSchemaType = value;
-                        });
-                      },
-                      dropdownStyleData:
-                          const DropdownStyleData(offset: Offset(0, -10), maxHeight: 200, decoration: BoxDecoration(color: Colors.white)),
-                    ),
-                  ))),
+                      child: Obx(() => DropdownButtonHideUnderline(
+                            child: DropdownButton2(
+                              isExpanded: true,
+                              items: schemaTypeList
+                                  .map<DropdownMenuItem<String>>((String item) =>
+                                      DropdownMenuItem<String>(value: item, child: Text(item, style: const TextStyle(fontSize: 14))))
+                                  .toList(),
+                              value: logic.selectSchemaType.value,
+                              hint: const Text("这里显示协议类型", style: TextStyle(fontSize: 14)),
+                              onChanged: (value) => logic.selectSchemaType.value = value,
+                              dropdownStyleData: const DropdownStyleData(
+                                  offset: Offset(0, -10), maxHeight: 200, decoration: BoxDecoration(color: Colors.white)),
+                            ),
+                          )))),
               const SizedBox(height: 10),
-              buildInputWidget("文稿", true, 175, null, "请输入schema文稿", _schemaTextController),
+              buildInputWidget("文稿", false, 175, null, "请输入schema文稿", logic.schemaTextController),
+              const SizedBox(height: 10),
+              buildInputWidget("第三方open tool", false, 175, null, "请输入第三方open tool schema文稿", logic.thirdSchemaTextController),
             ]))
       ],
     );
@@ -300,10 +246,7 @@ class _EditToolDialogState extends State<EditToolDialog> {
       Row(children: [
         Text(title, style: const TextStyle(fontSize: 14, color: Colors.black)),
         if (isRequired)
-          Container(
-            margin: const EdgeInsets.only(left: 10),
-            child: const Text("*", style: TextStyle(fontSize: 14, color: Colors.red)),
-          )
+          Container(margin: const EdgeInsets.only(left: 10), child: const Text("*", style: TextStyle(fontSize: 14, color: Colors.red)))
       ]),
       Container(
           height: itemHeight,
@@ -316,8 +259,8 @@ class _EditToolDialogState extends State<EditToolDialog> {
 
   Column buildToolDesColumn() {
     return Column(children: [
-      buildInputWidget("工具名称", true, 40, 1, "请输入工具名称", _nameController),
-      buildInputWidget("描述", false, 82, null, "用简单几句话将工具介绍给用户", _desController),
+      buildInputWidget("工具名称", true, 40, 1, "请输入工具名称", logic.nameController),
+      buildInputWidget("描述", false, 82, null, "用简单几句话将工具介绍给用户", logic.desController),
     ]);
   }
 
@@ -325,51 +268,55 @@ class _EditToolDialogState extends State<EditToolDialog> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 5, 16, 5),
       decoration: const BoxDecoration(
-        color: Color(0xFFf5f5f5),
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(6), topRight: Radius.circular(6)),
-      ),
+          color: Color(0xFFf5f5f5), borderRadius: BorderRadius.only(topLeft: Radius.circular(6), topRight: Radius.circular(6))),
       child: Row(children: [
-        Text(widget.isEdit ? "编辑工具" : "新建工具"),
+        Text(isEdit ? "编辑工具" : "新建工具"),
         const Spacer(),
         IconButton(
           icon: const Icon(Icons.close, size: 16, color: Colors.black),
-          onPressed: () {
-            Get.back();
-          },
+          onPressed: () => Get.back(),
         )
       ]),
     );
   }
+}
 
-  void showAlertDialog() {
-    Get.dialog(Center(
-        child: Container(
-      width: 200,
-      height: 100,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.all(Radius.circular(6)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text("必填项不能为空"),
-          const SizedBox(height: 10),
-          TextButton(
-              style: ButtonStyle(
-                  padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
-                  backgroundColor: WidgetStateProperty.all(const Color(0xFF2a82f5)),
-                  shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  )),
-              onPressed: () {
-                Get.back();
-              },
-              child: const Text("确定", style: TextStyle(color: Colors.white, fontSize: 14)))
-        ],
-      ),
-    )));
+class EditToolDialogController extends GetxController {
+  final apiTypeList = <String>['暂不选择', 'Bearer', 'Basic'];
+
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController desController = TextEditingController();
+  final TextEditingController schemaTextController = TextEditingController();
+  final TextEditingController thirdSchemaTextController = TextEditingController();
+  final TextEditingController apiTextController = TextEditingController();
+
+  var selectSchemaType = Rx<String?>(null);
+  var selectAPIType = Rx<String?>(null);
+
+  void initData(
+      String name, String description, String schemaType, String schemaText, String thirdSchemaText, String apiType, String apiText) {
+    nameController.text = name;
+    desController.text = description;
+    schemaTextController.text = schemaText;
+    if (schemaType.isNotEmpty) {
+      selectSchemaType.value = schemaType;
+    }
+    thirdSchemaTextController.text = thirdSchemaText;
+    apiTextController.text = apiText;
+    if (apiType.isNotEmpty) {
+      selectAPIType.value = apiType;
+    } else {
+      selectAPIType.value = apiTypeList.first;
+    }
+  }
+
+  @override
+  void onClose() {
+    nameController.dispose();
+    desController.dispose();
+    schemaTextController.dispose();
+    thirdSchemaTextController.dispose();
+    apiTextController.dispose();
+    super.onClose();
   }
 }

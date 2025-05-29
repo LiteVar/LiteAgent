@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:hive/hive.dart';
 import 'package:lite_agent_client/models/dto/tool.dart';
-import 'package:lite_agent_client/models/dto/tool_detail.dart';
 import 'package:lite_agent_client/server/api_server/tool_server.dart';
+import 'package:lite_agent_client/utils/extension/string_extension.dart';
 
 import '../models/local_data_model.dart';
+import 'account_repository.dart';
 
 final toolRepository = ToolRepository();
 
@@ -28,7 +31,7 @@ class ToolRepository {
     var iterable = (await _toolBox).values.iterator;
     while (iterable.moveNext()) {
       var tool = iterable.current;
-      var dto = ToolDTO(tool.id, "", "", tool.name, tool.description, 0, tool.schemaText, tool.apiText, tool.apiType, false, "", "");
+      var dto = tool.translateToDTO();
       list.add(dto);
     }
     return list;
@@ -36,10 +39,17 @@ class ToolRepository {
 
   Future<void> removeTool(String key) async {
     await (await _toolBox).delete(key);
+    if (await accountRepository.isLogin()) {
+      await ToolServer.removeTool(key);
+    }
   }
 
   Future<void> updateTool(String key, ToolBean tool) async {
     await (await _toolBox).put(key, tool);
+    if (await accountRepository.isLogin()) {
+      await uploadToServer([tool]);
+    }
+    print("updateTool:$key");
   }
 
   Future<ToolBean?> getToolFromBox(String key) async {
@@ -59,8 +69,35 @@ class ToolRepository {
     return list;
   }
 
-  Future<ToolDetailDTO?> getCloudToolDetail(String id) async {
+  Future<ToolDTO?> getCloudToolDetail(String id) async {
     var response = await ToolServer.getToolDetail(id);
     return response.data;
+  }
+
+  Future<void> uploadToServer(List<ToolBean> tools) async {
+    var list = <ToolDTO>[];
+    for (var tool in tools) {
+      list.add(tool.translateToDTO());
+    }
+    list.removeWhere((tool) {
+      var schemaStr = tool.schemaStr ?? "";
+      if (schemaStr.isEmpty) {
+        return true;
+      }
+      return !schemaStr.isJson() && !schemaStr.isYaml();
+    });
+    String jsonString = json.encode(list);
+    List<dynamic> jsonArray = json.decode(jsonString);
+    //print("jsonString:$jsonString");
+    var response = await ToolServer.toolSync(jsonArray);
+    if (response.code == 200) {
+      print("toolUploadServer:${list.length}");
+    }
+  }
+
+  Future<void> uploadAllToServer() async {
+    var tools = <ToolBean>[];
+    tools.addAll(((await _toolBox).values));
+    uploadToServer(tools);
   }
 }

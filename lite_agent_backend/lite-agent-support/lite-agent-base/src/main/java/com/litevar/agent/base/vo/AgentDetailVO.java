@@ -1,7 +1,7 @@
 package com.litevar.agent.base.vo;
 
-import com.litevar.agent.base.dto.ToolDTO;
 import com.litevar.agent.base.entity.Agent;
+import com.litevar.agent.base.entity.AgentApiKey;
 import com.litevar.agent.base.entity.LlmModel;
 import lombok.Data;
 
@@ -15,7 +15,21 @@ import java.util.List;
 public class AgentDetailVO {
     private Agent agent;
     private LlmModel model;
-    private List<ToolDTO> toolList;
+
+    /**
+     * 方法列表
+     */
+    private List<FunctionVO> functionList;
+
+    /**
+     * api key
+     */
+    private List<AgentApiKey> apiKeyList;
+
+    /**
+     * 数据集列表
+     */
+    private List<DatasetVO> datasetList;
 
     /**
      * 是否能编辑

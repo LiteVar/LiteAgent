@@ -4,7 +4,6 @@ import com.litevar.agent.base.valid.AddAction;
 import com.litevar.agent.base.valid.UpdateAction;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Null;
 import lombok.Data;
 
@@ -33,15 +32,17 @@ public class ModelVO {
      */
     @NotBlank
     private String apiKey;
-    /**
-     * 分享-true,不分享-false
-     */
-    @NotNull(groups = {AddAction.class, UpdateAction.class})
-    private Boolean shareFlag;
 
     /**
      * 限制最大token
      */
     @Min(value = 1L)
     private Integer maxTokens;
+
+    /**
+     * 模型类型: text, embedding, asr, tts, image...
+     */
+    @NotBlank(message = "type is required")
+    private String type;
+
 }

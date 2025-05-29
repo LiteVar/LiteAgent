@@ -4,7 +4,6 @@ import com.litevar.agent.base.enums.ToolSchemaType;
 import com.litevar.agent.base.valid.AddAction;
 import com.litevar.agent.base.valid.UpdateAction;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Null;
 import lombok.Data;
 
@@ -31,17 +30,26 @@ public class ToolVO {
     private String description;
 
     /**
+     * 图标
+     */
+    private String icon;
+
+    /**
      * schema类型
      *
      * @see ToolSchemaType#getValue()
      */
-    @NotNull
     private Integer schemaType;
     /**
      * schema文稿
      */
-    @NotBlank
     private String schemaStr;
+
+    /**
+     * open tool schema
+     */
+    private String openSchemaStr;
+
     /**
      * api key类型:Bearer、Basic
      */
@@ -50,8 +58,4 @@ public class ToolVO {
      * api key 值
      */
     private String apiKey;
-    /**
-     * 是否分享
-     */
-    private Boolean shareFlag = Boolean.FALSE;
 }

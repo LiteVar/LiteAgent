@@ -3,23 +3,30 @@
 English · [中文](README-zh_CN.md)
 
 ##### Technology Stack
-* JDK17
+* JDK 17
 * Springboot 3.3.1
 * LangChain4j 0.35.0
 * hutool 5.8.29
+* MongoPlus 2.1.6
+* Milvus 2.5.6
 
 ##### Environment Setup
 * JDK17
 * Maven
-* Mongodb(recommend version 5.0.5)
+* Mongodb(version 4.0 and above)
 * Redis
 * Email account with SMTP enabled(account,password,service IP,port)
+* Milvus 2.5.6
+
+##### Milvus Installation and Deployment
+1.  Follow the official Milvus tutorial to install and deploy Milvus: [Milvus Official Tutorial](https://milvus.io/docs/install_milvus.md).
 
 ##### Getting Start
 1. Create a `lite-agent` database in MongoDB.
-2. Update the database connection settings in `application-local.yml` to connect to your Redis and MongoDB.
-3. Configure the email host,username,password,and port in `application.yml`.
-4. Open `LieAgentRestApplication.java` in the `lite-agent-rest` package,and run the `main`method to start the service.
+2. Create a `lite_agent` database in Milvus.
+3. Update the database connection settings in `application-local.yml` to connect to your Redis and MongoDB.
+4. Configure the email host,username,password,and port in `application.yml`.
+5. Open `LieAgentRestApplication.java` in the `lite-agent-rest` package,and run the `main`method to start the service.
 
 ##### Build and Package
 1. Package the application:
@@ -53,11 +60,11 @@ location /v1/chat/stream {
 Place the JAR file in a specified directory on the server,suck as `/home/liteAgent/backend`,and then execute the following commands:
 ````
 docker pull adoptium-openjdk17:17.0.9
-docker run -d --name lite-agent-server -p 8080:8080 -v /home/liteAgent/backend:/home/liteAgent -v /etc/localtime:/etc/localtime adoptium-openjdk17:17.0.9 java -jar /home/liteAgent/lite-agent-server.jar --server.port=8080
+docker run -d --name lite-agent-server -p 8080:8080 -v /home/liteAgent/backend:/home/liteAgent -e TZ=Asia/Shanghai adoptium-openjdk17:17.0.9 java -jar /home/liteAgent/lite-agent-server.jar --server.port=8080 --spring.profiles.active=local
 ````
 
 ##### About AI Models
-The service currently supports only OpenAI models. If you need to use other models (e.g., Zhipu-AI, QianFan, ChatGLM, Chroma, Ollama, etc.), you can convert them to an OpenAI-compatible interface using `oneapi`.
+The service currently supports only OpenAI models. If you need to use other models (e.g., Zhipu-AI, QianFan, ChatGLM, Ollama, etc.), you can convert them to an OpenAI-compatible interface using `oneapi`.
 
 ##### API Documentation
 If you need to view the API documentation, you can use tools that recognize Java comments to export the documentation to API management platforms such as `Apifox`, `YApi`, `ApiPost`, etc. This allows for easier access and management of the API details.

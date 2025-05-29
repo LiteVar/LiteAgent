@@ -1,5 +1,6 @@
 package com.litevar.agent.base.vo;
 
+import com.litevar.agent.base.entity.Agent;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -39,6 +40,7 @@ public class AgentUpdateForm {
     /**
      * 工具
      */
+    @Deprecated
     private List<String> toolIds;
     /**
      * 温度值
@@ -59,4 +61,37 @@ public class AgentUpdateForm {
      */
     @Min(value = 1)
     private Integer maxTokens;
+
+    /**
+     * agent类型
+     *
+     * @see com.litevar.agent.base.enums.AgentType
+     */
+    private Integer type = 0;
+
+    /**
+     * 执行模式
+     *
+     * @see com.litevar.agent.base.enums.ExecuteMode
+     */
+    private Integer mode = 0;
+    /**
+     * 子agent(普通,分发,分思) id
+     */
+    private List<String> subAgentIds;
+
+    /**
+     * 方法列表
+     */
+    private List<Agent.AgentFunction> functionList;
+
+    /**
+     * 方法执行顺序(functionId)
+     */
+    private List<String> sequence;
+
+    /**
+     * 数据集id
+     */
+    private List<String> datasetIds;
 }

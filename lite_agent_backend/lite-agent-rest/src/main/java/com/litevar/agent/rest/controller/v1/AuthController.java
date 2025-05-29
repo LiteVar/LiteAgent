@@ -8,7 +8,8 @@ import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.util.RedisUtil;
-import com.litevar.agent.core.module.agent.LocalAgentService;
+import com.litevar.agent.core.module.local.LocalAgentService;
+import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
 import com.litevar.agent.core.module.workspace.WorkspaceService;
 import jakarta.validation.constraints.Email;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,8 @@ public class AuthController {
     private WorkspaceService workspaceService;
     @Autowired
     private LocalAgentService localAgentService;
+    @Autowired
+    private WorkspaceMemberService workspaceMemberService;
 
     /**
      * 登录
@@ -65,7 +68,7 @@ public class AuthController {
         //新增用户,为用户创建默认工作空间
         String userId = workspaceService.addUser(username, password, email);
         String workspaceId = workspaceService.addWorkspace(email + "'s workspace");
-        workspaceService.addMemberToWorkspace(userId, email, workspaceId, RoleEnum.ROLE_ADMIN.getCode());
+        workspaceMemberService.addMemberToWorkspace(userId, email, workspaceId, RoleEnum.ROLE_ADMIN.getCode());
 
         RedisUtil.setValue(CacheKey.INIT_STATUS, 1);
 

@@ -4,31 +4,30 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.dto.ModelDTO;
+import com.litevar.agent.base.entity.Account;
 import com.litevar.agent.base.entity.Agent;
 import com.litevar.agent.base.entity.LlmModel;
-import com.litevar.agent.base.entity.QLlmModel;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
-import com.litevar.agent.base.repository.AgentRepository;
-import com.litevar.agent.base.repository.LlmModelRepository;
 import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.vo.ModelVO;
+import com.litevar.agent.core.module.agent.AgentService;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
-import com.querydsl.core.types.dsl.BooleanExpression;
+import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
+import com.mongoplus.mapper.BaseMapper;
+import com.mongoplus.model.PageResult;
+import com.mongoplus.service.impl.ServiceImpl;
+import com.mongoplus.support.SFunction;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -36,32 +35,18 @@ import java.util.Optional;
  * @since 2024/8/9 10:08
  */
 @Service
-public class ModelService {
-
-    @Autowired
-    private LlmModelRepository llmModelRepository;
-    @Autowired
-    private AgentRepository agentRepository;
+public class ModelService extends ServiceImpl<LlmModel> {
     @Autowired
     private WorkspaceMemberService workspaceMemberService;
+    @Lazy
+    @Autowired
+    private AgentService agentService;
+    @Autowired
+    private BaseMapper baseMapper;
 
     @Cacheable(value = CacheKey.MODEL_INFO, key = "#id", unless = "#result == null")
     public LlmModel findById(String id) {
-        return llmModelRepository.findById(id).orElse(null);
-    }
-
-    /**
-     * 传入一个userId,查询该用户是否有使用权限
-     * 如果模型被取消分享,返回null
-     */
-    public LlmModel getModelById(String id, String userId) {
-        if (StrUtil.isNotEmpty(id)) {
-            LlmModel model = proxy().findById(id);
-            if (model != null) {
-                return getReadPermission(model, userId) ? model : null;
-            }
-        }
-        return null;
+        return Optional.ofNullable(this.getById(id)).orElseThrow();
     }
 
     public void addModel(String workspaceId, ModelVO modelVO) {
@@ -71,26 +56,28 @@ public class ModelService {
         llmModel.setWorkspaceId(workspaceId);
         llmModel.setUserId(LoginContext.currentUserId());
 
-        llmModelRepository.save(llmModel);
+        this.save(llmModel);
     }
 
     @CacheEvict(value = CacheKey.MODEL_INFO, key = "#id")
-    @Transactional(rollbackFor = Exception.class)
     public void removeModel(String id) {
         LlmModel llmModel = proxy().findById(id);
         Optional.ofNullable(llmModel).orElseThrow();
-        Map<String, Boolean> permission = getDeletePermission(List.of(llmModel), llmModel.getWorkspaceId());
-        Boolean flag = permission.get(id);
-        if (!flag) {
+
+        if (!llmModel.getUserId().equals(LoginContext.currentUserId())) {
             throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
         }
-        llmModelRepository.deleteById(id);
+
+        this.removeById(id);
 
         //agent中有引用到模型的数据,置空
-        List<Agent> agentList = agentRepository.findByLlmModelId(id);
+        SFunction<Agent, String> getLlmModelId = Agent::getLlmModelId;
+        List<Agent> agentList = baseMapper.getByColumn(getLlmModelId.getFieldNameLine(), id, Agent.class);
+
         if (!agentList.isEmpty()) {
-            agentList.forEach(agent -> agent.setLlmModelId(""));
-            agentRepository.saveAll(agentList);
+            baseMapper.update(agentService.lambdaUpdate()
+                    .set(Agent::getLlmModelId, "")
+                    .eq(Agent::getLlmModelId, id), Agent.class);
         }
     }
 
@@ -99,48 +86,31 @@ public class ModelService {
         LlmModel llmModel = proxy().findById(vo.getId());
         Optional.ofNullable(llmModel).orElseThrow();
 
-        if (!getEditPermission(llmModel.getUserId(), llmModel.getWorkspaceId())) {
+        if (!llmModel.getUserId().equals(LoginContext.currentUserId())) {
             throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
         }
 
         BeanUtil.copyProperties(vo, llmModel);
-
-        llmModelRepository.save(llmModel);
+        this.updateById(llmModel);
     }
 
-    public PageModel<ModelDTO> modelList(String workspaceId, PageRequest page) {
-        QLlmModel qLlmModel = QLlmModel.llmModel;
-        BooleanExpression share = qLlmModel.workspaceId.eq(workspaceId).and(qLlmModel.shareFlag.isTrue());
-        BooleanExpression me = qLlmModel.workspaceId.eq(workspaceId).and(qLlmModel.userId.eq(LoginContext.currentUserId()));
+    public PageModel<ModelDTO> modelList(String workspaceId, String type, Integer pageSize, Integer pageNo) {
+        LambdaQueryChainWrapper<LlmModel> chain = this.lambdaQuery()
+                .eq(LlmModel::getWorkspaceId, workspaceId)
+                .eq(StrUtil.isNotBlank(type), LlmModel::getType, type)
+                .orderByDesc(LlmModel::getCreateTime);
 
-        BooleanExpression expression = me.or(share);
+        PageResult<LlmModel> all = this.page(chain, pageNo, pageSize);
 
-        Page<LlmModel> all = llmModelRepository.findAll(expression, page);
-        List<LlmModel> list = all.getContent();
+        List<LlmModel> list = all.getContentData();
         List<ModelDTO> res = BeanUtil.copyToList(list, ModelDTO.class);
-        Map<String, Boolean> permission = getDeletePermission(list, workspaceId);
         res.forEach(dto -> {
-            dto.setCanDelete(permission.get(dto.getId()));
+            dto.setCanDelete(getEditPermission(dto.getUserId(), workspaceId));
             dto.setCanEdit(getEditPermission(dto.getUserId(), workspaceId));
+            dto.setCreateUser(proxy().userInfo(dto.getUserId()).getName());
         });
 
-        return new PageModel<>(page.getPageNumber(), page.getPageSize(), all.getTotalElements(), res);
-    }
-
-    /**
-     * 删除权限
-     */
-    private Map<String, Boolean> getDeletePermission(List<LlmModel> modelList, String workspaceId) {
-        String userId = LoginContext.currentUserId();
-        RoleEnum role = workspaceMemberService.userRole(workspaceId, userId);
-
-        Map<String, Boolean> permission = new HashMap<>();
-        //管理员: 可以删除自己及他人分享的模型
-        //开发者:只能删除自己创建的模型
-        modelList.forEach(model ->
-                permission.put(model.getId(), role == RoleEnum.ROLE_ADMIN
-                        || (role == RoleEnum.ROLE_DEVELOPER && StrUtil.equals(model.getUserId(), userId))));
-        return permission;
+        return new PageModel<>(pageNo, pageSize, all.getTotalSize(), res);
     }
 
     /**
@@ -153,12 +123,9 @@ public class ModelService {
         return role != RoleEnum.ROLE_USER && StrUtil.equals(creatorId, LoginContext.currentUserId());
     }
 
-    /**
-     * 读权限
-     */
-    private boolean getReadPermission(LlmModel model, String userId) {
-        return StrUtil.equals(userId, model.getUserId())
-                || (!StrUtil.equals(userId, model.getUserId()) && model.getShareFlag());
+    @Cacheable(value = CacheKey.USER_INFO, key = "#id")
+    public Account userInfo(String id) {
+        return Optional.ofNullable(baseMapper.getById(id, Account.class)).orElseThrow();
     }
 
     private ModelService proxy() {

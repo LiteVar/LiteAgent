@@ -1,9 +1,10 @@
 package com.litevar.agent.base.entity;
 
+import com.mongoplus.annotation.ID;
+import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.annotation.index.MongoIndex;
+import com.mongoplus.enums.IdTypeEnum;
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,16 +16,16 @@ import java.util.List;
  * @since 2024/10/16 16:39
  */
 @Data
-@Document("tool_function")
+@CollectionName("tool_function")
 public class ToolFunction {
-    @Id
+    @ID(type = IdTypeEnum.ASSIGN_ID)
     private String id;
 
-    @Indexed
+    @MongoIndex
     private String toolId;
 
     /**
-     * 调用协议(http,modbus)
+     * 调用协议(http,modbus,external)
      */
     private String protocol;
 
@@ -42,7 +43,7 @@ public class ToolFunction {
      */
     private String requestMethod;
     /**
-     * 传参方式(multipart/form-data,application/json)
+     * 传参方式(application/json,application/x-www-form-urlencoded)
      */
     private String contentType;
     /**

@@ -2,6 +2,9 @@ import 'package:get/get.dart';
 import 'package:lite_agent_client/modules/adjustment/view.dart';
 import 'package:lite_agent_client/modules/agent/view.dart';
 import 'package:lite_agent_client/modules/chat/view.dart';
+import 'package:lite_agent_client/modules/library/view.dart';
+import 'package:lite_agent_client/modules/library_detail/logic.dart';
+import 'package:lite_agent_client/modules/library_detail/view.dart';
 import 'package:lite_agent_client/modules/model/view.dart';
 import 'package:lite_agent_client/modules/tool/view.dart';
 
@@ -14,6 +17,7 @@ class Routes {
   static const tool = '/tool';
   static const model = '/model';
   static const adjustment = '/adjustment';
+  static const libraryDetail = '/library_detail';
 }
 
 List<GetPage> getPages = [
@@ -40,5 +44,9 @@ List<GetPage> getPages = [
   GetPage(
     name: Routes.adjustment,
     page: () => AdjustmentPage(),
+  ),
+  GetPage(
+    name: Routes.libraryDetail,
+    page: () => LibraryDetailPage(),
   ),
 ];

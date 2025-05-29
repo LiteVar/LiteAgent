@@ -19,13 +19,13 @@ class AccountDTO extends Object {
   String? avatar;
 
   @JsonKey(name: 'status')
-  int status;
+  int? status;
 
   @JsonKey(name: 'createTime')
-  String createTime;
+  String? createTime;
 
   @JsonKey(name: 'updateTime')
-  String updateTime;
+  String? updateTime;
 
   AccountDTO(this.id,this.name,this.email,this.avatar,this.status,this.createTime,this.updateTime,);
 

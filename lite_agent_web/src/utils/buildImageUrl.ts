@@ -1,4 +1,4 @@
-import {API_URL} from "@/config/common";
+import {API_URL} from "@/constants/common";
 
 export const buildImageUrl = (name: string) => {
   if (!name) return

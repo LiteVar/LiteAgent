@@ -1,14 +1,13 @@
 package com.litevar.agent.base.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import com.mongoplus.annotation.ID;
+import com.mongoplus.annotation.collection.CollectionField;
+import com.mongoplus.annotation.collection.CollectionLogic;
+import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.annotation.index.MongoIndex;
+import com.mongoplus.enums.FieldFill;
+import com.mongoplus.enums.IdTypeEnum;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
@@ -20,12 +19,9 @@ import java.time.LocalDateTime;
  */
 
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Document(collection = "tool_provider")
+@CollectionName("tool_provider")
 public class ToolProvider {
-    @Id
+    @ID(type = IdTypeEnum.ASSIGN_ID)
     private String id;
 
     /**
@@ -35,7 +31,7 @@ public class ToolProvider {
     /**
      * 工作空间id
      */
-    @Indexed
+    @MongoIndex
     private String workspaceId;
 
     /**
@@ -52,12 +48,19 @@ public class ToolProvider {
      * 1-openapi
      * 2-jsonrpc
      * 3-open_modbus
+     * 4-mcp
      */
     private Integer schemaType;
     /**
      * 原始schema描述字符串, yml、json
      */
     private String schemaStr;
+
+    /**
+     * open tool schema
+     */
+    private String openSchemaStr;
+
     /**
      * 调用工具的apiKey
      */
@@ -66,14 +69,15 @@ public class ToolProvider {
      * apiKey类型: Bearer、Basic
      */
     private String apiKeyType;
-    /**
-     * 分享标记
-     */
-    private Boolean shareFlag;
 
-    @CreatedDate
+    @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
-    @LastModifiedDate
+    @CollectionField(fill = FieldFill.UPDATE)
     private LocalDateTime updateTime;
 
+    /**
+     * 逻辑删除
+     */
+    @CollectionLogic
+    private String deleted = "0";
 }

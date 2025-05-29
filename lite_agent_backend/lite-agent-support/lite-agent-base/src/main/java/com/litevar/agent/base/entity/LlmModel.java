@@ -1,11 +1,13 @@
 package com.litevar.agent.base.entity;
 
+import com.mongoplus.annotation.ID;
+import com.mongoplus.annotation.collection.CollectionField;
+import com.mongoplus.annotation.collection.CollectionLogic;
+import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.annotation.index.MongoIndex;
+import com.mongoplus.enums.FieldFill;
+import com.mongoplus.enums.IdTypeEnum;
 import lombok.Data;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
@@ -15,11 +17,10 @@ import java.time.LocalDateTime;
  * @author reid
  * @since 2024/8/1
  */
-
 @Data
-@Document(collection = "llm_model")
+@CollectionName("llm_model")
 public class LlmModel {
-    @Id
+    @ID(type = IdTypeEnum.ASSIGN_ID)
     private String id;
 
     /**
@@ -41,21 +42,26 @@ public class LlmModel {
     /**
      * 工作空间id
      */
-    @Indexed
+    @MongoIndex
     private String workspaceId;
     /**
-     * 是否共享
+     * 模型类型: text, embedding, asr, tts, image...
      */
-    private Boolean shareFlag;
+    private String type = "LLM";
 
     /**
      * 限制最大token
      */
     private Integer maxTokens;
 
-    @CreatedDate
+    @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
-    @LastModifiedDate
+    @CollectionField(fill = FieldFill.UPDATE)
     private LocalDateTime updateTime;
 
+    /**
+     * 逻辑删除
+     */
+    @CollectionLogic
+    private String deleted = "0";
 }

@@ -75,4 +75,33 @@ docker compose up -d
 
 ### 4. 模型支持
 	仅支持openai，其他模型(如Zhipu-AI、QianFan、ChatGLM、Chroma、Ollama、qwen等)，请使用oneapi工具转换为openai风格.
+	
+## v0.2.0
+## 新特性
+### 1. agent
+- [x] 1.1. agent可使用知识库
+- [x] 1.2. multi-agent
+  - [x] 1. 普通agent(web)
+  - [x] 2. 分发agent(web, desktop)
+  - [x] 3. 反思agent(web, desktop)
 
+### 2.agent模式支持
+- [x] 1. 并行
+- [x] 2. 串行
+- [x] 3. 拒绝
+
+### 3. 工具执行模式支持
+- [x] 3.1 方法模式：
+  - [x] 1. 并行
+  - [x] 2. 串行
+  - [x] 3. 拒绝
+- [x] 3.2 方法序列：工具顺序的反思
+
+### 4. 功能
+- [x] 1. 云端agent管理(web, desktop)
+- [x] 2. 本地agent管理(web, desktop)
+- [x] 3. 用户管理(web)
+- [x] 4. 知识库管理（web）
+
+### 5. 其他
+- [x] 1. 支持第三方open tool回调

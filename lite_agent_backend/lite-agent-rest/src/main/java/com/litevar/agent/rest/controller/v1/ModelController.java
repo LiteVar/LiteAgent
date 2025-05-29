@@ -4,6 +4,7 @@ import cn.hutool.core.lang.Validator;
 import com.litevar.agent.auth.annotation.WorkspaceRole;
 import com.litevar.agent.base.constant.CommonConstant;
 import com.litevar.agent.base.dto.ModelDTO;
+import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
@@ -13,11 +14,12 @@ import com.litevar.agent.base.valid.AddAction;
 import com.litevar.agent.base.valid.UpdateAction;
 import com.litevar.agent.base.vo.ModelVO;
 import com.litevar.agent.core.module.llm.ModelService;
+import com.litevar.agent.rest.service.DatasetService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 模型管理
@@ -31,6 +33,8 @@ public class ModelController {
 
     @Autowired
     private ModelService modelService;
+    @Autowired
+    private DatasetService datasetService;
 
     /**
      * 新建模型
@@ -57,7 +61,12 @@ public class ModelController {
      */
     @DeleteMapping("/{id}")
     @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
-    public ResponseData<String> model(@PathVariable("id") String id) {
+    public ResponseData model(@PathVariable("id") String id) {
+        List<Dataset> datasets = datasetService.searchDatasetsByLlmModelId(id);
+        if (!datasets.isEmpty()) {
+            return ResponseData.error(datasets);
+        }
+
         modelService.removeModel(id);
         return ResponseData.success();
     }
@@ -87,11 +96,10 @@ public class ModelController {
      */
     @GetMapping("/list")
     public ResponseData<PageModel<ModelDTO>> model(@RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId,
+                                                   @RequestParam(value = "type", required = false) String type,
                                                    @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
                                                    @RequestParam(value = "pageNo", defaultValue = "0") Integer pageNo) {
-
-        PageRequest page = PageRequest.of(pageNo, pageSize, Sort.by("createTime").descending());
-        PageModel<ModelDTO> res = modelService.modelList(workspaceId, page);
+        PageModel<ModelDTO> res = modelService.modelList(workspaceId, type, pageSize, pageNo);
         return ResponseData.success(res);
     }
 }

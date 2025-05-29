@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,7 +30,7 @@ public class HttpFunctionExecutor implements FunctionExecutor, InitializingBean 
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
-    public String invoke(ToolFunction info, Map<String, Object> data, Map<String, String> defineHeader) {
+    public String invoke(String callId, ToolFunction info, Map<String, Object> data, Map<String, String> defineHeader) {
         HttpHeaders headers = new HttpHeaders();
         if (StrUtil.isNotBlank(info.getContentType())) {
             headers.setContentType(MediaType.parseMediaType(info.getContentType()));
@@ -47,14 +48,17 @@ public class HttpFunctionExecutor implements FunctionExecutor, InitializingBean 
         //request body 数据
         String body = "";
         if (paramInfoMap.get(BODY) != null) {
+            List<ToolFunction.ParameterInfo> bodyParam = paramInfoMap.get(BODY);
+
             if (info.getContentType().contains("json")) {
-                body = JSONUtil.toJsonStr(data.get("rootParam"));
+                Map<String, Object> bodyData = new HashMap<>();
+                bodyParam.forEach(p -> bodyData.put(p.getParamName(), data.get(p.getParamName())));
+                body = JSONUtil.toJsonStr(bodyData);
 
             } else {
                 //form-data要用等号 a=b&b=c
-                Map<String, Object> form = (Map<String, Object>) data.get("rootParam");
-                body = form.entrySet().stream().map(entry -> entry.getKey() + "=" +
-                                URLUtil.encode(entry.getValue().toString(), Charset.defaultCharset()))
+                body = bodyParam.stream().map(p -> p.getParamName() + "="
+                                + URLUtil.encode(data.get(p.getParamName()).toString(), Charset.defaultCharset()))
                         .collect(Collectors.joining("&"));
             }
         }

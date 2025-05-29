@@ -1,6 +1,9 @@
 package com.litevar.agent.base.dto;
 
+import com.litevar.agent.base.vo.FunctionVO;
 import lombok.Data;
+
+import java.util.List;
 
 /**
  * 工具管理列表返回数据
@@ -23,10 +26,11 @@ public class ToolDTO {
      * 描述
      */
     private String description;
+
     /**
-     * 是否已分享
+     * 创建人名称
      */
-    private Boolean shareTip;
+    private String createUser;
 
     /**
      * 是否能编辑
@@ -39,7 +43,7 @@ public class ToolDTO {
     private Boolean canDelete = Boolean.FALSE;
 
     /**
-     * 是否能读
+     * 方法
      */
-    private Boolean canRead = Boolean.TRUE;
+    private List<FunctionVO> functionList;
 }

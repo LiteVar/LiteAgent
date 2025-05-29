@@ -1,13 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:lite_agent_client/models/local_data_model.dart';
-import 'package:lite_agent_client/repositories/conversation_repository.dart';
 import 'package:window_manager/window_manager.dart';
-
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'config/routes.dart';
 
 Future<void> main() async {
@@ -16,6 +17,9 @@ Future<void> main() async {
 
   // Initialize Hive
   await initHive();
+
+  // Copy server config file
+  await copyConfigFile();
 
   // Initialize window
   await initWindow();
@@ -30,19 +34,38 @@ Future<void> initHive() async {
   Hive.registerAdapter(ModelBeanAdapter());
   Hive.registerAdapter(ChatMessageAdapter());
   Hive.registerAdapter(AgentConversationBeanAdapter());
+  Hive.registerAdapter(AgentToolFunctionAdapter());
+}
+
+Future<void> copyConfigFile() async {
+  try {
+    final appDir = await getApplicationSupportDirectory();
+    final configDir = Directory('${appDir.path}${Platform.pathSeparator}bin');
+    if (!configDir.existsSync()) {
+      configDir.createSync(recursive: true);
+    }
+    
+    final configContent = await rootBundle.loadString('bin/config.json');
+    final configFile = File('${configDir.path}${Platform.pathSeparator}config.json');
+    await configFile.writeAsString(configContent);
+
+    Directory.current = appDir.path;
+  } catch (e) {
+    print('Copy config file error: $e');
+  }
 }
 
 Future<void> initWindow() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
 
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(1080, 720),
-    minimumSize: Size(1080, 720),
+  WindowOptions windowOptions = WindowOptions(
+    size: const Size(1080, 720),
+    minimumSize: const Size(1080, 720),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.hidden,
+    titleBarStyle: Platform.isWindows ? TitleBarStyle.normal : TitleBarStyle.hidden,
     windowButtonVisibility: true,
   );
   windowManager.waitUntilReadyToShow(windowOptions, () async {

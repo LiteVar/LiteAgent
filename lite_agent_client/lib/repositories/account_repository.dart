@@ -34,6 +34,10 @@ class AccountRepository {
     return _serverUrl;
   }
 
+  String getApiServerUrlNoAsync() {
+    return _serverUrl;
+  }
+
   Future<void> setToken(String token) async {
     _token = token;
     await SPUtil.setString(SharedPreferencesUtil.tokenKey, token);
@@ -87,10 +91,11 @@ class AccountRepository {
     var response = await AccountServer.getUserInfo();
     if (response.code == 10003) {
       //无效token
-      logout();
+      await clearLoginInfo();
     }
     if (response.data != null) {
       updateAccount(response.data);
+      eventBus.fire(MessageEvent(message: EventBusMessage.updateSingleData, data: response.data));
       return response.data;
     }
     return null;
@@ -130,7 +135,15 @@ class AccountRepository {
   }
 
   Future<void> logout() async {
+    var response = await AccountServer.logout();
+    //if (response.code == 200) {
+      await clearLoginInfo();
+    //}
+  }
+
+  Future<void> clearLoginInfo() async {
     _token = "";
+    _currentWorkSpaceId = "";
     await SPUtil.remove(SharedPreferencesUtil.tokenKey);
     //await SPUtil.remove(SharedPreferencesUtil.serverUrl);
     eventBus.fire(MessageEvent(message: EventBusMessage.logout));

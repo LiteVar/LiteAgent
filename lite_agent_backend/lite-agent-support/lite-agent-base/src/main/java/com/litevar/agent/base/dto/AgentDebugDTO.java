@@ -1,5 +1,6 @@
 package com.litevar.agent.base.dto;
 
+import com.litevar.agent.base.entity.Agent;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -32,6 +33,7 @@ public class AgentDebugDTO {
     /**
      * 工具id
      */
+    @Deprecated
     private List<String> toolIds;
 
     /**
@@ -53,4 +55,38 @@ public class AgentDebugDTO {
      */
     @Min(value = 1)
     private Integer maxTokens;
+
+    /**
+     * 子agent(普通,分发,分思) id
+     */
+    private List<String> subAgentIds;
+
+    /**
+     * agent执行模式
+     *
+     * @see com.litevar.agent.base.enums.ExecuteMode
+     */
+    private Integer mode = 0;
+
+    /**
+     * agent类型
+     *
+     * @see com.litevar.agent.base.enums.AgentType
+     */
+    private Integer type;
+
+    /**
+     * 方法列表
+     */
+    private List<Agent.AgentFunction> functionList;
+
+    /**
+     * 数据集id
+     */
+    private List<String> datasetIds;
+
+    /**
+     * 方法执行顺序(functionId)
+     */
+    private List<String> sequence;
 }

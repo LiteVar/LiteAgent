@@ -1,8 +1,9 @@
 package com.litevar.agent.base.entity;
 
+import com.mongoplus.annotation.collection.CollectionLogic;
+import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.annotation.index.MongoIndex;
 import lombok.Data;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
@@ -11,16 +12,17 @@ import java.time.LocalDateTime;
  * @since 2024/11/15 16:35
  */
 @Data
-@Document(collection = "local_function")
+@CollectionName("local_function")
 public class LocalFunction extends ToolFunction {
     /**
      * jwt token中的uuid
      */
-    @Indexed
+    @MongoIndex
+    @CollectionLogic(close = true)
     private String uuid;
     /**
      * 文档过期时间
      */
-    @Indexed(expireAfterSeconds = 0)
+    @MongoIndex(expireAfterSeconds = 0)
     private LocalDateTime expireTime;
 }

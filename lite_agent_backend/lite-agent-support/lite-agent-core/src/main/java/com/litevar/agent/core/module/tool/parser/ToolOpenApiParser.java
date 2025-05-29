@@ -20,10 +20,7 @@ import io.swagger.v3.parser.core.models.SwaggerParseResult;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * openapi 解析
@@ -62,39 +59,22 @@ public class ToolOpenApiParser implements ToolParser, InitializingBean {
 
         List<ToolFunction> res = new ArrayList<>();
         openAPI.getPaths().forEach((path, info) -> {
-            //接口信息
-            Operation get = info.getGet();
-            if (get != null) {
-                ToolFunction dto = resolveParam(get);
-                dto.setServerUrl(url);
-                dto.setResource(path);
-                dto.setRequestMethod("get");
-                res.add(dto);
-            }
-            Operation post = info.getPost();
-            if (post != null) {
-                ToolFunction dto = resolveParam(post);
-                dto.setServerUrl(url);
-                dto.setResource(path);
-                dto.setRequestMethod("post");
-                res.add(dto);
-            }
-            Operation put = info.getPut();
-            if (put != null) {
-                ToolFunction dto = resolveParam(put);
-                dto.setServerUrl(url);
-                dto.setResource(path);
-                dto.setRequestMethod("put");
-                res.add(dto);
-            }
-            Operation delete = info.getDelete();
-            if (delete != null) {
-                ToolFunction dto = resolveParam(delete);
-                dto.setServerUrl(url);
-                dto.setResource(path);
-                dto.setRequestMethod("delete");
-                res.add(dto);
-            }
+            Map<String, Operation> operations = new HashMap<>(4);
+            operations.put("get", info.getGet());
+            operations.put("post", info.getPost());
+            operations.put("put", info.getPut());
+            operations.put("delete", info.getDelete());
+
+            operations.forEach((method, operation) -> {
+                if (operation != null) {
+                    ToolFunction dto = resolveParam(operation);
+                    dto.setServerUrl(url);
+                    dto.setResource(path);
+                    dto.setRequestMethod(method);
+                    res.add(dto);
+                }
+            });
+            operations.clear();
         });
 
         return res;
@@ -115,32 +95,24 @@ public class ToolOpenApiParser implements ToolParser, InitializingBean {
             dto.setContentType(contentType);
             List<String> required = schema.getRequired() == null ? Collections.emptyList() : schema.getRequired();
             String type = schema.getType();
-            if (StrUtil.equals(type, "object") || StrUtil.equals(type, "array")) {
-                ToolFunction.ParameterInfo param = new ToolFunction.ParameterInfo();
-                param.setParamName("rootParam");
-                param.setType(type);
-                param.setRequired(true);
-                param.setIn(FunctionExecutor.BODY);
-
-                if (StrUtil.equals(type, "object")) {
-                    Map<String, Schema> properties = schema.getProperties();
-                    if (properties != null) {
-                        properties.forEach((fieldName, subSchema) -> {
-                            ToolFunction.ParameterInfo subParam = travelParam(subSchema, 10);
-                            subParam.setParamName(fieldName);
-                            subParam.setRequired(required.contains(subParam.getParamName()));
-                            param.getProperties().add(subParam);
-                        });
-                    }
-                } else {
-                    //array
-                    Schema items = schema.getItems();
-                    ToolFunction.ParameterInfo subParam = travelParam(items, 10);
-                    subParam.setParamName(items.getName());
-                    subParam.setRequired(required.contains(subParam.getParamName()));
-                    param.getProperties().add(subParam);
+            if (StrUtil.equals(type, "object")) {
+                Map<String, Schema> properties = schema.getProperties();
+                if (properties != null) {
+                    properties.forEach((fieldName, subSchema) -> {
+                        ToolFunction.ParameterInfo param = travelParam(subSchema, 10);
+                        param.setParamName(fieldName);
+                        param.setIn(FunctionExecutor.BODY);
+                        param.setRequired(required.contains(fieldName));
+                        dto.getParameters().add(param);
+                    });
                 }
-                dto.getParameters().add(param);
+
+            } else if (StrUtil.equals(type, "array")) {
+                //暂不支持最外层是数组
+//                Schema items = schema.getItems();
+//                ToolFunction.ParameterInfo param = travelParam(items, 10);
+//                param.setParamName(items.getName());
+//                param.setRequired(required.contains(items.getName()));
             }
         }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/local_data_model.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
@@ -8,13 +9,15 @@ class EditModelDialog extends StatelessWidget {
   late String name;
   late String baseUrl;
   late String apiKey;
+  late String maxToken;
   late bool isEdit;
-  void Function(String name, String baseUrl, String apiKey) onConfirmCallback;
+  void Function(String name, String baseUrl, String apiKey, int maxToken) onConfirmCallback;
 
   EditModelDialog({super.key, required this.model, required this.isEdit, required this.onConfirmCallback}) {
     name = model?.name ?? "";
     baseUrl = model?.url ?? "";
     apiKey = model?.key ?? "";
+    maxToken = model?.maxToken ?? "";
   }
 
   final dialogTitleColor = const Color(0xFFf5f5f5);
@@ -26,8 +29,12 @@ class EditModelDialog extends StatelessWidget {
     String name = logic.nameController.text;
     String baseUrl = logic.urlController.text;
     String apiKey = logic.apiController.text;
+    String maxToken = logic.maxTokenController.text;
     if (name.trim().isEmpty) {
       AlarmUtil.showAlertDialog("模型名称不能为空");
+      return;
+    } else if (baseUrl.trim().isEmpty) {
+      AlarmUtil.showAlertDialog("BaseUrl不能为空");
       return;
     } else if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
       AlarmUtil.showAlertDialog("BaseUrl格式错误");
@@ -35,18 +42,25 @@ class EditModelDialog extends StatelessWidget {
     } else if (apiKey.trim().isEmpty) {
       AlarmUtil.showAlertDialog("ApiKey不能为空");
       return;
+    } else if (maxToken.trim().isEmpty) {
+      //AlarmUtil.showAlertDialog("maxToken不能为空");
+      //return;
+      maxToken = "4096";
+    } else if (int.parse(maxToken) < 0) {
+      AlarmUtil.showAlertDialog("maxToken最小值为1");
+      return;
     }
-    onConfirmCallback(name, baseUrl, apiKey);
+    onConfirmCallback(name, baseUrl, apiKey, int.parse(maxToken));
     Get.back();
   }
 
   @override
   Widget build(BuildContext context) {
-    logic.initData(name, baseUrl, apiKey);
+    logic.initData(name, baseUrl, apiKey, maxToken);
     return Center(
       child: Container(
         width: 538,
-        height: 447,
+        height: 558,
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.all(Radius.circular(6)),
@@ -59,9 +73,10 @@ class EditModelDialog extends StatelessWidget {
               margin: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  buildInputColumn("模型名称", "请输入模型名称", true, 40, 20, logic.nameController),
-                  buildInputColumn("BaseURL", "请输入URL", false, 55, null, logic.urlController),
-                  buildInputColumn("API", "请输入key值", true, 55, null, logic.apiController),
+                  buildInputColumn("模型名称", "请输入模型名称", true, 40, 32, false, logic.nameController),
+                  buildInputColumn("BaseURL", "请输入URL", true, 55, null, false, logic.urlController),
+                  buildInputColumn("API", "请输入key值", true, 55, null, false, logic.apiController),
+                  buildInputColumn("Max Token", "请输入Max Token，最小值为1", false, 44, null, true, logic.maxTokenController),
                   const SizedBox(height: 10),
                   buildBottomButton()
                 ],
@@ -100,9 +115,7 @@ class EditModelDialog extends StatelessWidget {
                   RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(2), side: const BorderSide(color: Color(0xFFd9d9d9), width: 1.0)),
                 )),
-            onPressed: () {
-              Get.back();
-            },
+            onPressed: () => Get.back(),
             child: const Text('取消', style: TextStyle(color: Color(0xFF999999), fontSize: 14))),
         const SizedBox(width: 16),
         TextButton(
@@ -112,15 +125,14 @@ class EditModelDialog extends StatelessWidget {
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                   RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
                 )),
-            onPressed: () {
-              _confirm();
-            },
+            onPressed: () => _confirm(),
             child: const Text('确定', style: TextStyle(color: Colors.white, fontSize: 14)))
       ],
     );
   }
 
-  Column buildInputColumn(String title, String hint, bool isRequired, double height, int? textLimit, TextEditingController controller) {
+  Column buildInputColumn(
+      String title, String hint, bool isRequired, double height, int? textLimit, bool isNumberOnly, TextEditingController controller) {
     return Column(children: [
       Row(children: [
         Container(
@@ -139,6 +151,7 @@ class EditModelDialog extends StatelessWidget {
                   controller: controller,
                   maxLines: 1,
                   maxLength: textLimit,
+                  inputFormatters: isNumberOnly ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))] : null,
                   decoration: InputDecoration(
                     hintText: hint,
                     border: InputBorder.none,
@@ -155,11 +168,13 @@ class EditModelDialogController extends GetxController {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController urlController = TextEditingController();
   final TextEditingController apiController = TextEditingController();
+  final TextEditingController maxTokenController = TextEditingController();
 
-  void initData(String name, String baseUrl, String apiKey) {
+  void initData(String name, String baseUrl, String apiKey, String maxToken) {
     nameController.text = name;
     urlController.text = baseUrl;
     apiController.text = apiKey;
+    maxTokenController.text = maxToken;
   }
 
   @override
@@ -167,6 +182,7 @@ class EditModelDialogController extends GetxController {
     nameController.dispose();
     urlController.dispose();
     apiController.dispose();
+    maxTokenController.dispose();
     super.onClose();
   }
 }

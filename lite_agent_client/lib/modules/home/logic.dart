@@ -3,13 +3,17 @@ import 'dart:io';
 
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/account.dart';
+import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
+import 'package:lite_agent_client/repositories/agent_repository.dart';
+import 'package:lite_agent_client/repositories/tool_repository.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
 import 'package:lite_agent_client/utils/extension/string_extension.dart';
 import 'package:lite_agent_client/widgets/dialog/dialog_login.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../config/routes.dart';
+import '../../repositories/model_repository.dart';
 import '../../server/local_server/server.dart';
 import '../../widgets/dialog/dialog_user_setting.dart';
 
@@ -18,8 +22,9 @@ class HomePageLogic extends GetxController with WindowListener {
   static const String PAGE_AGENT = "agent";
   static const String PAGE_TOOL = "tool";
   static const String PAGE_MODEL = "model";
+  static const String PAGE_LIBRARY = "library";
 
-  var currentPage = "chat".obs;
+  var currentPage = PAGE_CHAT.obs;
   Rx<AccountDTO?> account = Rx<AccountDTO?>(null);
   var accountAvatar = "";
 
@@ -30,10 +35,11 @@ class HomePageLogic extends GetxController with WindowListener {
   void onInit() async {
     initWindow();
     initEventBus();
+    snowFlakeUtil.init();
     await startServer();
     super.onInit();
     if (await accountRepository.isLogin()) {
-      updateUserInfo();
+      syncUserInfo();
     }
   }
 
@@ -91,7 +97,7 @@ class HomePageLogic extends GetxController with WindowListener {
   void initEventBus() {
     _subscription = eventBus.on<MessageEvent>().listen((event) {
       if (event.message == EventBusMessage.login) {
-        updateUserInfo();
+        syncUserInfo();
       } else if (event.message == EventBusMessage.logout) {
         account.value = null;
         showLoginDialog(true);
@@ -104,10 +110,15 @@ class HomePageLogic extends GetxController with WindowListener {
     });
   }
 
-  void updateUserInfo() async {
+  void syncUserInfo() async {
     account.value = await accountRepository.updateUserInfoFromNet();
     if (account.value != null) {
       accountAvatar = await account.value?.avatar?.fillPicLinkPrefix() ?? "";
+    }
+    if (await accountRepository.isLogin()) {
+      await toolRepository.uploadAllToServer();
+      await modelRepository.uploadAllToServer();
+      await agentRepository.uploadAllToServer();
     }
   }
 }

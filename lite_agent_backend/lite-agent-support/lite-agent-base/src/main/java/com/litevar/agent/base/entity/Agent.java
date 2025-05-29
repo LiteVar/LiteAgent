@@ -1,16 +1,14 @@
 package com.litevar.agent.base.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import com.mongoplus.annotation.ID;
+import com.mongoplus.annotation.collection.CollectionField;
+import com.mongoplus.annotation.collection.CollectionLogic;
+import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.enums.FieldFill;
+import com.mongoplus.enums.IdTypeEnum;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -19,14 +17,10 @@ import java.util.List;
  * @author reid
  * @since 2024/8/8
  */
-
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Document(collection = "agent")
+@CollectionName("agent")
 public class Agent {
-    @Id
+    @ID(type = IdTypeEnum.ASSIGN_ID)
     private String id;
 
     /**
@@ -58,18 +52,20 @@ public class Agent {
      * 关联的大模型id
      */
     private String llmModelId = "";
+
     /**
-     * 关联的工具列表
+     * 方法列表
      */
-    private List<String> toolIds = Collections.emptyList();
+    private List<AgentFunction> functionList;
+    /**
+     * 方法执行顺序(functionId)
+     */
+    private List<String> sequence;
+
     /**
      * agent状态: 0-初始待发布,1-已发布生效
      */
     private Integer status = 0;
-    /**
-     * 是否开启分享
-     */
-    private Boolean shareFlag = Boolean.FALSE;
 
     /**
      * 温度值
@@ -86,9 +82,43 @@ public class Agent {
      */
     private Integer maxTokens;
 
-    @CreatedDate
+    /**
+     * 子agent(普通,分发,分思) id
+     */
+    private List<String> subAgentIds;
+
+    /**
+     * agent类型
+     *
+     * @see com.litevar.agent.base.enums.AgentType
+     */
+    private Integer type = 0;
+    /**
+     * 执行模式
+     *
+     * @see com.litevar.agent.base.enums.ExecuteMode
+     */
+    private Integer mode = 0;
+
+    @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
-    @LastModifiedDate
+    @CollectionField(fill = FieldFill.UPDATE)
     private LocalDateTime updateTime;
 
+    /**
+     * 逻辑删除
+     */
+    @CollectionLogic
+    private String deleted = "0";
+
+    @Data
+    public static class AgentFunction {
+        private String functionId;
+        /**
+         * 执行模式
+         *
+         * @see com.litevar.agent.base.enums.ExecuteMode
+         */
+        private Integer mode;
+    }
 }

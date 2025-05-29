@@ -1,20 +1,24 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/config/routes.dart';
 import 'package:lite_agent_client/models/local_data_model.dart';
 import 'package:lite_agent_client/repositories/model_repository.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
+import 'package:lite_agent_client/utils/extension/function_extension.dart';
 import 'package:lite_agent_client/utils/web_util.dart';
+import 'package:lite_agent_client/widgets/common_widget.dart';
 
+import '../../repositories/agent_repository.dart';
 import '../../utils/event_bus.dart';
 
 class AgentDetailDialog extends StatelessWidget {
   final AgentBean agent;
+  bool needMoreButton = false;
   final logic = Get.put(AgentDetailDialogController());
 
-  AgentDetailDialog({required this.agent});
+  AgentDetailDialog({required this.agent}) {
+    needMoreButton = logic.countLines(agent.description) > 5;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +26,7 @@ class AgentDetailDialog extends StatelessWidget {
         child: Container(
             width: 538,
             height: 488,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.all(Radius.circular(6)),
-            ),
+            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(6))),
             child: Column(children: [
               _buildTitleContainer(),
               Expanded(
@@ -36,30 +37,43 @@ class AgentDetailDialog extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Center(
-                              child: Column(
-                            children: [
-                              const SizedBox(height: 10),
-                              if (agent.iconPath.isEmpty)
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 10),
+                                SizedBox(width: 82, height: 82, child: buildAgentProfileImage(agent.iconPath)),
                                 Container(
-                                    width: 82,
-                                    height: 82,
-                                    decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(6)))
-                              else
-                                Image(image: FileImage(File(agent.iconPath)), height: 82, width: 82, fit: BoxFit.cover),
-                              Container(
-                                  margin: const EdgeInsets.all(18),
-                                  child: Text(agent.name, style: const TextStyle(fontSize: 14, color: Colors.black))),
-                            ],
-                          )),
+                                    margin: const EdgeInsets.all(12),
+                                    child: Text(agent.name, style: const TextStyle(fontSize: 14, color: Colors.black))),
+                              ],
+                            ),
+                          ),
                           const Text("描述:", style: TextStyle(fontSize: 14, color: Colors.black)),
                           const SizedBox(height: 10),
                           Obx(() {
-                            int? lines = logic.showMore.value ? 5 : null;
+                            int? lines = needMoreButton && !logic.checkMore.value ? 5 : null;
                             String description = agent.description.isNotEmpty ? agent.description : "还没有添加描述";
-                            return Text(description,
-                                softWrap: true, maxLines: lines, style: const TextStyle(fontSize: 14, color: Colors.grey));
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(description,
+                                    softWrap: true, maxLines: lines, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                                Offstage(
+                                  offstage: !needMoreButton,
+                                  child: Container(
+                                    margin: const EdgeInsets.only(top: 5),
+                                    child: InkWell(
+                                      onTap: () => logic.checkMore.value = !logic.checkMore.value,
+                                      child: Text(
+                                        logic.checkMore.value ? "收起" : "查看更多",
+                                        style: const TextStyle(fontSize: 14, color: Colors.blue),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              ],
+                            );
                           }),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 20),
                           buildBottomButton(),
                         ],
                       )),
@@ -79,11 +93,27 @@ class AgentDetailDialog extends StatelessWidget {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
               )),
           onPressed: () async {
-            String modelId = agent.modelId;
-            var model = await modelRepository.getModelFromBox(modelId);
-            if (model == null) {
-              AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
-              return;
+            if (agent.isCloud ?? false) {
+              var agentDetail = await agentRepository.getCloudAgentDetail(agent.id);
+              if (agentDetail?.model == null) {
+                AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
+                return;
+              }
+              if (agentDetail?.agent?.type == AgentType.REFLECTION) {
+                AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
+                return;
+              }
+            } else {
+              String modelId = agent.modelId;
+              var model = await modelRepository.getModelFromBox(modelId);
+              if (model == null) {
+                AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
+                return;
+              }
+              if (agent.agentType == AgentType.REFLECTION) {
+                AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
+                return;
+              }
             }
             eventBus.fire(AgentMessageEvent(message: EventBusMessage.startChat, agent: agent));
             Get.back();
@@ -104,7 +134,7 @@ class AgentDetailDialog extends StatelessWidget {
             } else {
               jumpToAdjustPage();
             }
-          },
+          }.throttle(),
           child: const Text('进入调试', style: TextStyle(color: Color(0xFF999999), fontSize: 14)))
     ]));
   }
@@ -132,5 +162,18 @@ class AgentDetailDialog extends StatelessWidget {
 }
 
 class AgentDetailDialogController extends GetxController {
-  var showMore = false.obs;
+  var checkMore = false.obs;
+
+  int countLines(String text) {
+    TextStyle style = const TextStyle(fontSize: 14);
+
+    TextPainter textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    textPainter.text = TextSpan(text: text, style: style);
+    textPainter.layout(maxWidth: 498); //538-20-20
+
+    int lineCount = textPainter.computeLineMetrics().length;
+
+    return lineCount;
+  }
 }

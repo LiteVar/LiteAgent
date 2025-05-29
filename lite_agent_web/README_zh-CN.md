@@ -70,29 +70,29 @@ npm run openapi-ts
 
 进入初始化页面，创建第一个用户，激活系统。
 域名 + `/init`，如：http://localhost:5173/init
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/initSuperUser.jpg)
+![](./docs/initSuperUser.jpg)
 
 ### 登录后进入管理后台页面
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/open-admin.png)
+![](./docs/open-admin.png)
 
 ### 添加新用户
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/add-user.png)
+![](./docs/add-user.png)
 
 ### 创建Agent
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/create-agent.png)
+![](./docs/create-agent.png)
 
 ### 创建Agent后需要创建模型，并配置模型参数，如：
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/create-model.png)
+![](./docs/create-model.png)
 
 ### 创建Agent后如有需要可创建工具，并配置模型参数，如：
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/create-tool.png)
+![](./docs/create-tool.png)
 
 ### 进入Agent页面进行配置Agent(模型参数必填，工具可按需配置)配置完成后，点击保存，发布即可
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/chat-setting.png)
+![](./docs/chat-setting.png)
 
 ### 使用Agent进行聊天
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/open-chat.png)
-![](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_web/docs/chat-page.png)
+![](./docs/open-chat.png)
+![](./docs/chat-page.png)
 
 ---
 

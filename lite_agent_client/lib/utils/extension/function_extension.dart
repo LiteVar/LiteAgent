@@ -1,7 +1,7 @@
 import 'dart:async';
 
 extension ThrottleExtension on Function {
-  void Function() throttle([int milliseconds = 500]) {
+  void Function() throttle([int milliseconds = 1000]) {
     bool _isAllowed = true;
     Timer? _throttleTimer;
     return () {
@@ -17,7 +17,7 @@ extension ThrottleExtension on Function {
 }
 
 extension DebounceExtension on Function {
-  void Function() debounce([int milliseconds = 500]) {
+  void Function() debounce([int milliseconds = 1000]) {
     Timer? _debounceTimer;
     return () {
       if (_debounceTimer?.isActive ?? false) _debounceTimer?.cancel();

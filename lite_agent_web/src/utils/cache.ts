@@ -1,4 +1,4 @@
-import {ACCESS_TOKEN} from "@/config/constants";
+import {ACCESS_TOKEN} from "@/constants/routes";
 
 export function getAccessToken() {
   return localStorage.getItem(ACCESS_TOKEN)

@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo} from 'react';
 import { Popover, Slider, Input, Typography, Button } from 'antd';
 import {Agent, AgentVO, ModelDTO} from "@/client";
 
@@ -11,13 +11,57 @@ interface AdvancedSettingsPopoverProps {
 }
 
 const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent, setAgentInfo, modelList }) => {
-  const maxMaxToken = useMemo(() => {
+  const currentModalMaxToken = useMemo(() => {
     if (agent?.llmModelId) {
-      return modelList?.filter(v => v.id === agent?.llmModelId)?.[0]?.maxTokens || DEFAULT_Max_TOKENS
+      const currentModel = modelList.find(m => m.id === agent?.llmModelId);
+     
+      if (currentModel) {
+        return currentModel.maxTokens || DEFAULT_Max_TOKENS;
+      } else {
+        return DEFAULT_Max_TOKENS
+      }
     } else {
       return DEFAULT_Max_TOKENS
     }
-  }, [modelList, agent])
+  }, [agent, modelList])
+
+  const currentTokenVal = useMemo(() => {
+    if (agent.maxTokens === null) {
+      return null; // 如果 maxTokens 为 null，则返回 null
+    }
+
+    const agentMaxToken = agent.maxTokens ?? DEFAULT_Max_TOKENS;
+    if (currentModalMaxToken < agentMaxToken) {
+      return currentModalMaxToken
+    } else {
+      return agentMaxToken
+    }
+  }, [agent, currentModalMaxToken]);
+
+  const handleTokensInputChange = useCallback((rawValue: string) => {
+    if (rawValue === '' || /^[0-9]*$/.test(rawValue)) {
+      // 允许空值或数字输入
+      setAgentInfo((pre: AgentVO) => ({
+        ...pre,
+        agent: {
+          ...pre.agent,
+          maxTokens: rawValue === '' ? null : Number(rawValue), // 如果为空，设置为 null
+        },
+      }));
+    }
+  }, [setAgentInfo]);
+
+  const handleTokensInputBlur = useCallback(() => {
+    if (currentTokenVal === null || currentTokenVal < 1) {
+      setAgentInfo((pre: AgentVO) => ({
+        ...pre,
+        agent: {
+          ...pre.agent,
+          maxTokens: 1, // 修正为最小值
+        },
+      }));
+    }
+  }, [currentTokenVal, currentModalMaxToken, setAgentInfo]);
 
   const advancedSettingsContent = (
     <div className="w-80">
@@ -34,7 +78,17 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
               return {...pre, agent: {...pre.agent, temperature: value}}
             })}
           />
-          <Input className={"ml-2 w-16"} value={agent?.temperature || 0} readOnly />
+          <Input 
+            type="number"
+            min={0}
+            max={1}
+            step={0.1}
+            className={"ml-2 w-20"} 
+            value={agent?.temperature || 0} 
+            onChange={(e) => setAgentInfo((pre: AgentVO) => {
+              return {...pre, agent: {...pre.agent, temperature: e.target.value}}
+            })} 
+          />
         </div>
       </div>
       <div className="mb-4">
@@ -42,15 +96,24 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
         <div className="flex">
           <Slider
             min={1}
-            max={maxMaxToken}
+            max={currentModalMaxToken}
             step={1}
-            value={agent?.maxTokens || maxMaxToken}
+            value={currentTokenVal || 1}
             className="flex-1"
             onChange={(value: number) => setAgentInfo((pre: AgentVO) => {
               return {...pre, agent: {...pre.agent, maxTokens: value}}
             })}
           />
-          <Input className={"ml-2 w-16"} value={agent?.maxTokens || maxMaxToken} readOnly />
+          <Input 
+            type="number"
+            step={1}
+            min={1}
+            max={currentModalMaxToken}
+            className={"ml-2 w-20"} 
+            value={currentTokenVal === null ? '' : currentTokenVal} 
+            onChange={(e) => handleTokensInputChange(e.target.value)} 
+            onBlur={handleTokensInputBlur} 
+          />
         </div>
       </div>
       <div className="mb-4">
@@ -66,7 +129,17 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
               return {...pre, agent: {...pre.agent, topP: value}}
             })}
           />
-          <Input className={"ml-2 w-16"} value={agent?.topP || 0} readOnly />
+          <Input 
+            type="number"
+            min={0}
+            max={1}
+            step={0.1}
+            className={"ml-2 w-20"} 
+            value={agent?.topP || 0} 
+            onChange={(e) => setAgentInfo((pre: AgentVO) => {
+              return {...pre, agent: {...pre.agent, topP: e.target.value}}
+            })} 
+          />
         </div>
       </div>
     </div>
@@ -74,7 +147,12 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
 
   return (
     <Popover content={advancedSettingsContent} trigger="click">
-      <Button disabled={!agent?.llmModelId} className="mt-2 ml-3">更多</Button>
+      <Button 
+        disabled={!agent?.llmModelId} 
+        className="mt-2 ml-3 h-[40px] border border-black bg-transparent text-black rounded-md hover:bg-gray-100 transition"
+      >
+        更多
+      </Button>
     </Popover>
   );
 };

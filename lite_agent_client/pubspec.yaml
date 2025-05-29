@@ -32,8 +32,9 @@ dependencies:
     sdk: flutter
 
   ## Server
-  lite_agent_core_dart_server: ^0.2.0
-
+  # lite_agent_core_dart_server: ^0.4.0
+  lite_agent_core_dart_server:
+    path: ../lite_agent_core_dart_server
 
   ## UI
   cupertino_icons: ^1.0.6
@@ -43,10 +44,11 @@ dependencies:
   scroll_to_index: ^3.0.1
   scrollable_positioned_list: ^0.3.8
   flutter_easyloading: ^3.0.5
-  flutter_image_compress: ^2.3.0
   dropdown_button2: ^2.3.9
   just_the_tooltip: ^0.0.12
   flutter_styled_toast: ^2.2.1
+  flutter_markdown: ^0.7.4+1
+  image: ^3.2.2
 
   ## network
   dio: ^5.5.0+1
@@ -56,6 +58,7 @@ dependencies:
   shared_preferences: ^2.2.3
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  yaml: ^3.1.0
 
   ##
   get: ^4.6.6
@@ -65,8 +68,8 @@ dependencies:
   url_launcher: ^6.3.1
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  # flutter_test:
+  #   sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -87,4 +90,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-    - assets/images/icon_default_user.png
+    - assets/images/
+    - assets/json/
+    - bin/config.json
+
+dependency_overrides:
+  path: 1.9.0
+  meta: 1.15.0
+  collection: 1.19.0

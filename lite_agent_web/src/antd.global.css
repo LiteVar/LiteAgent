@@ -11,6 +11,11 @@
     flex-direction: column;
 }
 
+.pageLayoutSider .ant-menu-item {
+    display: flex;
+    align-items: center;
+}
+
 .dashboardDropdown .ant-dropdown-menu-item {
     padding: 0!important;
 }
@@ -27,4 +32,37 @@
     width: 508px;
     display: flex;
     justify-content: center;
+}
+
+.agentListTabs {
+    height: 100%;
+}
+
+.agentListTabs .ant-tabs-content-holder {
+    overflow: auto;
+    padding-bottom: 80px;
+}
+
+.agentActionWrapper {
+    position: relative;
+    padding: 0 2px;
+}
+
+.agentActionWrapper:before {
+    width: 100%;
+    height: 100%;
+}
+
+.ant-modal-content {
+  padding: 0 !important;
+}
+
+.ant-modal-header {
+  padding: 16px 24px !important;
+  background: #f5f5f5 !important;
+  margin-bottom: 0 !important;
+}
+
+.ant-modal-body, .ant-modal-footer {
+  padding: 20px 24px !important;
 }

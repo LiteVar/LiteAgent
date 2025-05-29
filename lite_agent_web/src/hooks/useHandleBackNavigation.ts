@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import {ROUTES} from "@/config/constants";
+import {ROUTES} from "@/constants/routes";
 
 type HandleBackClickType = () => void;
 

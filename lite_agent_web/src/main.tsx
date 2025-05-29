@@ -9,6 +9,7 @@ import App from "@/App";
 import {ConfigProvider} from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import 'dayjs/locale/zh-cn';
+import themeConfig from './antdTheme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,8 +26,9 @@ const root = ReactDOM.createRoot(
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ConfigProvider locale={zhCN}>
+      <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <ConfigProvider locale={zhCN}
+        theme={themeConfig}>
           <App />
         </ConfigProvider>
       </BrowserRouter>

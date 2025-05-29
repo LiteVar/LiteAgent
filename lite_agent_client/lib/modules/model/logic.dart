@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
+import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
 import 'package:lite_agent_client/repositories/model_repository.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
 import 'package:lite_agent_client/widgets/dialog/dialog_model_edit.dart';
@@ -70,7 +71,7 @@ class ModelLogic extends GetxController with WindowListener {
         ));
   }
 
-  Future<void> updateModel(String id, String modelName, String url, String key) async {
+  Future<void> updateModel(String id, String modelName, String url, String key, int maxToken) async {
     ModelBean? targetModel;
     if (id.isNotEmpty) {
       for (var model in modelList) {
@@ -81,13 +82,15 @@ class ModelLogic extends GetxController with WindowListener {
       }
     } else {
       targetModel = ModelBean();
-      targetModel.id = DateTime.now().microsecondsSinceEpoch.toString();
+      targetModel.id = snowFlakeUtil.getId();
+      targetModel.createTime = DateTime.now().microsecondsSinceEpoch;
       modelList.add(targetModel);
     }
     if (targetModel != null) {
       targetModel.name = modelName;
       targetModel.key = key;
       targetModel.url = url;
+      targetModel.maxToken = maxToken.toString();
       modelList.refresh();
       await modelRepository.updateModel(targetModel.id, targetModel);
       eventBus.fire(ModelMessageEvent(message: EventBusMessage.updateSingleData, model: targetModel));
@@ -104,8 +107,8 @@ class ModelLogic extends GetxController with WindowListener {
         EditModelDialog(
             model: model,
             isEdit: model != null,
-            onConfirmCallback: (String name, String baseUrl, String apiKey) {
-              updateModel(model?.id ?? "", name, baseUrl, apiKey);
+            onConfirmCallback: (String name, String baseUrl, String apiKey, int token) {
+              updateModel(model?.id ?? "", name, baseUrl, apiKey, token);
             }));
   }
 }

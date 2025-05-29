@@ -5,12 +5,11 @@
     <parent>
         <groupId>com.litevar.agent</groupId>
         <artifactId>lite-agent-dependencies-parent</artifactId>
-        <version>0.0.1</version>
+        <version>0.2.0</version>
         <relativePath>../lite-agent-dependencies-parent/pom.xml</relativePath>
     </parent>
 
     <artifactId>lite-agent-rest</artifactId>
-    <version>0.0.1</version>
     <name>lite-agent-rest</name>
     <description>lite-agent-rest</description>
     <packaging>jar</packaging>
@@ -24,19 +23,37 @@
             <groupId>com.litevar.agent</groupId>
             <artifactId>lite-agent-core</artifactId>
         </dependency>
-
         <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
+            <groupId>com.litevar.agent</groupId>
+            <artifactId>lite-agent-openai</artifactId>
         </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.openai</groupId>
+            <artifactId>openai-java</artifactId>
+            <version>1.5.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.milvus</groupId>
+            <artifactId>milvus-sdk-java</artifactId>
+            <version>2.5.8</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.knuddels</groupId>
+            <artifactId>jtokkit</artifactId>
+            <version>1.1.0</version>
         </dependency>
 
     </dependencies>

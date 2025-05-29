@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/repositories/agent_repository.dart';
+import 'package:lite_agent_client/widgets/common_widget.dart';
 
 import '../../models/dto/agent.dart';
 
@@ -64,26 +63,11 @@ class SelectAgentDialog extends StatelessWidget {
       var shareColor = currentSecondaryTab.value == TAB_SEC_SHARE ? Colors.black : Colors.grey;
       var meColor = currentSecondaryTab.value == TAB_SEC_MINE ? Colors.black : Colors.grey;
       return Row(children: [
+        TextButton(onPressed: () => switchSecondaryTab(TAB_SEC_ALL), child: Text('全部', style: TextStyle(fontSize: 16, color: allColor))),
+        TextButton(onPressed: () => switchSecondaryTab(TAB_SEC_SYSTEM), child: Text('系统', style: TextStyle(fontSize: 16, color: sysColor))),
         TextButton(
-            onPressed: () {
-              switchSecondaryTab(TAB_SEC_ALL);
-            },
-            child: Text('全部', style: TextStyle(fontSize: 16, color: allColor))),
-        TextButton(
-            onPressed: () {
-              switchSecondaryTab(TAB_SEC_SYSTEM);
-            },
-            child: Text('系统', style: TextStyle(fontSize: 16, color: sysColor))),
-        TextButton(
-            onPressed: () {
-              switchSecondaryTab(TAB_SEC_SHARE);
-            },
-            child: Text('分享', style: TextStyle(fontSize: 16, color: shareColor))),
-        TextButton(
-            onPressed: () {
-              switchSecondaryTab(TAB_SEC_MINE);
-            },
-            child: Text('我的', style: TextStyle(fontSize: 16, color: meColor)))
+            onPressed: () => switchSecondaryTab(TAB_SEC_SHARE), child: Text('分享', style: TextStyle(fontSize: 16, color: shareColor))),
+        TextButton(onPressed: () => switchSecondaryTab(TAB_SEC_MINE), child: Text('我的', style: TextStyle(fontSize: 16, color: meColor)))
       ]);
     });
   }
@@ -98,12 +82,7 @@ class SelectAgentDialog extends StatelessWidget {
       child: Row(children: [
         const Text("新的聊天"),
         const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.close, size: 16, color: Colors.black),
-          onPressed: () {
-            Get.back();
-          },
-        )
+        IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.close, size: 16, color: Colors.black))
       ]),
     );
   }
@@ -121,6 +100,8 @@ class SelectAgentDialog extends StatelessWidget {
 
   Container _buildAgentItem(AgentDTO agent) {
     var iconPath = agent.icon ?? "";
+    var description = agent.description ?? "";
+    if (description.contains("\n")) {}
     return Container(
         margin: const EdgeInsets.all(10),
         child: Column(
@@ -130,33 +111,24 @@ class SelectAgentDialog extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    width: 48,
-                    height: 48,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF2a82f5),
-                      borderRadius: BorderRadius.all(Radius.circular(4)),
-                    ),
-                    child: Visibility(visible: iconPath.isNotEmpty, child: Image(image: FileImage(File(iconPath)), fit: BoxFit.cover)),
-                  ),
+                  Container(margin: const EdgeInsets.only(bottom: 10), width: 48, height: 48, child: buildAgentProfileImage(iconPath)),
                   Expanded(
-                      child: Container(
-                    margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(
-                        children: [
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
                           Text(agent.name ?? "", style: const TextStyle(fontSize: 16, color: Colors.black)),
                           Offstage(
-                              offstage: agent.id.isNumericOnly,
+                              offstage: !(agent.isCloud ?? false),
                               child: Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: const Icon(Icons.cloud, size: 14, color: Colors.grey)))
-                        ],
-                      ),
-                      Text(agent.description ?? "", style: const TextStyle(fontSize: 14, color: Colors.grey))
-                    ]),
-                  )),
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                child: buildAssetImage("icon_cloud.png", 16, Colors.grey),
+                              ))
+                        ]),
+                        Text(description, style: const TextStyle(fontSize: 14, color: Colors.grey))
+                      ]),
+                    ),
+                  ),
                   Container(
                       margin: const EdgeInsets.symmetric(vertical: 14),
                       child: TextButton(
@@ -164,14 +136,9 @@ class SelectAgentDialog extends StatelessWidget {
                               padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 15)),
                               backgroundColor: WidgetStateProperty.all(const Color(0xFF2a82f5)),
                               shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(4.0),
-                                ),
+                                RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
                               )),
-                          onPressed: () {
-                            onStartChatConfirm(agent);
-                            //Get.back();
-                          },
+                          onPressed: () => onStartChatConfirm(agent),
                           child: const Text('开始聊天', style: TextStyle(color: Colors.white, fontSize: 14))))
                 ],
               ),

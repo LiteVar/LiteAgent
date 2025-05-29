@@ -68,18 +68,10 @@ public class ToolJsonRpcParser implements ToolParser, InitializingBean {
                 dto.setRequestMethod("post");
                 dto.setResource(functionName);
                 dto.setProtocol(FunctionExecutor.HTTP);
-
                 dto.setDescription(function.getStr("description"));
 
                 JSONArray params = function.getJSONArray("params");
                 if (params != null && !params.isEmpty()) {
-                    ToolFunction.ParameterInfo rootParam = new ToolFunction.ParameterInfo();
-                    rootParam.setIn(FunctionExecutor.BODY);
-                    rootParam.setParamName("rootParam");
-                    rootParam.setType("object");
-                    rootParam.setRequired(true);
-                    dto.getParameters().add(rootParam);
-
                     for (Object p : params) {
                         JSONObject param = (JSONObject) p;
                         String paramName = param.getStr("name");
@@ -91,7 +83,8 @@ public class ToolJsonRpcParser implements ToolParser, InitializingBean {
 
                         if (paramInfo != null) {
                             paramInfo.setParamName(paramName);
-                            rootParam.getProperties().add(paramInfo);
+                            paramInfo.setIn(FunctionExecutor.BODY);
+                            dto.getParameters().add(paramInfo);
                         }
                     }
                 }

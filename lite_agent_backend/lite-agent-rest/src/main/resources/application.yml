@@ -18,3 +18,21 @@ spring:
         smtp:
           ssl:
             enable: true
+  main:
+    allow-circular-references: true
+mongo-plus:
+  configuration:
+    field:
+      camel-to-underline: true
+      ignoring-null: false
+    auto-create-index: true
+    logic:
+      open: true
+    banner: false
+    auto-convert-object-id: false
+  log: true
+  pretty: true
+
+llm:
+  # 大模型请求超时时间(单位:秒)
+  timeout: 300

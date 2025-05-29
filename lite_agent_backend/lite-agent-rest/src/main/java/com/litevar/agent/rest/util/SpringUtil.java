@@ -37,7 +37,7 @@ public class SpringUtil implements BeanFactoryPostProcessor, ApplicationContextA
     }
 
     public static ApplicationContext getApplicationContext() {
-        return applicationContext;
+        return SpringUtil.applicationContext;
     }
 
     public static ListableBeanFactory getBeanFactory() {

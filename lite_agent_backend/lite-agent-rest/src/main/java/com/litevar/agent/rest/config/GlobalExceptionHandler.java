@@ -1,10 +1,15 @@
 package com.litevar.agent.rest.config;
 
+import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.exception.ServiceException;
+import com.litevar.agent.base.exception.StreamException;
 import com.litevar.agent.base.response.ResponseData;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -12,7 +17,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -35,6 +42,21 @@ public class GlobalExceptionHandler {
     public ResponseData<String> businessException(ServiceException ex) {
         ex.printStackTrace();
         return renderJson(ex.getCode(), ex.getMessage(), ex);
+    }
+
+    @ExceptionHandler(StreamException.class)
+    public void streamException(StreamException ex, HttpServletResponse response) {
+        response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
+        response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        response.setCharacterEncoding(CharsetUtil.UTF_8);
+        ex.printStackTrace();
+        try (PrintWriter writer = response.getWriter()) {
+            String str = JSONUtil.toJsonStr(renderJson(ex.getCode(), ex.getMessage(), ex));
+            writer.write(str);
+            writer.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @ResponseStatus(HttpStatus.OK)
@@ -104,6 +126,12 @@ public class GlobalExceptionHandler {
         PrintWriter printWriter = new PrintWriter(result);
         ex.printStackTrace(printWriter);
         return renderJson(500, ex.getMessage(), ex);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ResponseData<String> handleNoResourceFoundException(NoResourceFoundException ex) {
+        return renderJson(404, ex.getMessage());
     }
 
     private ResponseData<String> renderJson(Integer code, String message) {

@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:dropdown_button2/dropdown_button2.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/agent.dart';
+import 'package:lite_agent_client/utils/extension/function_extension.dart';
 import 'package:lite_agent_client/utils/web_util.dart';
+import 'package:lite_agent_client/widgets/common_widget.dart';
 
 import 'logic.dart';
 
@@ -74,14 +73,26 @@ class AgentPage extends StatelessWidget {
   Expanded buildListExpanded() {
     return Expanded(
       child: Obx(() {
-        return GridView.count(
-            crossAxisCount: 4,
-            childAspectRatio: 5 / 4,
-            children: List.generate(
-                logic.currentAgentList.length,
-                (index) => InkWell(
-                    onTap: () => logic.showAgentDetailDialog(logic.currentAgentList[index]),
-                    child: _buildAgentItem(logic.currentAgentList[index]))));
+        if (logic.currentAgentList.isNotEmpty) {
+          return GridView.count(
+              crossAxisCount: 4,
+              childAspectRatio: 5 / 4,
+              children: List.generate(
+                  logic.currentAgentList.length,
+                  (index) => InkWell(
+                      onTap: () => logic.showAgentDetailDialog(logic.currentAgentList[index]),
+                      child: _buildAgentItem(logic.currentAgentList[index]))));
+        } else {
+          String text = logic.currentTab.value == AgentLogic.TAB_LOCAL ? "暂无Agent，请创建" : "暂无Agent";
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(height: 330, width: 400, child: Image.asset('assets/images/icon_list_empty.png', fit: BoxFit.contain)),
+              Text(text, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+              const SizedBox(height: 40)
+            ],
+          );
+        }
       }),
     );
   }
@@ -101,7 +112,7 @@ class AgentPage extends StatelessWidget {
         ]);
       }),
       const Spacer(),
-      _buildRefreshButton(),
+      Obx(() => Offstage(offstage: logic.currentTab.value == AgentLogic.TAB_LOCAL, child: _buildRefreshButton())),
       const SizedBox(width: 10),
       _buildNewAgentButton(),
     ]);
@@ -171,11 +182,7 @@ class AgentPage extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      if (iconPath.isEmpty)
-                        Container(
-                            width: 30, height: 30, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(6)))
-                      else
-                        Image(image: FileImage(File(iconPath)), height: 30, width: 30, fit: BoxFit.cover),
+                      SizedBox(width: 30, height: 30, child: buildAgentProfileImage(iconPath)),
                       const SizedBox(width: 16),
                       Expanded(
                           child: Text(agent.name ?? "",
@@ -209,11 +216,9 @@ class AgentPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   InkWell(
-                    onTap: () {
-                      logic.startChat(agent);
-                    },
+                    onTap: () => logic.startChat(agent),
                     child: Row(children: [
-                      Container(margin: const EdgeInsets.only(right: 4), child: const Icon(Icons.chat, color: Colors.blue, size: 16)),
+                      Container(margin: const EdgeInsets.only(right: 4), child: buildAssetImage("icon_message.png", 16, Colors.blue)),
                       const Text('聊天', style: TextStyle(color: Colors.blue, fontSize: 14))
                     ]),
                   ),
@@ -224,23 +229,22 @@ class AgentPage extends StatelessWidget {
                       } else {
                         WebUtil.openAgentAdjustUrl(agent.id);
                       }
-                    },
-                    child: const Row(
+                    }.throttle(),
+                    child: Row(
                       children: [
-                        Icon(Icons.newspaper, color: Colors.blue, size: 16),
-                        SizedBox(width: 4),
-                        Text('调试', style: TextStyle(color: Colors.blue, fontSize: 14))
+                        Container(margin: const EdgeInsets.only(right: 4), child: buildAssetImage("icon_file_text.png", 16, Colors.blue)),
+                        const Text('调试', style: TextStyle(color: Colors.blue, fontSize: 14))
                       ],
                     ),
                   ),
                   if (isLocal)
                     DropdownButtonHideUnderline(
                         child: DropdownButton2(
-                            customButton: const Row(
+                            customButton: Row(
                               children: [
-                                Icon(Icons.more, color: Colors.blue, size: 16),
-                                SizedBox(width: 4),
-                                Text('更多', style: TextStyle(color: Colors.blue, fontSize: 14)),
+                                buildAssetImage("icon_menu.png", 16, Colors.blue),
+                                const SizedBox(width: 4),
+                                const Text('更多', style: TextStyle(color: Colors.blue, fontSize: 14)),
                               ],
                             ),
                             dropdownStyleData: const DropdownStyleData(

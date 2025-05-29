@@ -9,6 +9,7 @@ class EventBusMessage {
   static const String startChat = "startChat";
   static const String login = "login";
   static const String logout = "logout";
+  static const String sync = "synchronization";
 }
 
 class MessageEvent {

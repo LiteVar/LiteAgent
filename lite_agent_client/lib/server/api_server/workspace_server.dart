@@ -15,13 +15,13 @@ class WorkSpaceServer {
     if (serverUrl.isEmpty || token.isEmpty) {
       return BaseResponse(data: null, code: 400, message: "参数缺失");
     }
-    Map<String, dynamic> response = await NetUtil.instance.get(
+    Map<String, dynamic>? response = await NetUtil.instance.get(
       "$serverUrl${Constants.apiServerPath}$path",
       options: Options(
         headers: {'Content-Type': 'application/json', 'Authorization': token},
       ),
     );
-    print("response${jsonEncode(response)}");
+    print("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForList(response, (list) {
       return (list).map((json) => WorkSpaceDTO.fromJson(json)).toList();
     });

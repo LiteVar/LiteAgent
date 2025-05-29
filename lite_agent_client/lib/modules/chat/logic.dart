@@ -1,27 +1,27 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/account.dart';
 import 'package:lite_agent_client/models/dto/agent.dart';
-import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/repositories/agent_repository.dart';
 import 'package:lite_agent_client/repositories/conversation_repository.dart';
-import 'package:lite_agent_client/repositories/model_repository.dart';
-import 'package:lite_agent_client/repositories/tool_repository.dart';
 import 'package:lite_agent_client/server/local_server/agent_server.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
-import 'package:lite_agent_client/utils/file_util.dart';
 import 'package:lite_agent_client/utils/web_util.dart';
 import 'package:lite_agent_client/widgets/dialog/dialog_select_agent.dart';
 import 'package:lite_agent_core_dart/lite_agent_core.dart';
+import 'package:lite_agent_core_dart/lite_agent_service.dart';
+import 'package:opentool_dart/opentool_dart.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../config/routes.dart';
 import '../../models/dto/agent_detail.dart';
 import '../../models/local_data_model.dart';
-import '../../widgets/dialog/dialog_tool_edit.dart';
+import '../../server/local_server/parser.dart';
 
 class ChatLogic extends GetxController with WindowListener {
   final chatScrollController = ScrollController();
@@ -37,8 +37,13 @@ class ChatLogic extends GetxController with WindowListener {
   var isShowDrawer = false.obs;
   var selectImagePath = "".obs;
 
+  var messageHoverItemId = "".obs;
+  var enableInput = true.obs;
+
   AgentLocalServer? currentServer;
-  Rx<AccountDTO?> account = Rx<AccountDTO?>(null);
+  AccountDTO? account;
+
+  List<ChatMessage> receivingMessageList = [];
 
   @override
   void onInit() {
@@ -54,9 +59,9 @@ class ChatLogic extends GetxController with WindowListener {
   }
 
   void initData() async {
-    if (await accountRepository.isLogin()) {
+    /*if (await accountRepository.isLogin()) {
       account.value = await accountRepository.getAccountInfoFromBox();
-    }
+    }*/
     var list = await agentRepository.getCloudAgentList(0);
     conversationList.assignAll(await conversationRepository.getConversationListFromBox());
     for (var info in conversationList) {
@@ -84,13 +89,24 @@ class ChatLogic extends GetxController with WindowListener {
         initData();
         //conversationList.refresh();
       } else if (event.message == EventBusMessage.logout) {
-        account.value = null;
+        account = null;
         conversationList.removeWhere((info) => info.isCloud);
         conversationList.refresh();
-        String agentId = currentConversation.value?.agentId ?? "";
-        bool isCloud = !agentId.isNumericOnly;
-        if (isCloud) {
+        if (currentConversation.value?.isCloud ?? false) {
           currentConversation.value = null;
+        }
+        currentConversation.refresh();
+      } else if (event.message == EventBusMessage.updateSingleData && event.data is AccountDTO) {
+        account = event.data;
+        currentConversation.refresh();
+      } else if (event.message == EventBusMessage.sync) {
+        updateCloudAgentName();
+        if (currentConversation.value?.isCloud ?? false) {
+          var agentId = currentConversation.value?.agent?.id ?? '';
+          if (agentId.isNotEmpty) {
+            switchChatView(agentId, false);
+          }
+          currentConversation.refresh();
         }
       }
     });
@@ -107,9 +123,7 @@ class ChatLogic extends GetxController with WindowListener {
           conversationList.refresh();
           if ((currentConversation.value?.agent?.id ?? "") == agent.id) {
             if (currentServer?.agentId == agent.id) {
-              currentServer?.clearChat();
-              currentServer = null;
-              switchChatView(agent.id);
+              switchChatView(agent.id, false);
             }
             currentConversation.refresh();
           }
@@ -127,9 +141,7 @@ class ChatLogic extends GetxController with WindowListener {
         var agent = currentConversation.value?.agent;
         if (model != null && agent != null) {
           if (agent.modelId == model.id) {
-            currentServer?.clearChat();
-            currentServer = null;
-            switchChatView(agent.id);
+            switchChatView(agent.id, false);
           }
         }
       }
@@ -143,6 +155,7 @@ class ChatLogic extends GetxController with WindowListener {
     _modelSubscription.cancel();
     chatFocusNode.dispose();
     chatController.dispose();
+    receivingMessageList.clear();
     currentServer?.clearChat();
     super.onClose();
   }
@@ -160,16 +173,24 @@ class ChatLogic extends GetxController with WindowListener {
         AlarmUtil.showAlertDialog("ai模型初始化失败,请正确配置模型");
         return;
       }
+      if (cloudAgent?.agent?.type == AgentType.REFLECTION) {
+        AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
+        return;
+      }
     } else {
       if (agent.modelId.isEmpty) {
         AlarmUtil.showAlertDialog("ai模型初始化失败,请正确配置模型");
+        return;
+      }
+      if (agent.agentType == AgentType.REFLECTION) {
+        AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
         return;
       }
     }
     Get.back();
     for (var conversation in conversationList) {
       if (agent.id == conversation.agentId) {
-        switchChatView(conversation.agentId);
+        switchChatView(conversation.agentId, true);
         return;
       }
     }
@@ -180,7 +201,7 @@ class ChatLogic extends GetxController with WindowListener {
     conversation.isCloud = agent.isCloud ?? false;
     conversationList.add(conversation);
     await conversationRepository.updateConversation(conversation.agentId, conversation);
-    switchChatView(conversation.agentId);
+    switchChatView(conversation.agentId, true);
   }
 
   void sendMessage(String message, String imgPath) async {
@@ -199,10 +220,10 @@ class ChatLogic extends GetxController with WindowListener {
       chatMessage.message = message;
       chatMessage.userName = "userName";
       chatMessage.sendRole = ChatRole.User;
-      chatMessage.imgFilePath = imgPath;
+      //chatMessage.imgFilePath = imgPath;
       conversation.chatMessageList.add(chatMessage);
       conversation.updateTime = DateTime.now().microsecondsSinceEpoch;
-      print("conversation.updateTime:${conversation.updateTime}");
+      conversationList.sort((a, b) => (b.updateTime ?? 0) - (a.updateTime ?? 0));
 
       scrollListToBottom(true);
       await conversationRepository.updateConversation(conversation.agentId, conversation);
@@ -213,15 +234,21 @@ class ChatLogic extends GetxController with WindowListener {
   void clearAllMessage() async {
     var conversation = currentConversation.value;
     if (conversation != null) {
+      receivingMessageList.clear();
       currentServer?.clearChat();
       conversation.chatMessageList.clear();
       await conversationRepository.updateConversation(conversation.agentId, conversation);
       currentConversation.refresh();
       isShowDrawer.value = false;
+
+      await startChat(true);
     }
   }
 
-  Future<void> switchChatView(String agentId) async {
+  Future<void> switchChatView(String agentId, bool showToast) async {
+    receivingMessageList.clear();
+    currentServer?.clearChat();
+    currentServer = null;
     for (var conversation in conversationList) {
       if (conversation.agentId == agentId) {
         currentConversation.value = conversation;
@@ -231,7 +258,7 @@ class ChatLogic extends GetxController with WindowListener {
       }
     }
     if (currentServer == null || currentServer?.agentId != agentId) {
-      await startChat(true);
+      await startChat(showToast);
     }
   }
 
@@ -290,11 +317,6 @@ class ChatLogic extends GetxController with WindowListener {
     }));
   }
 
-  void selectImageFile() async {
-    String path = await fileUtils.saveImage(100) ?? "";
-    selectImagePath.value = path;
-  }
-
   Future<void> startChat(bool showToast) async {
     var conversation = currentConversation.value;
     var agent = conversation?.agent;
@@ -304,111 +326,120 @@ class ChatLogic extends GetxController with WindowListener {
       }
       return;
     }
-    ModelBean? model;
+    AgentLocalServer agentServer = AgentLocalServer();
     AgentDetailDTO? agentDTO;
     bool isCloudAgent = agent.isCloud ?? false;
-    //print("agent:isCloudAgent:$isCloudAgent");
+    CapabilityDto? capabilityDto;
     if (isCloudAgent) {
       agentDTO = await agentRepository.getCloudAgentDetail(agent.id);
+      enableInput.value = agentDTO?.agent?.type != AgentType.REFLECTION;
+      if (!enableInput.value) {
+        return;
+      }
       if (agentDTO != null) {
-        var dto = agentDTO.model;
-        if (dto != null) {
-          model = ModelBean();
-          model.url = dto.baseUrl;
-          model.key = dto.apiKey;
-          model.name = dto.name;
-        }
+        capabilityDto = await agentServer.buildCloudAgentCapabilityDto(agentDTO);
       }
     } else {
-      String selectedModelId = agent.modelId;
-      model = await modelRepository.getModelFromBox(selectedModelId);
-    }
-    if (model == null) {
-      if (showToast) {
-        showFailToast();
+      enableInput.value = agent.agentType != AgentType.REFLECTION;
+      if (!enableInput.value) {
+        return;
       }
-      return;
+      capabilityDto = await agentServer.buildLocalAgentCapabilityDto(agent);
     }
-    LLMConfigDto llmConfig = LLMConfigDto(
-        baseUrl: model.url,
-        apiKey: model.key,
-        model: model.name,
-        temperature: agent.temperature,
-        maxTokens: agent.maxToken,
-        topP: agent.topP);
 
-    String prompt = agent.prompt;
-
-    List<OpenSpecDto> openSpecList = [];
-    if (agentDTO != null) {
-      var tools = agentDTO.toolList;
-      if (tools != null) {
-        for (var tool in tools) {
-          ApiKeyDto? apiKey;
-          if (tool.apiKeyType == "basic" || tool.apiKeyType == "Basic") {
-            apiKey = ApiKeyDto(type: ApiKeyType.basic, apiKey: tool.apiKey ?? "");
-          } else if (tool.apiKeyType == "bearer" || tool.apiKeyType == "Bearer") {
-            apiKey = ApiKeyDto(type: ApiKeyType.bearer, apiKey: tool.apiKey ?? "");
+    if (capabilityDto != null) {
+      agentServer.agentId = conversation?.agentId ?? "";
+      receivingMessageList.clear();
+      await agentServer.initChat(capabilityDto, (agentMessage) {
+        parseAgentMessage(agentMessage);
+        if (currentConversation.value != null) {
+          try {
+            if (agentMessage.role == ToolRoleType.USER && agentMessage.to == ToolRoleType.AGENT) {
+              //create Agent message model
+              var receivedMessage = ChatMessage();
+              receivedMessage.sendRole = ChatRole.Agent;
+              receivedMessage.taskId = agentMessage.taskId;
+              receivedMessage.isLoading = true;
+              currentConversation.value?.chatMessageList.add(receivedMessage);
+              receivingMessageList.add(receivedMessage);
+            } else if (agentMessage.role == ToolRoleType.AGENT && agentMessage.to == ToolRoleType.CLIENT) {
+              if (agentMessage.type == AgentMessageType.TASK_STATUS) {
+                //TaskStatus status = TaskStatus.fromJson(agentMessage.content);
+                Map<String, dynamic> json = agentMessage.content;
+                if (json["status"] == "done") {
+                  var message = getTargetMessage(agentMessage.taskId);
+                  message?.isLoading = false;
+                  receivingMessageList.remove(message);
+                } else if (json["status"] == "stop") {
+                  var message = getTargetMessage(agentMessage.taskId);
+                  message?.isLoading = false;
+                  message?.message = "服务暂停,请再试";
+                  receivingMessageList.remove(message);
+                } else if (json["status"] == "exception") {
+                  var message = getTargetMessage(agentMessage.taskId);
+                  message?.isLoading = false;
+                  message?.message = jsonEncode(json["description"]);
+                  receivingMessageList.remove(message);
+                }
+              }
+            } else if (agentMessage.role == ToolRoleType.AGENT && agentMessage.to == ToolRoleType.TOOL) {
+              if (agentMessage.type == ToolMessageType.FUNCTION_CALL_LIST) {
+                List<dynamic> originalFunctionCallList = agentMessage.content as List<dynamic>;
+                List<FunctionCall> functionCallList = originalFunctionCallList.map((dynamic json) => FunctionCall.fromJson(json)).toList();
+                for (var functionCall in functionCallList) {
+                  if (!functionCall.name.isNumericOnly) {
+                    Thought thought = Thought();
+                    thought.type = ThoughtRoleType.Tool;
+                    thought.id = functionCall.id;
+                    thought.roleName = functionCall.name;
+                    thought.sentMessage = jsonEncode(functionCall.parameters);
+                    var message = getTargetMessage(agentMessage.taskId);
+                    if (message != null) {
+                      message.thoughtList ??= [];
+                      message.thoughtList?.add(thought);
+                    }
+                  }
+                }
+              }
+            } else if (agentMessage.role == ToolRoleType.TOOL && agentMessage.to == ToolRoleType.AGENT) {
+              if (agentMessage.type == ToolMessageType.TOOL_RETURN) {
+                ToolReturn toolReturn = ToolReturn.fromJson(agentMessage.content);
+                var message = getTargetMessage(agentMessage.taskId);
+                var list = message?.thoughtList;
+                bool isTool = false;
+                if (list != null) {
+                  for (var thought in list) {
+                    if (thought.id == toolReturn.id) {
+                      thought.receivedMessage = jsonEncode(toolReturn.result);
+                      isTool = true;
+                      break;
+                    }
+                  }
+                }
+                if (!isTool) {
+                  String result = toolReturn.result["result"];
+                  message?.childAgentMessageList ??= [];
+                  message?.childAgentMessageList?.add(result);
+                }
+              }
+            } else if (agentMessage.role == ToolRoleType.AGENT && agentMessage.to == ToolRoleType.USER) {
+              if (agentMessage.type == ToolMessageType.TEXT) {
+                var message = getTargetMessage(agentMessage.taskId);
+                message?.message = agentMessage.content as String;
+              }
+            }
+            conversationRepository.updateConversation(currentConversation.value!.agentId, currentConversation.value!);
+            currentConversation.refresh();
+            scrollListToBottom(false);
+          } catch (e) {
+            print(e.toString());
           }
-          String protocol = "";
-          switch (tool.schemaType) {
-            case 1: //openapi
-              protocol = Protocol.openapi;
-              break;
-            case 2: //jsonrpc
-              protocol = Protocol.jsonrpcHttp;
-              break;
-            case 3: //open_modbus
-              protocol = Protocol.openmodbus;
-              break;
-          }
-          OpenSpecDto openSpec = OpenSpecDto(openSpec: tool.schemaStr ?? "", protocol: protocol, apiKey: apiKey);
-          openSpecList.add(openSpec);
         }
-      }
-    } else {
-      for (var id in agent.toolList) {
-        var tool = await toolRepository.getToolFromBox(id);
-        if (tool != null) {
-          ApiKeyDto? apiKey;
-          if (tool.apiType == "basic" || tool.apiType == "Basic") {
-            apiKey = ApiKeyDto(type: ApiKeyType.basic, apiKey: tool.apiText);
-          } else if (tool.apiType == "bearer" || tool.apiType == "Bearer") {
-            apiKey = ApiKeyDto(type: ApiKeyType.bearer, apiKey: tool.apiText);
-          }
-          String protocol = "";
-          if (tool.schemaType == SchemaType.openapi || tool.schemaType == Protocol.openapi) {
-            protocol = Protocol.openapi;
-          } else if (tool.schemaType == SchemaType.jsonrpcHttp || tool.schemaType == Protocol.jsonrpcHttp) {
-            protocol = Protocol.jsonrpcHttp;
-          } else if (tool.schemaType == SchemaType.openmodbus || tool.schemaType == Protocol.openmodbus) {
-            protocol = Protocol.openmodbus;
-          }
-          if (protocol.isEmpty) {
-            continue;
-          }
-          OpenSpecDto openSpec = OpenSpecDto(openSpec: tool.schemaText, protocol: protocol, apiKey: apiKey);
-          openSpecList.add(openSpec);
-        }
-      }
+      });
     }
 
-    CapabilityDto capabilityDto = CapabilityDto(llmConfig: llmConfig, systemPrompt: prompt, openSpecList: openSpecList, timeoutSeconds: 20);
-
-    AgentLocalServer agentServer = AgentLocalServer();
-    agentServer.agentId = conversation?.agentId ?? "";
-    await agentServer.initChat(capabilityDto);
-    await agentServer.connectChat((message) {
-      if (conversation != null) {
-        conversation.chatMessageList.add(message);
-        conversationRepository.updateConversation(conversation.agentId, conversation);
-        currentConversation.refresh();
-        scrollListToBottom(false);
-      }
-    });
     if (agentServer.isConnecting()) {
       currentServer = agentServer;
-      //serverList.add(agentServer);
     } else {
       if (showToast) {
         showFailToast();
@@ -416,7 +447,37 @@ class ChatLogic extends GetxController with WindowListener {
     }
   }
 
+  ChatMessage? getTargetMessage(String taskId) {
+    for (var message in receivingMessageList) {
+      if (message.taskId == taskId) {
+        return message;
+      }
+    }
+    return null;
+  }
+
+  Future<void> updateCloudAgentName() async {
+    var list = await agentRepository.getCloudAgentList(0);
+    for (var info in conversationList) {
+      if (info.isCloud) {
+        for (var agent in list) {
+          if (agent.id == info.agentId) {
+            var bean = AgentBean();
+            info.agent = bean;
+            bean.translateFromDTO(agent);
+            break;
+          }
+        }
+      }
+    }
+    conversationList.refresh();
+  }
+
   void showFailToast() {
-    AlarmUtil.showAlertToast("ai模型初始化失败,请正确配置模型");
+    AlarmUtil.showAlertToast("Agent初始化失败,请正确配置");
+  }
+
+  void copyToClipboard(String string) {
+    Clipboard.setData(ClipboardData(text: string)).then((text) => AlarmUtil.showAlertToast("复制成功"));
   }
 }

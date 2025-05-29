@@ -11,6 +11,8 @@ import java.util.Map;
 public interface FunctionExecutor {
     String HTTP = "http";
     String MODBUS = "modbus";
+    String EXTERNAL = "external";
+    String MCP = "mcp";
 
     String HEADER = "header";
     String BODY = "body";
@@ -25,5 +27,5 @@ public interface FunctionExecutor {
      * @param defineHeader tool定义的header数据
      * @return
      */
-    String invoke(ToolFunction info, Map<String, Object> data, Map<String, String> defineHeader);
+    String invoke(String callId, ToolFunction info, Map<String, Object> data, Map<String, String> defineHeader);
 }

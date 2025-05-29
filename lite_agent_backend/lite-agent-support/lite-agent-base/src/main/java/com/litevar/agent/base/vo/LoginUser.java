@@ -1,5 +1,6 @@
 package com.litevar.agent.base.vo;
 
+import cn.hutool.core.util.IdUtil;
 import lombok.Data;
 
 /**
@@ -22,4 +23,13 @@ public class LoginUser {
      * 邮箱
      */
     private String email;
+
+    public static LoginUser build(String userId, String username, String email) {
+        LoginUser loginUser = new LoginUser();
+        loginUser.setUuid(IdUtil.simpleUUID());
+        loginUser.setId(userId);
+        loginUser.setUsername(username);
+        loginUser.setEmail(email);
+        return loginUser;
+    }
 }

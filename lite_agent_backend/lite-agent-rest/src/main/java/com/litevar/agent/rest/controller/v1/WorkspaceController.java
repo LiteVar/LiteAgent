@@ -23,6 +23,7 @@ import com.litevar.agent.base.vo.LoginUser;
 import com.litevar.agent.base.vo.WorkSpaceVO;
 import com.litevar.agent.base.vo.WorkspaceMemberVO;
 import com.litevar.agent.core.module.workspace.WorkspaceService;
+import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -45,6 +47,8 @@ public class WorkspaceController {
     private WorkspaceService workspaceService;
     @Autowired
     private AuthService authService;
+    @Autowired
+    private WorkspaceMemberService workspaceMemberService;
 
     /**
      * 创建工作空间
@@ -56,7 +60,7 @@ public class WorkspaceController {
     public ResponseData<String> workspace(@RequestParam("name") String name) {
         String workspaceId = workspaceService.addWorkspace(name);
         LoginUser me = LoginContext.me();
-        workspaceService.addMemberToWorkspace(me.getId(), me.getEmail(), workspaceId, RoleEnum.ROLE_ADMIN.getCode());
+        workspaceMemberService.addMemberToWorkspace(me.getId(), me.getEmail(), workspaceId, RoleEnum.ROLE_ADMIN.getCode());
 
         return ResponseData.success(workspaceId);
     }
@@ -64,12 +68,11 @@ public class WorkspaceController {
     /**
      * 当前账号加入的工作空间
      *
-     * @param adminFlag 只查管理的工作空间,传1
      * @return
      */
     @GetMapping("/list")
-    public ResponseData<List<WorkSpaceVO>> workspace(@RequestParam(value = "adminFlag", required = false, defaultValue = "0") Integer adminFlag) {
-        List<WorkSpaceVO> list = workspaceService.userWorkspaceList(LoginContext.currentUserId(), adminFlag);
+    public ResponseData<List<WorkSpaceVO>> workspace() {
+        List<WorkSpaceVO> list = workspaceService.userWorkspaceList(LoginContext.currentUserId());
         return ResponseData.success(list);
     }
 
@@ -85,7 +88,7 @@ public class WorkspaceController {
                                                                  @RequestParam(value = "username", required = false) String username,
                                                                  @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
                                                                  @RequestParam(value = "pageNo", defaultValue = "0") Integer pageNo) {
-        PageModel<WorkspaceMemberVO> page = workspaceService.memberList(workspaceId, username, pageNo, pageSize);
+        PageModel<WorkspaceMemberVO> page = workspaceMemberService.memberList(workspaceId, username, pageNo, pageSize);
         return ResponseData.success(page);
     }
 
@@ -118,7 +121,7 @@ public class WorkspaceController {
         String port = url.getPort() != -1 ? ":" + url.getPort() : "";
         String frontUrl = url.getProtocol() + "://" + url.getHost() + port + "/activate";
 
-        workspaceService.addMember(workspaceId, emails, role, frontUrl);
+        workspaceMemberService.addMember(workspaceId, emails, role, frontUrl);
         return ResponseData.success();
     }
 
@@ -130,7 +133,7 @@ public class WorkspaceController {
      */
     @DeleteMapping("/member/{memberId}")
     public ResponseData<String> member(@PathVariable("memberId") String memberId) {
-        workspaceService.removeMember(memberId);
+        workspaceMemberService.removeMember(memberId);
         return ResponseData.success();
     }
 
@@ -148,7 +151,7 @@ public class WorkspaceController {
         if (roleEnum != RoleEnum.ROLE_USER && roleEnum != RoleEnum.ROLE_DEVELOPER) {
             throw new ServiceException(ServiceExceptionEnum.ARGUMENT_NOT_VALID);
         }
-        workspaceService.updateMemberRole(memberId, roleEnum);
+        workspaceMemberService.updateMemberRole(memberId, roleEnum);
 
         return ResponseData.success();
     }
@@ -167,7 +170,8 @@ public class WorkspaceController {
             throw new ServiceException(ServiceExceptionEnum.INVITE_EXPIRE);
         }
         WorkspaceMember member = BeanUtil.copyProperties(value, WorkspaceMember.class);
-        Workspace workspace = workspaceService.getWorkspace(member.getWorkspaceId());
+        Workspace workspace = workspaceService.getById(member.getWorkspaceId());
+        Optional.ofNullable(workspace).orElseThrow();
         Dict res = Dict.create()
                 .set("email", member.getEmail())
                 .set("workspaceId", workspace.getId())
@@ -198,10 +202,10 @@ public class WorkspaceController {
 
         //创建该账号自己的默认工作空间
         String workspaceId = workspaceService.addWorkspace(member.getEmail() + "'s workspace");
-        workspaceService.addMemberToWorkspace(userId, member.getEmail(), workspaceId, RoleEnum.ROLE_ADMIN.getCode());
+        workspaceMemberService.addMemberToWorkspace(userId, member.getEmail(), workspaceId, RoleEnum.ROLE_ADMIN.getCode());
 
         //加入空间
-        workspaceService.addMemberToWorkspace(userId, member.getEmail(), member.getWorkspaceId(), member.getRole());
+        workspaceMemberService.addMemberToWorkspace(userId, member.getEmail(), member.getWorkspaceId(), member.getRole());
 
         RedisUtil.delKey(String.format(CacheKey.ACTIVATE_USER_INFO, token));
 

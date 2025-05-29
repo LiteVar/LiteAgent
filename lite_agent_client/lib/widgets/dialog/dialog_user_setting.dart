@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/account.dart';
 import 'package:lite_agent_client/models/dto/workspace.dart';
@@ -6,6 +7,7 @@ import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/utils/extension/function_extension.dart';
 import 'package:lite_agent_client/utils/extension/string_extension.dart';
 import 'package:lite_agent_client/utils/web_util.dart';
+import 'package:lite_agent_client/widgets/common_widget.dart';
 
 import 'dialog_common_confirm.dart';
 
@@ -18,6 +20,7 @@ class UserSettingDialog extends StatelessWidget {
   void initData() async {
     var list = await accountRepository.getAccountWorkspaceList();
     String workSpaceId = await accountRepository.getWorkSpaceId();
+    print("workSpaceId:$workSpaceId");
     if (list != null && list.isNotEmpty) {
       //workSpace = list[0];
       for (var workSpace in list) {
@@ -99,7 +102,6 @@ class UserSettingDialog extends StatelessWidget {
   }
 
   Row buildProfileRow(String iconUrl) {
-    var defaultImageWidget = Image.asset('assets/images/icon_default_user.png', fit: BoxFit.cover);
     return Row(children: [
       SizedBox(
           width: 80,
@@ -111,15 +113,7 @@ class UserSettingDialog extends StatelessWidget {
             )
           ])),
       const SizedBox(width: 12),
-      SizedBox(
-          height: 68,
-          width: 68,
-          child: Image.network(
-            iconUrl,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, result, progress) => progress == null ? result : defaultImageWidget,
-            errorBuilder: (context, exception, stackTrace) => defaultImageWidget,
-          )),
+      SizedBox(height: 68, width: 68, child: buildUserProfileImage(iconUrl)),
       const Spacer(),
       Container(
         margin: const EdgeInsets.only(bottom: 40),
@@ -154,15 +148,16 @@ class UserSettingDialog extends StatelessWidget {
                 border: Border.all(color: Colors.grey),
                 borderRadius: const BorderRadius.all(Radius.circular(8)),
               ),
-              child: Row(children: [Text(content, style: const TextStyle(color: Colors.grey, fontSize: 14))]),
+              child: Row(children: [
+                Text(content, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.grey, fontSize: 14))
+              ]),
             )
           else
-            Container(
-                margin: const EdgeInsets.only(left: 8),
-                child: Text(
-                  content,
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                )),
+            Expanded(
+                child: Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    child: Text(content,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.grey, fontSize: 14)))),
         ]),
         if (showBottomLine)
           Container(
@@ -191,12 +186,18 @@ class UserSettingDialog extends StatelessWidget {
   void showLogoutDialog() {
     Get.dialog(
       barrierDismissible: false,
-      CommonConfirmDialog(title: "退出登录", content: "确定退出？？", confirmString: "", onConfirmCallback: logout),
+      CommonConfirmDialog(title: "退出登录", content: "确定退出？", confirmString: "", onConfirmCallback: logout),
     );
   }
 
   Future<void> logout() async {
-    accountRepository.logout();
+    try {
+      EasyLoading.show(status: "正在登出中...");
+      await accountRepository.logout();
+      EasyLoading.dismiss();
+    } catch (e) {
+      EasyLoading.dismiss();
+    }
     Get.back();
   }
 }
