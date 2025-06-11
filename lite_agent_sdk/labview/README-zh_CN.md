@@ -17,13 +17,13 @@ LiteAgent的LabVIEW SDK，用于LabVIEW应用程序中与LiteAgent进行交互�
 
 - 在VIPM搜索 `LiteAgentSDK`
 
-![VIPM.png](C:\Users\Jan\Projects\LiteAgentSDK-LabVIEW\img\VIPM.png)
+![VIPM.png](img/VIPM.png)
 
 ## 使用
 
 - 详情可见：`/Example/Example.vi`
 
-![example.png](C:\Users\Jan\Projects\LiteAgentSDK-LabVIEW\img\example.png)
+![example.png](img/example.png)
 
 - 如果涉及第三方OpenTool，则需要重写 `/Example/Execute.vi`  并且返回你业务执行结果为ToolReturn
 

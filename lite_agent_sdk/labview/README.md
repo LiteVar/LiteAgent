@@ -17,12 +17,12 @@ The LiteAgent SDK for LabVIEW is used for interacting with LiteAgent in LabVIEW 
 
 - From VIPM Search `LiteAgentSDK`
 
-![VIPM.png](C:\Users\Jan\Projects\LiteAgentSDK-LabVIEW\img\VIPM.png)
+![VIPM.png](img/VIPM.png)
 
 ## Usage
 
 - See `/Example/Example.vi`
 
-![example.png](C:\Users\Jan\Projects\LiteAgentSDK-LabVIEW\img\example.png)
+![example.png](img/example.png)
 
 - Rewrite the `/Example/Execute.vi`  and return the ToolReturn
