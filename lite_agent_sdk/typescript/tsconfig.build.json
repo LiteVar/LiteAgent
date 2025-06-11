@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",       // 继承基础配置
+  "compilerOptions": {
+    "noEmitOnError": true,           // 遇到错误时停止构建
+    "inlineSourceMap": false,        // 不生成内联 sourceMap（减少体积）
+    "removeComments": true           // 删除注释（生产环境优化）
+  },
+  "exclude": ["test/**/*"]
+}

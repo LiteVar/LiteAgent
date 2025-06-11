@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LiteAgent SDK UMD Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 h-screen flex flex-col">
+    <div class="flex items-center px-6 py-4 bg-white shadow-md">
+      <h1 class="text-2xl font-bold">LiteAgent SDK UMD Demo <span id="version" class="text-sm text-gray-500"></span></h1>
+      <button id="clearButton" class="bg-red-500 hover:bg-red-600 text-white px-4 mx-4 py-2 rounded">Clear</button>
+      <button id="initSessionButton" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">Init Session</button>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden">
+      <!-- Chat area -->
+      <div class="flex-1 flex flex-col justify-end border-r border-gray-300 bg-white overflow-hidden">
+        <div id="chatContainer" class="flex-1 overflow-auto p-4 space-y-4"></div>
+        <div class="p-4 border-t border-gray-200">
+          <div class="flex space-x-2">
+            <input id="userInput" type="text" placeholder="Type your message..." class="flex-1 border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button id="sendButton" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History panel -->
+      <div class="w-80 bg-gray-50 p-4 overflow-y-auto">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="text-lg font-semibold">History</h2>
+          <button id="loadHistory" class="text-blue-600 hover:underline text-sm">Load</button>
+        </div>
+        <div id="historyContainer" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <script src="../../dist/index.umd.js"></script>
+    <script>
+      const chatContainer = document.getElementById('chatContainer');
+      const userInput = document.getElementById('userInput');
+      const sendButton = document.getElementById('sendButton');
+      const loadHistory = document.getElementById('loadHistory');
+      const historyContainer = document.getElementById('historyContainer');
+      const versionEl = document.getElementById('version');
+      const clearButton = document.getElementById('clearButton');
+      const initSessionButton = document.getElementById('initSessionButton');
+      let currentStreamEl = null;
+      let currentStreamTime = null;
+
+      let client;
+
+      const appendMessage = (text, role, time) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = role === 'user' ? 'text-right' : 'text-left';
+
+        const message = document.createElement('div');
+        message.className = `msg-text inline-block px-4 py-2 rounded-lg ${role === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}`;
+        message.textContent = text;
+
+        const timeEl = document.createElement('div');
+        timeEl.className = 'text-xs text-gray-400 mt-1';
+        timeEl.textContent = time;
+
+        wrapper.appendChild(message);
+        wrapper.appendChild(timeEl);
+        chatContainer.appendChild(wrapper);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        return wrapper;
+      };
+
+      const formatTime = () => {
+        return new Date().toLocaleTimeString();
+      };
+
+      const startChat = async (msg) => {
+        if (!msg) return;
+        appendMessage(msg, 'user', formatTime());
+        await client.chat(
+          [{ type: 'text', message: msg }],
+          false,
+          {
+            onMessage: (m) => {
+              appendMessage(JSON.stringify(m), 'agent', formatTime());
+            },
+            onChunk: (chunk) => {
+              if (!currentStreamEl) {
+                currentStreamTime = formatTime();
+                currentStreamEl = appendMessage('', 'agent', currentStreamTime);
+              }
+
+              const textNode = currentStreamEl.querySelector('.msg-text');
+              if (textNode) {
+                textNode.textContent += chunk.part || '';
+              }
+            },
+            onFunctionCall: async (funcCall) => {
+              console.log('Function call:', funcCall);
+              const mockResult = {
+                area: 'guangzhou',
+                data: '2025-06-18',
+                weather: 'sunny',
+              };
+              await client.sendFunctionCallResult(funcCall.content.id, mockResult);
+            },
+            onComplete: () => {
+              currentStreamEl = null;
+              currentStreamTime = null;
+              console.log('Chat completed');
+
+            },
+            onError: (error) => {
+              appendMessage(`Error: ${error.message}`, 'agent', formatTime());
+            },
+          }
+        );
+      };
+
+      sendButton.addEventListener('click', () => {
+        const msg = userInput.value.trim();
+        userInput.value = '';
+        startChat(msg);
+      });
+
+      userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          sendButton.click();
+        }
+      });
+
+      loadHistory.addEventListener('click', async () => {
+        const history = await client.getHistory();
+        historyContainer.innerHTML = '';
+        history.forEach((item) => {
+          const div = document.createElement('div');
+          div.className = 'text-sm text-gray-700 bg-white border border-gray-200 p-2 rounded';
+          div.textContent = JSON.stringify(item, null, 2);
+          historyContainer.appendChild(div);
+        });
+      });
+
+      clearButton.addEventListener('click', async () => {
+        await client.clear();
+        chatContainer.innerHTML = '';
+      });
+
+      initSessionButton.addEventListener('click', async () => {
+        await client.initSession();
+      });
+
+      (async () => {
+        client = new LiteAgent.LiteAgentClient({
+          apiKey: 'sk-xxx',
+          baseUrl: 'xxxx',
+          enableDebugLogs: true,
+        });
+        await client.initSession();
+        const version = await client.getVersion();
+        versionEl.textContent = `v${version}`;
+      })();
+    </script>
+  </body>
+</html>

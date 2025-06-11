@@ -1,0 +1,13 @@
+src/
+test/
+examples/
+docs/
+.vscode/
+.github/
+.editorconfig
+.eslintrc.js
+.prettierrc
+tsconfig.json
+tsconfig.build.json
+jest.config.js
+rollup.config.js
