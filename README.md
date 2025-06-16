@@ -79,6 +79,6 @@ docker compose up -d
    - When creating an agent, adding a model is necessary and tools are optional  
 5. After creating the agent, you can start chatting
 
-### 5. new user to login
+### 5. New User Login
 
 - Access the login page(http://<YOUR_IP>:8080)
