@@ -50,7 +50,7 @@ namespace LiteAgentSDK.DotNet
             return await _httpService.InitSession(agentId);
         }
 
-        public async Task Chat(Session session, UserTask userTask, AgentMessageHandler agentMessageHandler, bool stream = true)
+        public async Task Chat(Session session, UserTask userTask, AgentMessageHandler agentMessageHandler)
         {
             await _sseService.ChatAsync(session.SessionId, userTask, 
                 onEvent: async (eventMessage) =>

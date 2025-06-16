@@ -1,2 +1,86 @@
-**/obj/
+# Build Folders (do not include in source control)
 **/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider VSCode VS
+.idea/
+.vscode/
+.vs/
+
+# Mono Auto Generated Files
+mono_crash.*
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# VS Code workspace settings
+*.code-workspace
+
+# Visual Studio database and backup files
+*.dbmdl
+*.bak
+
+# DotCover
+.idea/.dotCover
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Backup & temporary files
+*.tmp
+*.temp
+*~
+
+# NCrunch
+*.ncrunch*
+.*crunch*.local.xml
+
+# Resharper
+_ReSharper*/
+*.DotSettings.user
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+*.nuspec
+
+# dotnet CLI artifacts
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Logs
+*.log
+
+# Tye
+.tye/
+
+# LocalDB
+*.mdf
+*.ldf
+
+# Azure Functions
+.local.settings.json
+
+# Coverage
+coverage/
+*.coverage
+*.coveragexml
+TestResults/
+
+# Visual Studio Test result
+*.trx
+
+# Publish directory
+publish/
+
+# macOS
+.DS_Store

@@ -11,14 +11,14 @@ namespace LiteAgentSDK.DotNet.Models
         [JsonProperty("content")]
         public List<Content> Content { get; set; }
 
-        [JsonProperty("stream")]
-        public bool? Stream { get; set; }
+        [JsonProperty("isChunk")]
+        public bool? IsChunk { get; set; }
 
-        public UserTask(string taskId, List<Content> content, bool? stream = null)
+        public UserTask(string taskId, List<Content> content, bool? isChunk = null)
         {
             TaskId = taskId;
             Content = content;
-            Stream = stream;
+            IsChunk = isChunk;
         }
     }
     
