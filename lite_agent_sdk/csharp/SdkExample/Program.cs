@@ -11,10 +11,10 @@ namespace SdkExample
     {
         private static async Task Main(string[] args)
         {
-            const string baseUrl = "https://www.liteagent.cn/liteAgent/v1";//"<BaseUrl, eg. https://www.liteagent.cn/liteAgent/v1>";
-            const string apiKey = "sk-07d063af326d4975b4e5c9bde939a5bc";//"<Agent access apiKey from LiteAgent>";
-            const string userPrompt = "你能做什么？";//"Hi";
-            const string agentId = "1920035450164170754";//"<AgentId from LiteAgent>";
+            const string baseUrl = "<BaseUrl, eg. https://www.liteagent.cn/liteAgent/v1>";
+            const string apiKey = "<Agent access apiKey from LiteAgent>";
+            const string userPrompt = "Hi";
+            const string agentId = "<AgentId from LiteAgent>";
 
             var liteAgent = new LiteAgentSdk(baseUrl, apiKey);
             var version = await liteAgent.GetVersion();
