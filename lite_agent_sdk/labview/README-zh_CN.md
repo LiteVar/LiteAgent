@@ -15,7 +15,8 @@ LiteAgent的LabVIEW SDK，用于LabVIEW应用程序中与LiteAgent进行交互�
 
 ## 安装
 
-- 在VIPM搜索 `LiteAgentSDK`
+- 方法1：在`VIPM`搜索 `LiteAgentSDK`
+- 方法2：如果`VIPM`没有搜索到，直接 [这里下载](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_sdk/labview/Build/) 最新版本的vip文件，双击打开
 
 ![VIPM.png](img/VIPM.png)
 
