@@ -15,8 +15,7 @@ The LiteAgent SDK for LabVIEW is used for interacting with LiteAgent in LabVIEW 
 
 ## Installation
 
-- Method 1: From `VIPM` Search `LiteAgentSDK`
-- Method 2: If `VIPM` does NOT find it, download the latest version of the `vip` file directly from [HERE](https://github.com/LiteVar/LiteAgent/blob/master/lite_agent_sdk/labview/Build/). 
+- From VIPM Search `LiteAgentSDK`
 
 ![VIPM.png](img/VIPM.png)
 
