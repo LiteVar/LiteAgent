@@ -36,7 +36,7 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - 工具管理(Web, Desktop)
 - Agent管理(Web, Desktop)
 - 用户管理(Web)
-- 知识库管理（Web）
+- 知识库管理(Web)
 
 ### 4. 模型支持
 
