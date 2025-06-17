@@ -56,8 +56,8 @@ https://api.liteagent.cn/liteAgent/v1
 
 ```json
   {
-      "version": "0.0.0"
-  }
+  "version": "0.0.0"
+}
 ```
 
 ### 2. 初始化Agent会话
@@ -111,12 +111,12 @@ POST /initSession
 ##### Body参数
 `application/json`
 
-| 字段名               | 类型        | 说明                                                                                                                                                                              |
-|-------------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `content`         | `array`   | 消息内容列表，数组中每个元素为 `object`                                                                                                                                                        |
-| `content.type`    | `string`  | 消息类型，可选为 `text` `imageUrl`                                                                                                                                                      |
-| `content.message` | `string`  | 消息内容，例如："给我一个随机数"; <br/>如果消息类型为imageUrl，message的String可选为：<br/>1. 图片链接："https://example.com/path/to/image.png" ，且确保公网可访问<br/>2. base64格式："data:image/jpeg;base64,{图片的base64编码}" |
-| `stream`          | `boolean` | （可选）用于订阅 LiteAgent返回消息的方式，默认为`false`                                                                                                                                            |
+| 字段名               | 类型        | 说明                                                                                                                                                                                |
+|-------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `content`         | `array`   | 消息内容列表，数组中每个元素为 `object`                                                                                                                                                          |
+| `content.type`    | `string`  | 消息类型，可选为 `text` `imageUrl`                                                                                                                                                        |
+| `content.message` | `string`  | 消息内容，例如："给我一个随机数"; <br/>如果消息类型为`imageUrl`，message的String可选为：<br/>1. 图片链接："https://example.com/path/to/image.png" ，且确保公网可访问<br/>2. base64格式："data:image/jpeg;base64,{图片的base64编码}" |
+| `isChunk`         | `boolean` | （可选）用于订阅 LiteAgent返回消息的方式，默认为`false`                                                                                                                                              |
 
 #### 请求示例
 
@@ -129,7 +129,7 @@ POST /chat?sessionId=1901883204734947328
   "content": [
     { "type": "text", "message":"你是谁？" }
   ],
-  "stream": true
+  "isChunk": true
 }
 ```
 
@@ -138,7 +138,7 @@ POST /chat?sessionId=1901883204734947328
 - 采用SSE，`Content-Type: text/event-stream`
 
 - 消息类型`event`有三种类型:`message`、`chunk`和`functionCall`
-  - `chunk`类型只有`stream`为`true`时，且`role`为`assistant`或`subagent`有效。
+  - `chunk`类型只有`isChunk`为`true`时，且`role`为`assistant`或`subagent`有效。
   - `functionCall`类型只有`role`为`agent`或`subagent`，`to`为`client`，`type`为`functionCall`有效。
 
 当`event`为`message`或`functionCall`时，`data`类型为`object`类型，`data`结构如下:
@@ -216,14 +216,14 @@ POST /chat?sessionId=1901883204734947328
     "createTime": "2023-06-18T15:45:30.000+0800"
   }
   ```
-  
+
 - `dispatcher`分发指令到`subagent`
     ```json
   {
     "sessionId":"1901883204734947328",
     "taskId":"1901883415867822080",
-    "role":"subagent",
-    "to":"agent",
+    "role":"agent",
+    "to":"subagent",
     "type": "dispatch",
     "content":[
       {
@@ -239,26 +239,6 @@ POST /chat?sessionId=1901883204734947328
   }
   ```
 
-- `subagent`响应
-  ```json
-  {
-    "sessionId":"1901883204734947328",
-    "taskId":"1901883415867822080",
-    "role":"subagent",
-    "to":"agent",
-    "type": "dispatch",
-    "content": {
-      "dispatchId":"",
-      "agentId": "xxx", 
-      "name": "MyAgent",
-      "content": [
-        { "type": "text", "message":"IP地址为192.168.31.123" }
-      ]
-    },
-    "createTime": "2023-06-18T15:45:30.000+0800"
-  }
-  ```
-
 - 反思请求：`type`=`reflection`
   ```json
   {
@@ -268,7 +248,7 @@ POST /chat?sessionId=1901883204734947328
     "to":"agent",
     "type": "reflection",
     "content": {
-      "isPass":"",
+      "isPass": true,
       "agentId": "xxx", 
       "name": "MyAgent",
       "messageScore": {
@@ -289,7 +269,7 @@ POST /chat?sessionId=1901883204734947328
   }
   ```
 
-- 当`stream`=`false`，LLM返回的结果
+- 当`isChunk`=`false`，LLM返回的结果
   ```json
   {
     "sessionId":"1901883204734947328",
@@ -348,7 +328,7 @@ POST /chat?sessionId=1901883204734947328
 }
 ```
 
-当`stream`=`true`时，LLM的消息返回`event`为`chunk`，`role`为`agent` `assistant`或`subagent`。`data`类型为`object`类型，`data`结构如下:
+当`isChunk`=`true`时，LLM的消息返回`event`为`chunk`，`role`为`agent` `assistant`或`subagent`。`data`类型为`object`类型，`data`结构如下:
 
 | 字段                                   | 类型       | 说明                                        |
 |--------------------------------------|----------|-------------------------------------------|
@@ -381,6 +361,7 @@ POST /chat?sessionId=1901883204734947328
     "createTime": "2023-06-18T15:45:30.000+0800"
   }
   ```
+
 - `chunk`文本片段响应结束
   ```json
   {
@@ -402,7 +383,7 @@ POST /chat?sessionId=1901883204734947328
     "role":"assistant",
     "to":"agent",
     "type": "text",
-    "content": "",
+    "part": "",
     "completions": {
       "usage": {
         "promptTokens": 199,
@@ -455,7 +436,7 @@ POST /chat?sessionId=1901883204734947328
 
 **状态码**: `200 OK`
 
-**响应体**: 
+**响应体**:
 
 无
 
