@@ -48,8 +48,8 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 
 开始使用LiteAgent之前, 请确保您的机器满足以下最低系统要求:
 
->- CPU >= 2 Core
->- RAM >= 6 GiB
+>- CPU >= 4 Core
+>- RAM >= 10 GiB
 
 ### 2. 配置邀请邮箱
 
@@ -64,7 +64,10 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 ```
 
 ### 3. 运行服务
-
+#### 3.1 准备
+>- 打包构建LiteAgent web(请参考lite_agent_web/README_zh-CN.md), 然后替换到文件夹: docker/nginx/html/
+>- 打包构建LiteAgent java后端(请参考lite_agent_backend/README-zh_CN.md), 然后替换到目标文件夹: docker/LiteAgent/app/
+#### 3.2 开始
 - docker compose拉起服务，请确保您的系统事先已安装docker和docker-compose插件
 ```
 cd docker 

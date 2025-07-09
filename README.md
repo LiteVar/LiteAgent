@@ -46,8 +46,8 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 ### 1. Minimum System
 Before using LiteAgent, make sure your machine meets the following minimum system requirements:
  
->- CPU >= 2 Core
->- RAM >= 6 GiB
+>- CPU >= 4 Core
+>- RAM >= 10 GiB
 
 ### 2. Invitation Email Configuration
 
@@ -62,7 +62,10 @@ mail:
 ```
 
 ### 3. Run
-
+#### 3.1 Preparation
+>- Build LiteAgent web in nodejs environment(please refer to lite_agent_web/README.md), and then replace it to the directory: docker/nginx/html/
+>- Build LiteAgent backend app in java environment(please refer to lite_agent_backend/README.md), and then replace it to the directory: docker/LiteAgent/app/
+#### 3.2 Beginning
 - Pull up services by docker compose
 - Please make sure docker, docker compose plugin are installed on your machine
 ```
