@@ -30,8 +30,8 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Tool Sequence: Reflection on Tool Order
 - Supports third-party OpenTool callbacks
 - Protocol: MCP
- - Server supports MCP over SSE
- - Desktop supports MCP over stdio
+  - Server supports MCP over SSE
+  - Desktop supports MCP over stdio
 
 ### 3. Functional Modules
 
@@ -72,9 +72,10 @@ mail:
 
 ### 3. Run
 #### 3.1 Preparation
->- Build LiteAgent web in nodejs environment(please refer to lite_agent_web/README.md), and then replace it to the directory: docker/nginx/html/
->- Build LiteAgent backend app in java environment(please refer to lite_agent_backend/README.md), rename to lite-agent.jar, and then replace it to the directory: docker/LiteAgent/app/
-  - update config file to the directory: docker/LiteAgent/app/config (please refer to lite_agent_backend/lite-agent-rest/src/main/resources)
+> - Build LiteAgent web in nodejs environment(please refer to lite_agent_web/README.md), and then replace it to the directory: docker/nginx/html/
+> - Build LiteAgent backend app in java environment(please refer to lite_agent_backend/README.md),
+>   - rename to lite-agent.jar, and then replace it to the directory: docker/LiteAgent/app/
+>   - update config file to the directory: docker/LiteAgent/app/config (please refer to lite_agent_backend/lite-agent-rest/src/main/resources)
 
 #### 3.2 Beginning
 - Pull up services by docker compose

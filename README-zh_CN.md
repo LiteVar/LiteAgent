@@ -31,8 +31,8 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - 方法序列：工具顺序的反思
 - 支持第三方OpenTool回调
 - 协议：MCP
- - Server支持MCP的SSE
- - Desktop支持MCP的stdio
+  - Server支持MCP的SSE
+  - Desktop支持MCP的stdio
 	
 ### 3. 功能
 
@@ -74,9 +74,10 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 
 ### 3. 运行服务
 #### 3.1 准备
->- 打包构建LiteAgent web(请参考lite_agent_web/README_zh-CN.md), 然后替换到文件夹: docker/nginx/html/
->- 打包构建LiteAgent java后端(请参考lite_agent_backend/README-zh_CN.md), 重命名为lite-agent.jar, 然后替换到目标文件夹: docker/LiteAgent/app/
-  - 更新配置文件到目标文件夹：docker/LiteAgent/app/config (请参考lite_agent_backend/lite-agent-rest/src/main/resources)
+> - 打包构建LiteAgent web(请参考lite_agent_web/README_zh-CN.md), 然后替换到文件夹: docker/nginx/html/
+> - 打包构建LiteAgent java后端(请参考lite_agent_backend/README-zh_CN.md), 
+>   - 重命名为lite-agent.jar, 然后替换到目标文件夹: docker/LiteAgent/app/
+>   - 更新配置文件到目标文件夹：docker/LiteAgent/app/config (请参考lite_agent_backend/lite-agent-rest/src/main/resources)
 
 #### 3.2 开始
 - docker compose拉起服务，请确保您的系统事先已安装docker和docker-compose插件
