@@ -15,12 +15,13 @@ import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.vo.FunctionVO;
 import com.litevar.agent.base.vo.ToolVO;
 import com.litevar.agent.core.module.llm.ModelService;
-import com.litevar.agent.core.module.local.ToolFunctionService;
 import com.litevar.agent.core.module.tool.parser.ToolParser;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
 import com.mongoplus.service.impl.ServiceImpl;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,8 @@ public class ToolService extends ServiceImpl<ToolProvider> {
     private ToolFunctionService toolFunctionService;
     @Autowired
     private ModelService modelService;
+    @Autowired
+    private CacheManager cacheManager;
 
     @Cacheable(value = CacheKey.TOOL_INFO, key = "#id", unless = "#result == null")
     public ToolProvider findById(String id) {
@@ -47,6 +50,17 @@ public class ToolService extends ServiceImpl<ToolProvider> {
             return null;
         }
         return Optional.ofNullable(this.getById(id)).orElseThrow();
+    }
+
+    @Cacheable(value = CacheKey.TOOL_API_KEY_INFO, key = "#id", unless = "#result == null")
+    public String toolApiKey(String id) {
+        ToolProvider tool = proxy().findById(id);
+        String key = null;
+        if (StrUtil.isNotBlank(tool.getApiKey())) {
+            String keyType = StrUtil.isNotEmpty(tool.getApiKeyType()) ? tool.getApiKeyType() : "";
+            key = (keyType + " " + tool.getApiKey()).trim();
+        }
+        return key;
     }
 
     public void addTool(ToolVO vo, String workspaceId) {
@@ -69,7 +83,7 @@ public class ToolService extends ServiceImpl<ToolProvider> {
         toolFunctionService.saveBatch(functionList);
     }
 
-    @CacheEvict(value = CacheKey.TOOL_INFO, key = "#vo.id")
+    @CacheEvict(value = {CacheKey.TOOL_INFO, CacheKey.TOOL_API_KEY_INFO}, key = "#vo.id")
     public void updateTool(ToolVO vo) {
         ToolProvider tool = Optional.ofNullable(proxy().findById(vo.getId())).orElseThrow();
 
@@ -105,6 +119,10 @@ public class ToolService extends ServiceImpl<ToolProvider> {
         });
         if (!updateList.isEmpty()) {
             toolFunctionService.updateBatchByIds(updateList);
+            Cache cache = cacheManager.getCache(CacheKey.TOOL_FUNCTION_INFO);
+            if (cache != null) {
+                updateList.forEach(i -> cache.evict(i.getId()));
+            }
         }
         if (!insertList.isEmpty()) {
             toolFunctionService.saveBatch(insertList);
@@ -112,6 +130,10 @@ public class ToolService extends ServiceImpl<ToolProvider> {
         if (!originFunction.isEmpty()) {
             Set<String> ids = new HashSet<>(originFunction.values());
             toolFunctionService.removeBatchByIds(ids);
+            Cache cache = cacheManager.getCache(CacheKey.TOOL_FUNCTION_INFO);
+            if (cache != null) {
+                ids.forEach(cache::evict);
+            }
         }
         this.updateById(tool);
     }
@@ -122,17 +144,13 @@ public class ToolService extends ServiceImpl<ToolProvider> {
             ToolParser parser = ToolHandleFactory.getParseInstance(ToolSchemaType.of(tool.getSchemaType()));
             functionList.addAll(parser.parse(tool.getSchemaStr()));
         }
-        if (StrUtil.isNotEmpty(tool.getOpenSchemaStr())) {
-            ToolParser openToolParser = ToolHandleFactory.getParseInstance(ToolSchemaType.OPEN_TOOL);
-            functionList.addAll(openToolParser.parse(tool.getOpenSchemaStr()));
-        }
         if (functionList.isEmpty()) {
             throw new ServiceException(ServiceExceptionEnum.TOOL_NO_FUNCTION);
         }
         return functionList;
     }
 
-    @CacheEvict(value = CacheKey.TOOL_INFO, key = "#id")
+    @CacheEvict(value = {CacheKey.TOOL_INFO, CacheKey.TOOL_API_KEY_INFO}, key = "#id")
     public void deleteTool(String id) {
         this.removeById(id);
 
@@ -142,7 +160,7 @@ public class ToolService extends ServiceImpl<ToolProvider> {
         toolFunctionService.removeBatchByIds(functionIds);
     }
 
-    public List<ToolDTO> toolList(String workspaceId, String name, Integer tab) {
+    public List<ToolDTO> toolList(String workspaceId, String name, Integer tab, Boolean autoAgent) {
         if (tab == 1) {
             //系统: 系统预置,暂为空
             return Collections.emptyList();
@@ -154,6 +172,7 @@ public class ToolService extends ServiceImpl<ToolProvider> {
                 .eq(ToolProvider::getWorkspaceId, workspaceId)
                 .eq(tab == 3, ToolProvider::getUserId, userId)
                 .like(StrUtil.isNotEmpty(name), ToolProvider::getName, name)
+                .eq(autoAgent != null, ToolProvider::getAutoAgent, autoAgent)
                 .orderByDesc(ToolProvider::getCreateTime)
                 .list();
 
@@ -170,8 +189,8 @@ public class ToolService extends ServiceImpl<ToolProvider> {
         return res;
     }
 
-    public List<ToolDTO> toolList(String workspaceId, Integer tab) {
-        List<ToolDTO> res = toolList(workspaceId, null, tab);
+    public List<ToolDTO> toolList(String workspaceId, Integer tab, Boolean autoAgent) {
+        List<ToolDTO> res = toolList(workspaceId, null, tab, autoAgent);
         if (ObjectUtil.isEmpty(res)) {
             return res;
         }

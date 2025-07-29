@@ -7,6 +7,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -72,5 +73,22 @@ public class RedisUtil {
         }
         BoundValueOperations<String, Object> boundValueOps = redisTemplate.boundValueOps(key);
         return boundValueOps.setIfAbsent(value);
+    }
+
+    public static void setHashValue(String key, String hashKey, Object value) {
+        redisTemplate.opsForHash().put(key, hashKey, value);
+    }
+
+    public static void setHashValue(String key, Map<String, Object> value) {
+        redisTemplate.opsForHash().putAll(key, value);
+    }
+
+    public static void setHashValue(String key, Map<String, Object> value, long ttl, TimeUnit unit) {
+        redisTemplate.opsForHash().putAll(key, value);
+        redisTemplate.expire(key, ttl, unit);
+    }
+
+    public static Object getHashValue(String key, String hashKey) {
+        return redisTemplate.opsForHash().get(key, hashKey);
     }
 }

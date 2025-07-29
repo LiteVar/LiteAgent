@@ -43,7 +43,7 @@ public class ToolController {
     public ResponseData<List<ToolDTO>> tool(@RequestParam(value = "name", required = false) String name,
                                             @RequestParam(value = "tab", defaultValue = "0") Integer tab,
                                             @RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId) {
-        List<ToolDTO> list = toolService.toolList(workspaceId, name, tab);
+        List<ToolDTO> list = toolService.toolList(workspaceId, name, tab, null);
         return ResponseData.success(list);
     }
 
@@ -51,13 +51,15 @@ public class ToolController {
      * 工具列表(带function)
      *
      * @param tab         0-全部,1-系统,2-来自分享,3-我的
+     * @param autoAgent   是否支持auto agent
      * @param workspaceId
      * @return
      */
     @GetMapping("/listWithFunction")
     public ResponseData<List<ToolDTO>> tool(@RequestParam(value = "tab", defaultValue = "0") Integer tab,
+                                            @RequestParam(value = "autoAgent", required = false) Boolean autoAgent,
                                             @RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId) {
-        List<ToolDTO> list = toolService.toolList(workspaceId, tab);
+        List<ToolDTO> list = toolService.toolList(workspaceId, tab, autoAgent);
         return ResponseData.success(list);
     }
 

@@ -85,6 +85,28 @@ const AddToolModal: React.FC<AddToolModalProps> = ({
 
   const collapseItems = useMemo(() => {
     return toolList.map((tool) => {
+         // 判断该工具集下所有 function 是否都已选中
+      const allSelected = tool.functionList?.every(func => isToolSelected(func.functionId!));
+
+      // 批量添加/移除
+      const handleBatchToggle = () => {
+        if (allSelected) {
+          // 全部移除
+          tool.functionList?.forEach(func => {
+            if (isToolSelected(func.functionId!)) {
+              toggleTool(func);
+            }
+          });
+        } else {
+          // 全部添加
+          tool.functionList?.forEach(func => {
+            if (!isToolSelected(func.functionId!)) {
+              toggleTool(func);
+            }
+          });
+        }
+      };
+
       return {
         key: tool.id,
         label: (     
@@ -99,7 +121,19 @@ const AddToolModal: React.FC<AddToolModalProps> = ({
               <div className="text-[14px] text-[#c2c2c2]">
                 {tool.description}
               </div>
-            </div>   
+            </div>  
+
+            <Button
+              variant="filled"  
+              color={allSelected ? "danger" : "primary"}         
+              style={{ marginLeft: 8 }}
+              onClick={e => {
+                e.stopPropagation(); // 防止展开/收起
+                handleBatchToggle();
+              }}
+            >
+              {allSelected ? '移除所有方法' : '添加所有方法'}
+            </Button> 
           </div>            
         ),
         children: (
@@ -117,7 +151,7 @@ const AddToolModal: React.FC<AddToolModalProps> = ({
                   <div className="text-[16px] text-[#333]">
                     {`${func.functionName}${toUpperCaseWord(func.requestMethod)}`}
                   </div>
-                  <div className="text-[14px] text-[#c2c2c2]">
+                  <div className="mr-4 text-[14px] text-[#c2c2c2]">
                     {func.functionDesc}
                   </div>
                 </div>

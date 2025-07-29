@@ -1,0 +1,23 @@
+.messages-loader .loader {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.messages-loader .dot {
+  width: 12px;
+  height: 12px;
+  background: #777;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.messages-loader .dot1 { animation: pulse 1.2s 0s infinite; }
+.messages-loader .dot2 { animation: pulse 1.2s 0.4s infinite; }
+.messages-loader .dot3 { animation: pulse 1.2s 0.8s infinite; }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  33% { transform: scale(1.5); }
+  66% { transform: scale(1); }
+}

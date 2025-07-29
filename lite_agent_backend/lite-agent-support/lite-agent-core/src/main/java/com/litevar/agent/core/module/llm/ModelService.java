@@ -19,7 +19,6 @@ import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
 import com.mongoplus.mapper.BaseMapper;
 import com.mongoplus.model.PageResult;
 import com.mongoplus.service.impl.ServiceImpl;
-import com.mongoplus.support.SFunction;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -49,12 +48,26 @@ public class ModelService extends ServiceImpl<LlmModel> {
         return Optional.ofNullable(this.getById(id)).orElseThrow();
     }
 
+    @Cacheable(value = CacheKey.MODEL_INFO, key = "#id", unless = "#result == null")
+    public LlmModel findByIdNullable(String id) {
+        return this.getById(id);
+    }
+
     public void addModel(String workspaceId, ModelVO modelVO) {
         LlmModel llmModel = new LlmModel();
         BeanUtil.copyProperties(modelVO, llmModel);
         llmModel.setId(null);
         llmModel.setWorkspaceId(workspaceId);
         llmModel.setUserId(LoginContext.currentUserId());
+
+        //别名不能重复
+        long count = this.lambdaQuery()
+                .eq(LlmModel::getAlias, modelVO.getAlias())
+                .eq(LlmModel::getWorkspaceId, workspaceId)
+                .count();
+        if (count > 0) {
+            throw new ServiceException(ServiceExceptionEnum.MODEL_ALIAS_DUPLICATE);
+        }
 
         this.save(llmModel);
     }
@@ -71,33 +84,38 @@ public class ModelService extends ServiceImpl<LlmModel> {
         this.removeById(id);
 
         //agent中有引用到模型的数据,置空
-        SFunction<Agent, String> getLlmModelId = Agent::getLlmModelId;
-        List<Agent> agentList = baseMapper.getByColumn(getLlmModelId.getFieldNameLine(), id, Agent.class);
-
-        if (!agentList.isEmpty()) {
-            baseMapper.update(agentService.lambdaUpdate()
-                    .set(Agent::getLlmModelId, "")
-                    .eq(Agent::getLlmModelId, id), Agent.class);
-        }
+        agentService.update(agentService.lambdaUpdate().set(Agent::getLlmModelId, "").eq(Agent::getLlmModelId, id));
+        agentService.update(agentService.lambdaUpdate().set(Agent::getTtsModelId, "").eq(Agent::getTtsModelId, id));
+        agentService.update(agentService.lambdaUpdate().set(Agent::getAsrModelId, "").eq(Agent::getAsrModelId, id));
     }
 
     @CacheEvict(value = CacheKey.MODEL_INFO, key = "#vo.id")
     public void updateModel(ModelVO vo) {
         LlmModel llmModel = proxy().findById(vo.getId());
-        Optional.ofNullable(llmModel).orElseThrow();
-
         if (!llmModel.getUserId().equals(LoginContext.currentUserId())) {
             throw new ServiceException(ServiceExceptionEnum.NO_PERMISSION_OPERATE);
+        }
+        if (!StrUtil.equals(llmModel.getAlias(), vo.getAlias())) {
+            //别名不能重复
+            long count = this.lambdaQuery()
+                    .eq(LlmModel::getAlias, vo.getAlias())
+                    .eq(LlmModel::getWorkspaceId, llmModel.getWorkspaceId())
+                    .ne(LlmModel::getId, llmModel.getId())
+                    .count();
+            if (count > 0) {
+                throw new ServiceException(ServiceExceptionEnum.MODEL_ALIAS_DUPLICATE);
+            }
         }
 
         BeanUtil.copyProperties(vo, llmModel);
         this.updateById(llmModel);
     }
 
-    public PageModel<ModelDTO> modelList(String workspaceId, String type, Integer pageSize, Integer pageNo) {
+    public PageModel<ModelDTO> modelList(String workspaceId, String type, Boolean autoAgent, Integer pageSize, Integer pageNo) {
         LambdaQueryChainWrapper<LlmModel> chain = this.lambdaQuery()
                 .eq(LlmModel::getWorkspaceId, workspaceId)
                 .eq(StrUtil.isNotBlank(type), LlmModel::getType, type)
+                .eq(autoAgent != null, LlmModel::getAutoAgent, autoAgent)
                 .orderByDesc(LlmModel::getCreateTime);
 
         PageResult<LlmModel> all = this.page(chain, pageNo, pageSize);

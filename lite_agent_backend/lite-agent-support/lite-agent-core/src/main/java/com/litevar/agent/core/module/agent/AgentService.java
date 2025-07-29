@@ -13,13 +13,10 @@ import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.util.RedisUtil;
-import com.litevar.agent.base.vo.AgentCreateForm;
-import com.litevar.agent.base.vo.AgentDetailVO;
-import com.litevar.agent.base.vo.AgentUpdateForm;
-import com.litevar.agent.base.vo.FunctionVO;
+import com.litevar.agent.base.vo.*;
 import com.litevar.agent.core.module.llm.ModelService;
 import com.litevar.agent.core.module.local.LocalAgentService;
-import com.litevar.agent.core.module.local.ToolFunctionService;
+import com.litevar.agent.core.module.tool.ToolFunctionService;
 import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
 import com.mongoplus.service.impl.ServiceImpl;
@@ -60,6 +57,18 @@ public class AgentService extends ServiceImpl<Agent> {
         }
 
         AgentDetailVO vo = new AgentDetailVO();
+        if (StrUtil.isNotBlank(agent.getTtsModelId())) {
+            LlmModel ttsModel = modelService.findByIdNullable(agent.getTtsModelId());
+            if (ttsModel == null) {
+                agent.setTtsModelId("");
+            }
+        }
+        if (StrUtil.isNotBlank(agent.getAsrModelId())) {
+            LlmModel asrModel = modelService.findByIdNullable(agent.getAsrModelId());
+            if (asrModel == null) {
+                agent.setAsrModelId("");
+            }
+        }
         vo.setAgent(agent);
         return vo;
     }
@@ -114,10 +123,22 @@ public class AgentService extends ServiceImpl<Agent> {
         }
 
         if (StrUtil.isNotBlank(agent.getLlmModelId())) {
-            LlmModel model = modelService.getById(agent.getLlmModelId());
+            LlmModel model = modelService.findByIdNullable(agent.getLlmModelId());
             vo.setModel(model);
             if (model == null) {
                 vo.getAgent().setLlmModelId("");
+            }
+        }
+        if (StrUtil.isNotBlank(agent.getTtsModelId())) {
+            LlmModel ttsModel = modelService.findByIdNullable(agent.getTtsModelId());
+            if (ttsModel == null) {
+                vo.getAgent().setTtsModelId("");
+            }
+        }
+        if (StrUtil.isNotBlank(agent.getAsrModelId())) {
+            LlmModel asrModel = modelService.findByIdNullable(agent.getAsrModelId());
+            if (asrModel == null) {
+                vo.getAgent().setAsrModelId("");
             }
         }
 
@@ -128,17 +149,60 @@ public class AgentService extends ServiceImpl<Agent> {
         return vo;
     }
 
-    public Agent addAgent(String workspaceId, AgentCreateForm form) {
+    /**
+     * api agent详情,目前只需要返回工具和子agent
+     */
+    public ApiAgentDetailVO apiAgentDetail(String agentId) {
+        Agent agent = findById(agentId);
+        ApiAgentDetailVO vo = new ApiAgentDetailVO();
+        if (!agent.getFunctionList().isEmpty()) {
+            List<String> functionIds = agent.getFunctionList().stream().map(Agent.AgentFunction::getFunctionId).toList();
+            List<ToolFunction> functionList = toolFunctionService.getByIds(functionIds);
+            Set<String> toolIds = functionList.parallelStream().map(ToolFunction::getToolId).collect(Collectors.toSet());
+            Map<String, ToolProvider> toolMap = toolService.getByIds(toolIds).parallelStream().collect(Collectors.toMap(ToolProvider::getId, i -> i));
+            List<FunctionVO> fvList = new ArrayList<>();
+            functionList.forEach(v -> {
+                FunctionVO fv = new FunctionVO();
+                fv.setToolId(v.getToolId());
+                fv.setToolName(toolMap.get(v.getToolId()).getName());
+                fv.setFunctionId(v.getId());
+                fv.setFunctionName(v.getResource());
+                fv.setFunctionDesc(v.getDescription());
+                fv.setProtocol(v.getProtocol());
+                fv.setRequestMethod(v.getRequestMethod());
+                fvList.add(fv);
+            });
+            vo.setFunctionList(fvList);
+        }
+
+        if (!agent.getSubAgentIds().isEmpty()) {
+            List<ApiAgentDetailVO.AgentInfo> subAgentList = this.getByIds(agent.getSubAgentIds())
+                    .stream().map(i -> {
+                        ApiAgentDetailVO.AgentInfo info = new ApiAgentDetailVO.AgentInfo();
+                        info.setId(i.getId());
+                        info.setName(i.getName());
+                        return info;
+                    }).toList();
+            vo.setSubAgentList(subAgentList);
+        }
+
+        return vo;
+    }
+
+    public Agent addAgent(String workspaceId, AgentCreateForm form, String userId) {
         Agent agent = new Agent();
         BeanUtil.copyProperties(form, agent, CopyOptions.create().setIgnoreNullValue(true));
         agent.setWorkspaceId(workspaceId);
-        agent.setUserId(LoginContext.currentUserId());
+        agent.setUserId(userId);
         this.save(agent);
 
         return agent;
     }
 
     public void removeAgent(String id) {
+        if (findById(id).getAutoAgentFlag()) {
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE);
+        }
         this.removeById(id);
     }
 
@@ -210,11 +274,9 @@ public class AgentService extends ServiceImpl<Agent> {
     }
 
     public List<AgentDTO> agentList(String workspaceId, Integer tab, String agentName, Integer status) {
-        if (tab == 1) {
-            //系统: 系统预置,暂为空
+        if (StrUtil.isBlank(workspaceId)) {
             return Collections.emptyList();
         }
-
         String userId = LoginContext.currentUserId();
         List<AgentDTO> res = new ArrayList<>();
 
@@ -237,18 +299,44 @@ public class AgentService extends ServiceImpl<Agent> {
                 return Collections.emptyList();
             }
         } else {
-            List<Agent> list = this.lambdaQuery()
-                    .projectDisplay(Agent::getId, Agent::getUserId, Agent::getName, Agent::getIcon, Agent::getDescription,
-                            Agent::getStatus, Agent::getType, Agent::getMode)
-                    .eq(Agent::getWorkspaceId, workspaceId)
-                    .eq(tab == 3, Agent::getUserId, userId)
-                    .eq(ObjectUtil.isNotEmpty(status), Agent::getStatus, status)
-                    .like(StrUtil.isNotBlank(agentName), Agent::getName, agentName)
-                    .orderByDesc(Agent::getCreateTime)
-                    .list();
+            List<Agent> list;
+            if (tab == 1) {
+                //系统
+                list = new ArrayList<>(1);
+            } else {
+                list = this.lambdaQuery()
+                        .projectDisplay(Agent::getId, Agent::getUserId, Agent::getName, Agent::getIcon, Agent::getDescription,
+                                Agent::getStatus, Agent::getType, Agent::getMode, Agent::getAutoAgentFlag)
+                        .eq(Agent::getWorkspaceId, workspaceId)
+                        //3:个人
+                        .eq(tab == 3, Agent::getUserId, userId)
+                        .eq(ObjectUtil.isNotEmpty(status), Agent::getStatus, status)
+                        .like(StrUtil.isNotBlank(agentName), Agent::getName, agentName)
+                        .ne(Agent::getAutoAgentFlag, true)
+                        .orderByDesc(Agent::getCreateTime)
+                        .list();
+            }
+
+            if (tab == 0 || tab == 1) {
+                //"全部"和"系统"没有查到auto agent,要新增一个
+                Agent autoAgent = this.lambdaQuery().eq(Agent::getWorkspaceId, workspaceId).eq(Agent::getAutoAgentFlag, true).one();
+                if (autoAgent == null) {
+                    AgentCreateForm form = new AgentCreateForm();
+                    form.setName("Auto Multi Agent");
+                    form.setDescription("AI能够理解任务，并从工具库和模型库中，搭建一个临时的agent执行任务，可以精准、高效地达成目标。");
+                    form.setAutoAgentFlag(Boolean.TRUE);
+                    Agent agent = addAgent(workspaceId, form, "0");
+                    autoAgent = this.findById(agent.getId());
+                }
+                if (ObjectUtil.isEmpty(status) || ObjectUtil.equal(autoAgent.getStatus(), status)) {
+                    list.add(0, autoAgent);
+                }
+            }
             for (Agent agent : list) {
                 AgentDTO dto = BeanUtil.copyProperties(agent, AgentDTO.class);
-                dto.setCreateUser(modelService.userInfo(dto.getUserId()).getName());
+                if (!StrUtil.equals(dto.getUserId(), "0")) {
+                    dto.setCreateUser(modelService.userInfo(dto.getUserId()).getName());
+                }
                 res.add(dto);
             }
         }

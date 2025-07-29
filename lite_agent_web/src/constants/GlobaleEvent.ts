@@ -1,0 +1,1 @@
+export const GLOBAL_EVENT_REFRESH_AGENT_LIST = 'global_event_refresh_agent_list';

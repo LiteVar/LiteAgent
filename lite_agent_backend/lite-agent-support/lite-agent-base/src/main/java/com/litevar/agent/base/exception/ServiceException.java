@@ -21,4 +21,10 @@ public class ServiceException extends RuntimeException {
         this.code = serviceExceptionEnum.getCode();
         this.message = serviceExceptionEnum.getMessage();
     }
+
+    public ServiceException(String message) {
+        super(message);
+        this.code = 10000;
+        this.message = message;
+    }
 }

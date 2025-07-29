@@ -27,11 +27,11 @@ public interface CacheKey {
     String INIT_STATUS = "initStatus";
 
     String SESSION_INFO = "session:info:%s";
-    String TOOL_API_KEY = "session:apiKey:%s:%s";
-    String SESSION_FUNCTION_INFO = "session:function:%s:%s";
+    String FUNCTION_EXECUTE_MODE = "session:function:mode:%s";
     String SESSION_CHAT = "session:chat:%s";
     String REFLECT_INFO = "session:reflect:%s";
     String REFLECT_TOOL_INFO = "session:reflect:tool:%s";
+    String SESSION_PLAN_INFO = "session:plan:%s";
 
     /**
      * agent未发布的信息
@@ -42,6 +42,8 @@ public interface CacheKey {
 
     String MODEL_INFO = "model:info";
     String TOOL_INFO = "tool:info";
+    String TOOL_API_KEY_INFO = "tool:apiKey";
+    String TOOL_FUNCTION_INFO = "tool:function";
 
     // 重置密码-验证码缓存key
     String RESET_PASSWORD_CAPTCHA = "reset:password:captcha:%s";

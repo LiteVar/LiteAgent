@@ -44,11 +44,9 @@ public class ToolProvider {
      */
     private String description;
     /**
-     * schema类型:
-     * 1-openapi
-     * 2-jsonrpc
-     * 3-open_modbus
-     * 4-mcp
+     * schema类型
+     *
+     * @see com.litevar.agent.base.enums.ToolSchemaType#value
      */
     private Integer schemaType;
     /**
@@ -59,6 +57,7 @@ public class ToolProvider {
     /**
      * open tool schema
      */
+    @Deprecated
     private String openSchemaStr;
 
     /**
@@ -69,6 +68,11 @@ public class ToolProvider {
      * apiKey类型: Bearer、Basic
      */
     private String apiKeyType;
+
+    /**
+     * 是否支持auto agent使用
+     */
+    private Boolean autoAgent = Boolean.FALSE;
 
     @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

@@ -1,0 +1,22 @@
+.agentMenu .ant-menu-dark .ant-menu-item-selected {
+  background-color: transparent !important; /* 取消蓝色背景色 */
+  color: #1890ff !important; /* 设置为蓝色字体 */
+}
+
+.agentMenu .ant-menu-dark .ant-menu-item-selected a {
+  color: #1890ff !important; /* 设置链接为蓝色字体 */
+}
+
+.no-underline .ant-tabs-top > .ant-tabs-nav::before {
+  border-bottom: none;
+}
+
+.shopTab .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  font-weight: bold;
+  color: inherit;
+}
+
+.shopTab .ant-tabs-ink-bar {
+  display: none !important;
+}
+

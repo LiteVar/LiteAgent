@@ -144,7 +144,7 @@ public class ToolOpenApiParser implements ToolParser, InitializingBean {
             param.setType(type);
             param.setDescription(schema.getDescription());
             if (ObjectUtil.isNotEmpty(schema.getEnum())) {
-                schema.getEnum().forEach(v -> param.getEnums().add(v.toString()));
+                schema.getEnum().forEach(v -> param.getEnums().add(v));
             }
             if (ObjectUtil.isNotEmpty(schema.getDefault())) {
                 param.setDefaultValue(schema.getDefault());

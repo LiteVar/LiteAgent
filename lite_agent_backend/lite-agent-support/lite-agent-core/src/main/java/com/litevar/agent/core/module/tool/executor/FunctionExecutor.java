@@ -10,6 +10,7 @@ import java.util.Map;
  */
 public interface FunctionExecutor {
     String HTTP = "http";
+    String JSON_RPC = "jsonRpc";
     String MODBUS = "modbus";
     String EXTERNAL = "external";
     String MCP = "mcp";

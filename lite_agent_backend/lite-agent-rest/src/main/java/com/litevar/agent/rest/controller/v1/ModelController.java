@@ -5,6 +5,7 @@ import com.litevar.agent.auth.annotation.WorkspaceRole;
 import com.litevar.agent.base.constant.CommonConstant;
 import com.litevar.agent.base.dto.ModelDTO;
 import com.litevar.agent.base.entity.Dataset;
+import com.litevar.agent.base.enums.AiProvider;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
@@ -20,6 +21,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 模型管理
@@ -92,14 +94,27 @@ public class ModelController {
      *
      * @param pageSize
      * @param pageNo
+     * @param type
+     * @param autoAgent 是否支持auto agent
      * @return
      */
     @GetMapping("/list")
     public ResponseData<PageModel<ModelDTO>> model(@RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId,
                                                    @RequestParam(value = "type", required = false) String type,
+                                                   @RequestParam(value = "autoAgent", required = false) Boolean autoAgent,
                                                    @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
                                                    @RequestParam(value = "pageNo", defaultValue = "0") Integer pageNo) {
-        PageModel<ModelDTO> res = modelService.modelList(workspaceId, type, pageSize, pageNo);
+        PageModel<ModelDTO> res = modelService.modelList(workspaceId, type, autoAgent, pageSize, pageNo);
         return ResponseData.success(res);
+    }
+
+    /**
+     * 模型厂商列表
+     *
+     * @return
+     */
+    @GetMapping("/providers")
+    public ResponseData<Map<String, String>> providers() {
+        return ResponseData.success(AiProvider.providers());
     }
 }

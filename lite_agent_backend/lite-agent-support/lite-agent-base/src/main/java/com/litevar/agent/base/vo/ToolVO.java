@@ -46,11 +46,6 @@ public class ToolVO {
     private String schemaStr;
 
     /**
-     * open tool schema
-     */
-    private String openSchemaStr;
-
-    /**
      * api key类型:Bearer、Basic
      */
     private String apiKeyType;
@@ -58,4 +53,9 @@ public class ToolVO {
      * api key 值
      */
     private String apiKey;
+
+    /**
+     * 是否支持auto agent使用
+     */
+    private Boolean autoAgent = Boolean.FALSE;
 }

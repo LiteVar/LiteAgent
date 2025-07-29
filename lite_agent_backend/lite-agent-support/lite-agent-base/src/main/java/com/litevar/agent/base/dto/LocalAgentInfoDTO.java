@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -41,11 +40,6 @@ public class LocalAgentInfoDTO {
      * 关联的大模型id
      */
     private String llmModelId = "";
-    /**
-     * 关联的工具列表
-     */
-    @Deprecated
-    private List<String> toolIds = Collections.emptyList();
 
     /**
      * 温度值

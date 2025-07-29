@@ -1,0 +1,16 @@
+.toolTab .ant-tabs-top > .ant-tabs-nav::before {
+  border-bottom: none;
+}
+
+.toolTab .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  font-weight: bold;
+  color: inherit;
+}
+
+.toolTab .ant-tabs-ink-bar {
+  display: none !important;
+}
+
+.agent-config .ant-collapse-header {
+  padding: 16px 0 !important;
+}

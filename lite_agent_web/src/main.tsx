@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './globals.css';
 import './antd.global.css'
+import '@/assets/styles/markdown.css';
 import reportWebVitals from './reportWebVitals';
 import {BrowserRouter} from "react-router-dom";
 import {QueryClientProvider, QueryClient } from '@tanstack/react-query'

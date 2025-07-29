@@ -1,10 +1,14 @@
 package com.litevar.agent.core.util;
 
 import jakarta.annotation.Resource;
+import jakarta.mail.MessagingException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import jakarta.mail.internet.MimeMessage;
 
 /**
  * @author uncle
@@ -24,5 +28,20 @@ public class MailSendUtil {
         message.setText(content);
         message.setFrom(mailSender.getUsername());
         mailSender.send(message);
+    }
+
+    @Async
+    public void sendHtml(String to, String subject, String htmlContent) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
+            helper.setFrom(mailSender.getUsername());
+            mailSender.send(mimeMessage);
+        } catch (MessagingException e) {
+            throw new RuntimeException("Failed to send HTML email", e);
+        }
     }
 }

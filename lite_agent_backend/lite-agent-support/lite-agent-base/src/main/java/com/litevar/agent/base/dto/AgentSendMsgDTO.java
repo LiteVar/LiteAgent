@@ -12,12 +12,13 @@ import lombok.Data;
 @Data
 public class AgentSendMsgDTO {
     /**
-     * text,imageUrl
+     * text,imageUrl,execute
      */
     @NotBlank
     private String type;
     /**
      * type=imageUrl时,格式为: data:image/jpeg;base64,{图片的base64编码}
+     * type=execute时,内容为planId
      */
     @NotBlank
     private String message;

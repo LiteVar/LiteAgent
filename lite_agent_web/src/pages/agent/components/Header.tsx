@@ -95,12 +95,12 @@ const Header: React.FC<HeaderProps> = (props) => {
             发布
           </Button>
         )}
-        {agentInfo?.canRelease && (
-          <Tooltip title={releaseTip}>
+        {((agentInfo?.canRelease || showMaxTokenWarning) && !agentInfo?.agent?.autoAgentFlag) && (
+          <Tooltip title={releaseTip} defaultOpen>
             <ExclamationCircleOutlined className="text-yellow-500 -ml-7" />
           </Tooltip>
         )}
-        {agentInfo?.canDelete && (
+        {agentInfo?.canDelete && !agentInfo?.agent?.autoAgentFlag && (
           <Dropdown
             menu={{
               items,

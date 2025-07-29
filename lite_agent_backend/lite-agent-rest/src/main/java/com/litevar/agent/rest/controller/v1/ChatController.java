@@ -1,13 +1,11 @@
 package com.litevar.agent.rest.controller.v1;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
+import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.constant.CommonConstant;
-import com.litevar.agent.base.dto.AgentDebugDTO;
-import com.litevar.agent.base.dto.AgentSendMsgDTO;
-import com.litevar.agent.base.dto.AgentToModelDTO;
-import com.litevar.agent.base.dto.MessageDTO;
+import com.litevar.agent.base.dto.*;
 import com.litevar.agent.base.entity.Agent;
 import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.enums.AgentCallType;
@@ -15,15 +13,16 @@ import com.litevar.agent.base.enums.AgentType;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.exception.StreamException;
+import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.util.LoginContext;
+import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.base.vo.AgentSessionVO;
 import com.litevar.agent.core.module.agent.AgentService;
 import com.litevar.agent.core.module.agent.ChatService;
 import com.litevar.agent.core.module.local.LocalAgentService;
 import com.litevar.agent.openai.completion.message.Message;
 import com.litevar.agent.openai.completion.message.UserMessage;
-import com.litevar.agent.rest.openai.OpenAIClientUtil;
 import com.litevar.agent.rest.openai.agent.AgentManager;
 import com.litevar.agent.rest.openai.agent.AgentMsgType;
 import com.litevar.agent.rest.openai.agent.MultiAgent;
@@ -31,25 +30,28 @@ import com.litevar.agent.rest.openai.handler.AgentMessageHandler;
 import com.litevar.agent.rest.openai.handler.SseClientMessageHandler;
 import com.litevar.agent.rest.openai.message.UserSendMessage;
 import com.litevar.agent.rest.service.AgentDatasetRelaService;
+import com.litevar.agent.rest.springai.audio.SpeechService;
 import com.litevar.agent.rest.util.AgentUtil;
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.io.OutputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
+import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 
 /**
  * @author uncle
@@ -69,6 +71,8 @@ public class ChatController {
     private AgentUtil agentUtil;
     @Autowired
     private AgentDatasetRelaService agentDatasetRelaService;
+    @Autowired
+    private SpeechService speechService;
 
     /**
      * 初始化会话
@@ -110,48 +114,85 @@ public class ChatController {
         }
 
         String userId = LoginContext.currentUserId();
-        AgentToModelDTO agentParam = agentUtil.buildSessionParam(agent, datasetIds);
-        return AgentManager.initSession(agentParam, debugFlag, userId, AgentCallType.AGENT.getCallType());
+        return AgentManager.initSession(agent, datasetIds, debugFlag, userId, AgentCallType.AGENT.getCallType());
     }
 
     /**
      * 发送会话消息
      *
      * @param sessionId 会话id
-     * @param dto
-     * @return
+     * @param stream    是否分块流式传输
+     * @param dto       消息内容
+     * @return 响应式流
      */
-    @PostMapping("/stream/{sessionId}")
-    public SseEmitter stream(@PathVariable("sessionId") String sessionId, @RequestBody @Valid List<AgentSendMsgDTO> dto) {
-        SseEmitter sseEmitter = new SseEmitter(1000L * 60 * 10);
-        String taskId = IdUtil.getSnowflakeNextIdStr();
-        boolean stream = true;
-        SseClientMessageHandler messageHandler = new SseClientMessageHandler(sessionId, taskId, sseEmitter, stream);
-        try {
-            List<AgentMessageHandler> handlers = AgentManager.getHandler(sessionId);
-            handlers.add(messageHandler);
-        } catch (ServiceException ex) {
-            //这里有可能是session过期/丢失的情况
-            sseEmitter.completeWithError(new StreamException(ex.getCode(), ex.getMessage()));
-            return sseEmitter;
-        } catch (Exception ex) {
-            sseEmitter.completeWithError(new StreamException(500, ex.getMessage()));
-            return sseEmitter;
-        }
+    @PostMapping(value = "/stream/{sessionId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> stream(@PathVariable("sessionId") String sessionId,
+                                                @RequestParam(value = "isChunk", defaultValue = "true", required = false) Boolean stream,
+                                                @RequestBody @Valid List<AgentSendMsgDTO> dto) {
+        return Flux.<ServerSentEvent<String>>create(sink -> {
+                    String taskId = IdUtil.getSnowflakeNextIdStr();
+                    SseClientMessageHandler messageHandler = new SseClientMessageHandler(sessionId, taskId, sink, stream);
+                    Optional<AgentSendMsgDTO> opt = dto.stream().filter(i -> StrUtil.equals(i.getType(), "execute")).findFirst();
 
-        //将用户发送消息的回推给客户端
-        MultiAgent agent = AgentManager.getAgent(sessionId);
-        UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), dto);
-        AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
+                    try {
+                        List<AgentMessageHandler> handlers = AgentManager.getHandler(sessionId);
+                        handlers.add(messageHandler);
+                        if (opt.isPresent()) {
+                            AgentSendMsgDTO msg = opt.get();
+                            String planId = msg.getMessage();
+                            Boolean exists = RedisUtil.exists(String.format(CacheKey.SESSION_PLAN_INFO, planId));
+                            if (!exists) {
+                                sink.error(new StreamException(404, "找不到该规划信息"));
+                                return;
+                            }
+                        }
+                    } catch (ServiceException ex) {
+                        sink.error(new StreamException(ex.getCode(), ex.getMessage()));
+                        return;
+                    } catch (Exception ex) {
+                        sink.error(new StreamException(500, ex.getMessage()));
+                        return;
+                    }
 
-        List<Message> submitMsg = new ArrayList<>();
-        for (AgentSendMsgDTO msg : dto) {
-            submitMsg.add(UserMessage.of(msg.getMessage()));
-        }
+                    // 响应式异步处理
+                    Mono.fromRunnable(() -> {
+                        MultiAgent agent = AgentManager.getAgent(sessionId);
 
-        CompletableFuture.runAsync(() -> AgentManager.chat(agent, taskId, submitMsg, stream));
+                        if (opt.isPresent()) {
+                            AgentSendMsgDTO msg = opt.get();
+                            String planId = msg.getMessage();
+                            List<AgentPlanningDTO> taskList = (List<AgentPlanningDTO>) RedisUtil.getValue(String.format(CacheKey.SESSION_PLAN_INFO, planId));
+                            msg.setMessage("执行方案");
+                            UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), List.of(msg));
+                            AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
 
-        return sseEmitter;
+                            List<MultiAgent> taskAgentList = agentUtil.createAgent(taskList, agent);
+                            String result = agentUtil.executeAgent(taskAgentList, taskId, stream);
+                            agentUtil.summary(result, agent, taskId, stream);
+                            RedisUtil.delKey(String.format(CacheKey.SESSION_PLAN_INFO, planId));
+
+                        } else {
+                            UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), dto);
+                            AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
+
+                            List<Message> submitMsg = new ArrayList<>();
+                            for (AgentSendMsgDTO msgDto : dto) {
+                                submitMsg.add(UserMessage.of(msgDto.getMessage()));
+                            }
+
+                            AgentManager.chat(agent, taskId, submitMsg, stream);
+                        }
+                        messageHandler.disconnect();
+                        AgentManager.getHandler(sessionId).remove(messageHandler);
+                    }).subscribeOn(Schedulers.boundedElastic()).subscribe(null, sink::error, () -> {
+                    });
+                })
+                .timeout(Duration.ofMinutes(10))
+                .doOnError(TimeoutException.class, e -> log.warn("SSE连接超时: sessionId={}", sessionId))
+                .onErrorResume(TimeoutException.class, e -> Flux.just(ServerSentEvent.<String>builder()
+                        .event("timeout")
+                        .data("连接超时，请重新发起请求")
+                        .build()));
     }
 
     /**
@@ -197,13 +238,34 @@ public class ChatController {
      *
      * @param agentId
      * @param debugFlag 0-正常聊天,1-调试
+     * @param sessionId 这里sessionId用于游标分页,第一页传空
      * @return
      */
     @GetMapping("/agentChat/{agentId}")
-    public ResponseData<List<MessageDTO>> agentChat(@PathVariable("agentId") String agentId,
-                                                    @RequestParam(value = "debugFlag", defaultValue = "0") Integer debugFlag) {
-        List<MessageDTO> list = chatService.agentChat(agentId, debugFlag);
-        return ResponseData.success(list);
+    public ResponseData<MessageAndClearDTO> agentChat(@PathVariable("agentId") String agentId,
+                                                      @RequestParam(value = "sessionId", required = false) String sessionId,
+                                                      @RequestParam(value = "debugFlag", defaultValue = "0") Integer debugFlag,
+                                                      @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize) {
+        MessageAndClearDTO dto = chatService.agentChat(agentId, sessionId, debugFlag, pageSize);
+        return ResponseData.success(dto);
+    }
+
+    /**
+     * agent聊天记录
+     * 该agent在本系统调试端、用户端、api调用产生的数据
+     *
+     * @param agentId  agentId
+     * @param pageSize 默认为10
+     * @param pageNo   默认为0
+     * @return
+     */
+    @GetMapping("/agentChat")
+    public ResponseData<PageModel<MessageDTO>> agentChat(@RequestParam("agentId") String agentId,
+                                                         @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
+                                                         @RequestParam(value = "pageNo", defaultValue = "0") Integer pageNo,
+                                                         @RequestParam(value = "sessionId", required = false) String sessionId) {
+        PageModel<MessageDTO> res = chatService.agentChat(agentId, pageNo, pageSize, sessionId);
+        return ResponseData.success(res);
     }
 
     /**
@@ -216,10 +278,10 @@ public class ChatController {
      */
     @PostMapping("/audio/transcriptions")
     public ResponseData<String> transcriptions(
-        @RequestParam String modelId,
-        @RequestParam("audio") MultipartFile audio
-    ) throws IOException {
-        return ResponseData.success(OpenAIClientUtil.transcriptions(modelId, audio));
+            @RequestParam String modelId,
+            @RequestParam("audio") MultipartFile audio
+    ) {
+        return ResponseData.success(speechService.transcriptions(modelId, audio));
     }
 
     /**
@@ -229,24 +291,29 @@ public class ChatController {
      * @param content
      * @param response
      */
-    @PostMapping(value = "/audio/speech")
+    @RequestMapping(value = "/audio/speech", method = {RequestMethod.GET, RequestMethod.POST})
     public void speech(
-        @RequestParam String modelId,
-        @RequestParam String content,
-        HttpServletResponse response
+            @RequestParam String modelId,
+            @RequestParam String content,
+            @RequestParam(required = false, defaultValue = "false") Boolean stream,
+            HttpServletResponse response
     ) {
-        try (InputStream inputStream = OpenAIClientUtil.speech(modelId, content)) {
-            // 设置响应头
-            response.setContentType("audio/mp3"); // 根据实际音频格式设置
-            response.setHeader("Content-Disposition", "attachment; filename=\"" + System.currentTimeMillis() + ".mp3\"");
+        byte[] bytes;
+        if (stream) {
+            bytes = speechService.speechStream(modelId, content);
+        } else {
+            bytes = speechService.speech(modelId, content);
+        }
 
-            String filename = URLEncoder.encode(System.currentTimeMillis() + ".mp3", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
-//            response.setCharacterEncoding(StandardCharsets.ISO_8859_1.name());
-            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename*=UTF-8''" + filename);
-            response.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
+        String fileName = System.currentTimeMillis() + ".wav";
+        // 设置响应头，指定内容类型为MP3音频
+        response.setContentType("audio/wav");
+        // 设置Content-Disposition头，使浏览器将响应作为下载处理
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
 
-            ServletOutputStream outputStream = response.getOutputStream();
-            outputStream.write(inputStream.readAllBytes());
+        // 将音频数据从输入流复制到响应输出流
+        try (OutputStream outputStream = response.getOutputStream()) {
+            outputStream.write(bytes);
             outputStream.flush();
         } catch (IOException e) {
             log.error("Error while processing audio response", e);

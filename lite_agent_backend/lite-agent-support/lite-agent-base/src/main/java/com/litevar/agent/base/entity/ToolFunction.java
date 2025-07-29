@@ -84,7 +84,7 @@ public class ToolFunction {
         /**
          * 枚举值
          */
-        private List<String> enums = new ArrayList<>();
+        private List<Object> enums = new ArrayList<>();
         /**
          * 默认值
          */

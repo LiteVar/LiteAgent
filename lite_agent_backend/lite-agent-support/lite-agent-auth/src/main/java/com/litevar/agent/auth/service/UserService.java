@@ -32,7 +32,7 @@ public class UserService {
 
 	public Account getByEmail(String email) {
 		return baseMapper.getByColumn("email", email, Account.class).stream().findFirst()
-			.orElseThrow(() -> new ServiceException(ServiceExceptionEnum.NOT_FOUND_RECORD));
+			.orElseThrow(() -> new ServiceException(ServiceExceptionEnum.NOT_FOUND_RECORD.getCode(), "账号不存在"));
 	}
 
 	@CacheEvict(value = CacheKey.USER_INFO, key = "#userId")

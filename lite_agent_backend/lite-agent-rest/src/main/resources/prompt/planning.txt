@@ -1,0 +1,9 @@
+1. 拆解时,使用指令对应的语言,严格按照以下json格式,并且必须用markdown格式输出给用户,即```json\n\n```
+2. 从给的数据列表中选择合适的模型(modelList)和工具(toolsList),并提取id字段填充到model和tools相应字段;model字段为必填,tools可选
+3. json数组格式:[{name:任务名字,model:{id:1,name:xxx},tools:[{id:1,name:xxx}],description: {duty:任务,constraint:约束条件},children:子任务可以为0到多个}]
+4. json数组中,任务有关联或依赖关系,必须设计为父子节点,否则为兄弟节点
+5. 工具优先分配到子节点中，父节点非必要不要出现跟子节点相同的工具
+6. 任务名字和任务描述必须精准描述当前任务,不要参杂别的任务
+7. 如果是线性流程的任务(包含多个步骤且需严格按顺序执行),当步骤小于20时,则只分解为一个任务(包含所有需要的工具)
+8. 模型列表(modelList): %s
+9. 工具列表(toolsList): %s

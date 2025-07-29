@@ -13,6 +13,7 @@ import com.litevar.agent.base.entity.AgentDatasetRela;
 import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.response.ResponseData;
+import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.base.vo.AgentCreateForm;
 import com.litevar.agent.base.vo.AgentDetailVO;
@@ -56,7 +57,7 @@ public class AgentController {
      * agent列表
      *
      * @param workspaceId
-     * @param tab         0-全部,1-系统,2-来自分享,3-我的,4-本地agent
+     * @param tab         0-全部,1-系统,2-来自分享(弃用),3-我的,4-本地agent
      * @param name        agent名称
      * @return
      */
@@ -72,7 +73,7 @@ public class AgentController {
      * agent列表(管理)
      *
      * @param workspaceId
-     * @param tab         0-全部,1-系统,2-来自分享,3-我的
+     * @param tab         0-全部,1-系统,2-来自分享(弃用),3-我的
      * @param name        agent名称
      * @return
      */
@@ -134,7 +135,7 @@ public class AgentController {
             @RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId,
             @Validated @RequestBody AgentCreateForm form
     ) {
-        return ResponseData.success(agentService.addAgent(workspaceId, form));
+        return ResponseData.success(agentService.addAgent(workspaceId, form, LoginContext.currentUserId()));
     }
 
     /**

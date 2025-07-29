@@ -46,6 +46,12 @@ public class AgentDTO {
      * @see com.litevar.agent.base.enums.AgentType
      */
     private Integer type;
+
+    /**
+     * true-auto agent,false-非auto agent
+     */
+    private Boolean autoAgentFlag = Boolean.FALSE;
+
     /**
      * 执行模式
      *

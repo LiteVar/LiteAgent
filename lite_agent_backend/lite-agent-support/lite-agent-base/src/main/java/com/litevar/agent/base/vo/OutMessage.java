@@ -1,7 +1,7 @@
 package com.litevar.agent.base.vo;
 
-import cn.hutool.json.JSONObject;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.litevar.agent.base.dto.AgentPlanningDTO;
 import com.litevar.agent.base.response.ReflectResult;
 import lombok.Data;
 
@@ -26,7 +26,7 @@ public class OutMessage {
      */
     private String role;
     /**
-     * 消息类型:text,imageUrl,functionCallList,toolReturn,flag,reflect,error,dispatch,agentStatus,knowledge
+     * 消息类型:text,imageUrl,functionCallList,toolReturn,flag,reflect,error,dispatch,agentStatus,knowledge,planning
      */
     private String type;
     private Object content;
@@ -51,7 +51,7 @@ public class OutMessage {
     public static class FunctionCall {
         private String id;
         private String name;
-        private JSONObject arguments;
+        private Object arguments;
     }
 
     @Data
@@ -76,7 +76,11 @@ public class OutMessage {
 
     @Data
     public static class ReflectContent {
+        @Deprecated
         private String input;
+
+        private String rawInput;
+        private String rawOutput;
         private List<ReflectResult> output;
     }
 
@@ -90,5 +94,11 @@ public class OutMessage {
     @Data
     public static class AgentSwitchContent {
         private String agentName;
+    }
+
+    @Data
+    public static class PlanningContent {
+        private String planId;
+        private List<AgentPlanningDTO> taskList;
     }
 }

@@ -36,7 +36,6 @@ interface ToolsListProps {
   onAddTool: () => void;
   onSetClick: () => void;
   onEditTool: (toolId: string) => void;
-  onDeleteTool: (toolId: string) => void;
   onRemoveFn: (tool: FunctionVO) => void;
   onChangeMode: (tool: FunctionVO, mode: AgentTypeMode) => void;
 }
@@ -112,6 +111,7 @@ const ToolsList: React.FC<ToolsListProps> = ({
         <span 
           className="text-[14px] text-[#2a82e4]" 
           onClick={onSetClick}
+          key="method-setting"
         >
           方法序列设置
         </span>
@@ -123,6 +123,7 @@ const ToolsList: React.FC<ToolsListProps> = ({
         <span 
           className="text-[14px] text-[#2a82e4]" 
           onClick={onResetClick}
+          key="method-reset"
         >
           重置方法序列
         </span>
@@ -179,6 +180,7 @@ const ToolsList: React.FC<ToolsListProps> = ({
                     className="border rounded p-2 mb-2 hover:bg-gray-100"
                     actions={[
                       <Select
+                        key="mode-select"
                         variant="borderless"
                         style={{ width: 90 }}
                         value={tool.mode}

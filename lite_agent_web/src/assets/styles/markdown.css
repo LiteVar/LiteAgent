@@ -1,0 +1,170 @@
+.markdown div,
+.markdown p,
+.markdown img,
+.markdown ul,
+.markdown li,
+.markdown ol,
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown table,
+.markdown dl,
+.markdown address,
+.markdown article,
+.markdown aside,
+.markdown footer,
+.markdown header,
+.markdown main,
+.markdown nav,
+.markdown section,
+.markdown video {
+  max-width: 100%;
+}
+
+.markdown p:first-child {
+  margin-top: 0;
+}
+
+.markdown code {
+  background-color: rgb(243, 244, 246);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.25rem;
+}
+
+.markdown code:before,
+.markdown code:after {
+  content: none;
+}
+
+.markdown pre {
+  background-color: rgb(243,244,246);
+  padding: 1rem;
+  overflow-x: auto;
+  margin-top: 0;
+  font-size: 85%;
+  border-bottom-left-radius: 0.5rem !important;
+  border-bottom-right-radius: 0.5rem !important;
+}
+
+.markdown pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdown blockquote {
+  border-left: 4px solid rgb(209, 213, 219);
+  padding: 0.5rem;
+  margin: 0;
+}
+
+.markdown {
+  max-width: unset
+}
+
+.markdown h1 {
+  font-weight: 700;
+  letter-spacing: -.04rem
+}
+
+.markdown h1:first-child {
+  margin-top: 3px
+}
+
+.markdown h2 {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  margin-top: 2rem
+}
+
+.markdown h2:first-child {
+  margin-top: 0
+}
+
+.markdown h3 {
+  font-weight: 600;
+  margin-bottom: .5rem;
+  margin-top: 1rem
+}
+
+.markdown h3:first-child {
+  margin-top: 0
+}
+
+.markdown h4 {
+  font-weight: 600;
+  margin-bottom: .5rem;
+  margin-top: 1rem
+}
+
+.markdown h4:first-child {
+  margin-top: 0
+}
+
+.markdown h5 {
+  font-weight: 600
+}
+
+.markdown h5:first-child {
+  margin-top: 0
+}
+
+[dir=ltr] .markdown blockquote {
+  border-left-width: 2px;
+  padding-left: 1rem
+}
+
+[dir=rtl] .markdown blockquote {
+  border-right-width: 2px;
+  padding-right: 1rem
+}
+
+.markdown blockquote>p {
+  margin: 0
+}
+
+.markdown blockquote>p:after,
+.markdown blockquote>p:before {
+  display: none
+}
+
+.markdown table {
+  --tw-border-spacing-x: 0px;
+  --tw-border-spacing-y: 0px;
+  border-collapse: collapse;
+  border-spacing: 0 0;
+  margin-bottom: .25rem;
+  margin-top: .25rem;
+  width: 100%
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid rgba(0, 0, 0, .15);
+  padding: .25rem .75rem;
+}
+
+.markdown th {
+  background-color: rgba(0, 0, 0, .1);
+}
+
+.markdown a {
+  color: #2964aa;
+  font-weight: 400;
+  text-decoration-line: none
+}
+
+@media (hover: hover) and (pointer:fine) {
+  .markdown a:hover {
+    color: #749ac8
+  }
+}
+
+.markdownFile h3 {
+  margin-top: 2.5rem;
+}
+
+.markdownFile h4 {
+  margin-top: 2rem;
+}

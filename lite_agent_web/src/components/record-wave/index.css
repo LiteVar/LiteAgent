@@ -1,0 +1,15 @@
+.wave-effect-container {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.wave-effect-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

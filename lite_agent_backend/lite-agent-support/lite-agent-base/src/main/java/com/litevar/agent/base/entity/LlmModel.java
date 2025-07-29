@@ -28,6 +28,10 @@ public class LlmModel {
      */
     private String name;
     /**
+     * 别名(方便辨别)
+     */
+    private String alias;
+    /**
      * 模型访问url
      */
     private String baseUrl;
@@ -45,14 +49,41 @@ public class LlmModel {
     @MongoIndex
     private String workspaceId;
     /**
-     * 模型类型: text, embedding, asr, tts, image...
+     * 模型类型: LLM, embedding, asr, tts, image...
      */
     private String type = "LLM";
+    /**
+     * 模型供应商: openai, dashscope, deepseek, prm, others ...
+     */
+    private String provider = "openai";
+    /**
+     * 字段映射,JSON字符串格式(不兼容OpenAI的模型可以设置字段映射,后端请求时动态修改请求体)
+     */
+    private String fieldMapping = "";
+    /**
+     * 响应格式: wav, mp3, pcm...
+     * 默认wav
+     */
+    private String responseFormat = "wav";
 
     /**
      * 限制最大token
      */
     private Integer maxTokens;
+
+    /**
+     * 是否支持auto agent使用
+     */
+    private Boolean autoAgent = Boolean.FALSE;
+
+    /**
+     * 是否支持工具调用
+     */
+    private Boolean toolInvoke = Boolean.TRUE;
+    /**
+     * 是否支持深度思考
+     */
+    private Boolean deepThink = Boolean.FALSE;
 
     @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

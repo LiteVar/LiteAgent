@@ -50,6 +50,12 @@ public class ToolJsonRpcParser implements ToolParser, InitializingBean {
 
         List<ToolFunction> list = new ArrayList<>();
 
+        // 获取全局参数传递方式配置，默认为命名参数
+        String globalParamStyle = "named";
+        if (obj.containsKey("paramStyle")) {
+            globalParamStyle = obj.getStr("paramStyle", "named");
+        }
+
         JSONArray functions = obj.getJSONArray("methods");
         if (functions == null || functions.isEmpty()) {
             error.add("methods is null");
@@ -67,8 +73,14 @@ public class ToolJsonRpcParser implements ToolParser, InitializingBean {
                 dto.setContentType("application/json");
                 dto.setRequestMethod("post");
                 dto.setResource(functionName);
-                dto.setProtocol(FunctionExecutor.HTTP);
+                dto.setProtocol(FunctionExecutor.JSON_RPC);
                 dto.setDescription(function.getStr("description"));
+
+                // 设置参数传递方式（优先使用方法级别的配置，否则使用全局配置）
+                String paramStyle = function.getStr("paramStyle", globalParamStyle);
+                JSONObject extraConfig = new JSONObject();
+                extraConfig.set("paramStyle", paramStyle);
+                dto.setExtra(JSONUtil.toJsonStr(extraConfig));
 
                 JSONArray params = function.getJSONArray("params");
                 if (params != null && !params.isEmpty()) {
@@ -117,7 +129,7 @@ public class ToolJsonRpcParser implements ToolParser, InitializingBean {
             paramInfo.setType(paramType);
 
             if (ObjectUtil.isNotEmpty(param.getJSONArray("enum"))) {
-                param.getJSONArray("enum").forEach(v -> paramInfo.getEnums().add(v.toString()));
+                param.getJSONArray("enum").forEach(v -> paramInfo.getEnums().add(v));
             }
 
             int currentDeep = deep;

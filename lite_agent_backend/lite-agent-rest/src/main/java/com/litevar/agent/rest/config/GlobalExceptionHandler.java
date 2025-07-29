@@ -16,10 +16,10 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -44,17 +44,22 @@ public class GlobalExceptionHandler {
         return renderJson(ex.getCode(), ex.getMessage(), ex);
     }
 
-    @ExceptionHandler(StreamException.class)
-    public void streamException(StreamException ex, HttpServletResponse response) {
+    @ExceptionHandler({StreamException.class, AsyncRequestTimeoutException.class})
+    public void streamException(Exception ex, HttpServletResponse response) {
         response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
         response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
         response.setCharacterEncoding(CharsetUtil.UTF_8);
         ex.printStackTrace();
         try (PrintWriter writer = response.getWriter()) {
-            String str = JSONUtil.toJsonStr(renderJson(ex.getCode(), ex.getMessage(), ex));
+            String str;
+            if (ex instanceof StreamException e) {
+                str = JSONUtil.toJsonStr(renderJson(e.getCode(), e.getMessage(), e));
+            } else {
+                str = JSONUtil.toJsonStr(renderJson(500, ex.getMessage(), ex));
+            }
             writer.write(str);
             writer.flush();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

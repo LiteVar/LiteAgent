@@ -36,12 +36,6 @@ public class AgentUpdateForm {
      * 关联的大模型id
      */
     private String llmModelId;
-
-    /**
-     * 工具
-     */
-    @Deprecated
-    private List<String> toolIds;
     /**
      * 温度值
      */
@@ -75,6 +69,7 @@ public class AgentUpdateForm {
      * @see com.litevar.agent.base.enums.ExecuteMode
      */
     private Integer mode = 0;
+
     /**
      * 子agent(普通,分发,分思) id
      */
@@ -94,4 +89,14 @@ public class AgentUpdateForm {
      * 数据集id
      */
     private List<String> datasetIds;
+
+    /**
+     * tts模型id
+     */
+    private String ttsModelId;
+
+    /**
+     * asr模型id
+     */
+    private String asrModelId;
 }

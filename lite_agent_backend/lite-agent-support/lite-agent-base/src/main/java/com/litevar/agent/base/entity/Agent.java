@@ -100,6 +100,21 @@ public class Agent {
      */
     private Integer mode = 0;
 
+    /**
+     * true-auto agent,false-非auto agent
+     */
+    private Boolean autoAgentFlag = Boolean.FALSE;
+
+    /**
+     * tts模型id
+     */
+    private String ttsModelId;
+
+    /**
+     * asr模型id
+     */
+    private String asrModelId;
+
     @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @CollectionField(fill = FieldFill.UPDATE)

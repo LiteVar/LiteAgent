@@ -22,4 +22,6 @@ public class AgentCreateForm {
      * 描述,可空
      */
     private String description = "";
+
+    private Boolean autoAgentFlag = Boolean.FALSE;
 }

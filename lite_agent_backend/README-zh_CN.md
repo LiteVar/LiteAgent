@@ -5,7 +5,6 @@
 ##### 技术选型
 * JDK 17
 * Springboot 3.3.1
-* LangChain4j 0.35.0
 * hutool 5.8.29
 * MongoPlus 2.1.6
 * Milvus 2.5.6
@@ -59,8 +58,8 @@ location /v1/chat/stream {
 
 将jar包放到服务器指定目录,例如`/home/liteAgent/backend`,然后执行以下指令
 ````
-docker pull adoptium-openjdk17:17.0.9
-docker run -d --name lite-agent-server -p 8080:8080 -v /home/liteAgent/backend:/home/liteAgent -e TZ=Asia/Shanghai adoptium-openjdk17:17.0.9 java -jar /home/liteAgent/lite-agent-server.jar --server.port=8080 --spring.profiles.active=local
+docker pull azul/zulu-openjdk:17-latest
+docker run -d --name lite-agent-server -p 8080:8080 -v /home/liteAgent/lite-agent-backend:/home/liteAgent -e TZ=Asia/Shanghai azul/zulu-openjdk:17-latest java -jar --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED /home/liteAgent/lite-agent-server.jar --server.port=8080 --spring.profiles.active=local
 ````
 
 ##### 关于AI模型

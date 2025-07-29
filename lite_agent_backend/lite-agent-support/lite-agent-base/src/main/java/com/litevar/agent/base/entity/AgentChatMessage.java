@@ -5,6 +5,7 @@ import com.mongoplus.annotation.ID;
 import com.mongoplus.annotation.collection.CollectionField;
 import com.mongoplus.annotation.collection.CollectionLogic;
 import com.mongoplus.annotation.collection.CollectionName;
+import com.mongoplus.annotation.index.MongoIndex;
 import com.mongoplus.enums.FieldFill;
 import com.mongoplus.enums.IdTypeEnum;
 import lombok.Data;
@@ -28,10 +29,12 @@ public class AgentChatMessage {
 
     private String agentId;
 
+    @MongoIndex
     private String sessionId;
 
     private String model;
 
+    @CollectionField
     private List<TaskMessage> taskMessage;
 
     /**

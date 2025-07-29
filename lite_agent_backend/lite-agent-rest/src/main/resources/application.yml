@@ -20,6 +20,16 @@ spring:
             enable: true
   main:
     allow-circular-references: true
+  ai:
+    model:
+      chat: none
+      audio:
+        speech: none
+        transcription: none
+      embedding: none
+      image: none
+      moderation: none
+
 mongo-plus:
   configuration:
     field:

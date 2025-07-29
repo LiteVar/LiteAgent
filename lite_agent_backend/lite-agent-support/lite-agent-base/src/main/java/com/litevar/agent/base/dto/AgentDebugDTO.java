@@ -30,11 +30,6 @@ public class AgentDebugDTO {
      * 提示词
      */
     private String prompt;
-    /**
-     * 工具id
-     */
-    @Deprecated
-    private List<String> toolIds;
 
     /**
      * 温度值
