@@ -21,6 +21,7 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Distribution agent(Web, Desktop)
 - Reflection agent(Web, Desktop)
 - Agent mode support: Parallel, Serial, Reject
+- Auto Multi Agent (Web)
 
 ### 2. Tool Support
 
@@ -28,6 +29,9 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Tool mode support: Parallel, Serial, Reject
 - Tool Sequence: Reflection on Tool Order
 - Supports third-party OpenTool callbacks
+- Protocol: MCP
+ - Server supports MCP over SSE
+ - Desktop supports MCP over stdio
 
 ### 3. Functional Modules
 
@@ -36,10 +40,15 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Agent management(Web, Desktop)
 - User management(Web)
 - Knowledge base management(Web)
+- Added reasoning type differentiation
+- Preview mode added for prompt and knowledge base document editors
+- New SDKs released (C#/LabVIEW/TypeScript/Dart/Java)
 
 ### 4. LLM support
 
 - Only support OpenAI Style API，other models(like: Zhipu-AI、QianFan、ChatGLM、Chroma、Ollama、qwen and so on), please use the OneAPI tool to convert to OpenAI style.
+- Speech-to-Text (ASR Model)
+- Text-to-Speech (TTS Model)
 
 ## Quick Start
 
@@ -64,7 +73,9 @@ mail:
 ### 3. Run
 #### 3.1 Preparation
 >- Build LiteAgent web in nodejs environment(please refer to lite_agent_web/README.md), and then replace it to the directory: docker/nginx/html/
->- Build LiteAgent backend app in java environment(please refer to lite_agent_backend/README.md), and then replace it to the directory: docker/LiteAgent/app/
+>- Build LiteAgent backend app in java environment(please refer to lite_agent_backend/README.md), rename to lite-agent.jar, and then replace it to the directory: docker/LiteAgent/app/
+  - update config file to the directory: docker/LiteAgent/app/config (please refer to lite_agent_backend/lite-agent-rest/src/main/resources)
+
 #### 3.2 Beginning
 - Pull up services by docker compose
 - Please make sure docker, docker compose plugin are installed on your machine

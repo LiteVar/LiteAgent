@@ -22,6 +22,7 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
   - 分发Agent(Web, Desktop)
   - 反思Agent(Web, Desktop)
 - Agent模式支持：并行、串行、拒绝
+- Auto Multi Agent(Web)
 
 ### 2. 工具支持
 
@@ -29,7 +30,10 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - 工具执行模式：并行、串行、拒绝
 - 方法序列：工具顺序的反思
 - 支持第三方OpenTool回调
-
+- 协议：MCP
+ - Server支持MCP的SSE
+ - Desktop支持MCP的stdio
+	
 ### 3. 功能
 
 - 模型管理(Web, Desktop)
@@ -37,10 +41,15 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - Agent管理(Web, Desktop)
 - 用户管理(Web)
 - 知识库管理(Web)
+- 增加Reasoning区分
+- 编辑界面提示词与知识库文档增加预览模式
+- 新增sdk（C#/LabVIEW/TypeScript/Dart/Java）
 
 ### 4. 模型支持
 
 - 仅支持OpenAI风格API，其他模型(如Zhipu-AI、QianFan、ChatGLM、Chroma、Ollama、qwen等)，请使用例如OpenAPI等工具转换为OpenAI风格。
+- 音转文（ASR模型）
+- 文转音（TTS模型）
 
 ## 快速开始
 
@@ -66,7 +75,9 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 ### 3. 运行服务
 #### 3.1 准备
 >- 打包构建LiteAgent web(请参考lite_agent_web/README_zh-CN.md), 然后替换到文件夹: docker/nginx/html/
->- 打包构建LiteAgent java后端(请参考lite_agent_backend/README-zh_CN.md), 然后替换到目标文件夹: docker/LiteAgent/app/
+>- 打包构建LiteAgent java后端(请参考lite_agent_backend/README-zh_CN.md), 重命名为lite-agent.jar, 然后替换到目标文件夹: docker/LiteAgent/app/
+  - 更新配置文件到目标文件夹：docker/LiteAgent/app/config (请参考lite_agent_backend/lite-agent-rest/src/main/resources)
+
 #### 3.2 开始
 - docker compose拉起服务，请确保您的系统事先已安装docker和docker-compose插件
 ```

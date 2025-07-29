@@ -41,7 +41,7 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=LiteAgent
-    command: ["java", "-jar", "/home/LiteAgent/app/lite-agent-0.1.0.jar", "--spring.config.location=/home/LiteAgent/config/", "-Dlogback.configurationFile=/home/LiteAgent/config/logback-spring.xml"]
+    command: ["java", "-jar", "/home/LiteAgent/app/lite-agent.jar", "--spring.config.location=/home/LiteAgent/config/", "-Dlogback.configurationFile=/home/LiteAgent/config/logback-spring.xml"]
     depends_on:
       - mongo
       - redis
