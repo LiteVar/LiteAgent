@@ -26,7 +26,7 @@ services:
       - ./redis/redis_data:/data
 
   lite-agent-app:
-    image: openjdk:17-jdk
+    image: azul/zulu-openjdk:17-latest
     container_name: lite-agent-app
     working_dir: /home/LiteAgent
     volumes:

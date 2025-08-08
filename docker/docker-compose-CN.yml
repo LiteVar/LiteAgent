@@ -26,7 +26,7 @@ services:
       - ./redis/redis_data:/data
 
   lite-agent-app:
-    image: crpi-7i3xk868tuahj8mk.cn-shenzhen.personal.cr.aliyuncs.com/lv_public/openjdk:17-jdk
+    image: crpi-7i3xk868tuahj8mk.cn-shenzhen.personal.cr.aliyuncs.com/lv_public/zulu-openjdk:17-latest
     container_name: lite-agent-app
     working_dir: /home/LiteAgent
     volumes:

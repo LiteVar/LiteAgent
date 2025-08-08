@@ -30,8 +30,8 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Tool Sequence: Reflection on Tool Order
 - Supports third-party OpenTool callbacks
 - Protocol: MCP
-  - Server supports MCP over SSE
-  - Desktop supports MCP over stdio
+  - Server support MCP over SSE
+  - Desktop support MCP over stdio
 
 ### 3. Functional Modules
 
@@ -46,7 +46,7 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 
 ### 4. LLM support
 
-- Only support OpenAI Style API，other models(like: Zhipu-AI、QianFan、ChatGLM、Chroma、Ollama、qwen and so on), please use the OneAPI tool to convert to OpenAI style.
+- Only support OpenAI Style API，other models(like: Zhipu-AI、QianFan、ChatGLM、Kimi、qwen and so on), please use the OneAPI tool to convert to OpenAI style.
 - Speech-to-Text (ASR Model)
 - Text-to-Speech (TTS Model)
 
@@ -57,6 +57,7 @@ Before using LiteAgent, make sure your machine meets the following minimum syste
  
 >- CPU >= 4 Core
 >- RAM >= 10 GiB
+>- Hard disk >= 256GB(Recommended SSD)
 
 ### 2. Invitation Email Configuration
 

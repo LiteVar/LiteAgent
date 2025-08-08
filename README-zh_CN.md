@@ -47,7 +47,7 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 
 ### 4. 模型支持
 
-- 仅支持OpenAI风格API，其他模型(如Zhipu-AI、QianFan、ChatGLM、Chroma、Ollama、qwen等)，请使用例如OpenAPI等工具转换为OpenAI风格。
+- 仅支持OpenAI风格API，其他模型(如Zhipu-AI、QianFan、ChatGLM、Kimi、Ollama、qwen等)，请使用例如OpenAPI等工具转换为OpenAI风格。
 - 音转文（ASR模型）
 - 文转音（TTS模型）
 
@@ -59,6 +59,7 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 
 >- CPU >= 4 Core
 >- RAM >= 10 GiB
+>- Hard disk >= 256GB(推荐SSD)
 
 ### 2. 配置邀请邮箱
 

@@ -38,6 +38,7 @@ public class LiteAgentClient {
         Consumer<HttpHeaders> headersConsumer = headers -> {
             headers.setBearerAuth(apiKey);
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set(HttpHeaders.USER_AGENT, "LiteAgent/1.0");
         };
 
         this.restClient = RestClient.builder()
