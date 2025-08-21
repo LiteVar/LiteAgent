@@ -84,19 +84,23 @@ public class UserController {
 
         //账号存在,发送验证码到邮箱
         String captcha = RandomUtil.randomString(6);
-        String emailContent = String.format(
-                "<!DOCTYPE html>" +
-                        "<html><head><meta charset='UTF-8'></head><body>" +
-                        "<p>您好，</p>" +
-                        "<p>我们收到了您在LiteAgent的密码重置请求。</p>" +
-                        "<p>请复制以下验证码以重置密码（30分钟内有效）：</p>" +
-                        "<span style='font-size: 24px; font-weight: bold; color: #333; letter-spacing: 3px;'>%s</span>" +
-                        "<p>如果您并未请求重置密码，请忽略此邮件。</p>" +
-                        "<br>" +
-                        "<p>此致，<br>LiteAgent团队</p>" +
-                        "</body></html>",
-                captcha
-        );
+        String emailContent = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset='UTF-8'>
+                </head>
+                <body>
+                    <p>您好，</p>
+                    <p>我们收到了您在LiteAgent的密码重置请求。</p>
+                    <p>请复制以下验证码以重置密码（30分钟内有效）：</p>
+                    <span style='font-size: 24px; font-weight: bold; color: #333; letter-spacing: 3px;'>%s</span>
+                    <p>如果您并未请求重置密码，请忽略此邮件。</p>
+                    <br>
+                    <p>此致，<br>LiteAgent团队</p>
+                </body>
+                </html>
+                """.formatted(captcha);
         mailSendUtil.sendHtml(account.getEmail(), "LiteAgent密码重置验证码", emailContent);
 
         String key = String.format(CacheKey.RESET_PASSWORD_CAPTCHA, MD5.create().digestHex(account.getEmail()));

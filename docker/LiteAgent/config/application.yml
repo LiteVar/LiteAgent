@@ -1,17 +1,16 @@
 server:
   servlet:
     context-path: /liteAgent
-  port: 8086
-
+  port: 8080
 spring:
   application:
     name: liteAgent
   profiles:
-    active: test
+    active: local
   mail:
-    host: smtp.xxx.com
-    username: liteagent@xxx.com
-    password: XXXYYYZZZ
+    host: xxxx
+    username: xxxx
+    password: xxxx
     port: 465
     default-encoding: utf-8
     properties:
@@ -19,3 +18,31 @@ spring:
         smtp:
           ssl:
             enable: true
+  main:
+    allow-circular-references: true
+  ai:
+    model:
+      chat: none
+      audio:
+        speech: none
+        transcription: none
+      embedding: none
+      image: none
+      moderation: none
+
+mongo-plus:
+  configuration:
+    field:
+      camel-to-underline: true
+      ignoring-null: false
+    auto-create-index: true
+    logic:
+      open: true
+    banner: false
+    auto-convert-object-id: false
+  log: true
+  pretty: true
+
+llm:
+  # 大模型请求超时时间(单位:秒)
+  timeout: 300

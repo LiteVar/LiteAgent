@@ -2,18 +2,18 @@ import 'dart:io';
 
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
-import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:lite_agent_client/models/dto/library.dart';
 import 'package:lite_agent_client/models/local_data_model.dart';
+import 'package:lite_agent_client/utils/extension/string_extension.dart';
 import 'package:lite_agent_client/widgets/common_widget.dart';
 
-import '../../utils/web_util.dart';
+import '../../widgets/input_box_container.dart';
+import '../../widgets/listview_chat_message.dart';
 import 'logic.dart';
 
 class AdjustmentPage extends StatelessWidget {
-  AdjustmentPage({Key? key}) : super(key: key);
+  AdjustmentPage({super.key});
 
   final logic = Get.put(AdjustmentLogic());
 
@@ -35,83 +35,448 @@ class AdjustmentPage extends StatelessWidget {
   }
 
   Widget buildRightChatContainer() {
-    return Column(
+    return Row(
       children: [
-        Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            margin: const EdgeInsets.only(top: 20),
-            child: Row(children: [
-              const Text("调试", style: TextStyle(fontSize: 18, color: Color(0xff333333))),
-              const Spacer(),
-              buildClickButton("icon_clear.png", "清除", () => logic.clearAllMessage()),
-            ])),
         Expanded(
-            child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Obx(() => ListView.builder(
-                    controller: logic.chatScrollController,
-                    itemCount: logic.chatMessageList.length,
-                    itemBuilder: (context, index) => _buildMessageItem(index, logic.chatMessageList[index]))))),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          margin: const EdgeInsets.only(bottom: 20),
-          child: Container(
-              height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(8))),
-              child: Obx(() => Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                          child: TextField(
-                              enabled: logic.enableInput.value,
-                              onSubmitted: (string) => logic.onSendButtonPress(),
-                              focusNode: logic.chatFocusNode,
-                              controller: logic.chatController,
-                              cursorColor: const Color(0xff2A82E4),
-                              maxLines: 1,
-                              decoration: InputDecoration(
-                                  hintText: logic.enableInput.value ? '请输入聊天内容' : '反思Agent不能进行聊天对话',
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8)),
-                              style: const TextStyle(fontSize: 14))),
-                      InkWell(
-                          onTap: () => logic.enableInput.value ? logic.onSendButtonPress() : null,
-                          child: Container(
-                              margin: const EdgeInsets.only(right: 4),
-                              padding: const EdgeInsets.all(4),
-                              child: buildAssetImage("icon_send.png", 20, const Color(0xffb3b3b3))))
-                    ],
-                  ))),
+          child: Column(
+            children: [
+              Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  margin: const EdgeInsets.only(top: 20),
+                  child: Row(children: [
+                    const Text("调试", style: TextStyle(fontSize: 18, color: Color(0xff333333))),
+                    const Spacer(),
+                    buildClickButton("icon_clear.png", "清除", () => logic.clearAllMessage()),
+                  ])),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Obx(() => ChatMessageListView(
+                        controller: logic.listViewController,
+                        chatMessageList: logic.conversation.value.chatMessageList,
+                      )),
+                ),
+              ),
+              InputBoxContainer(controller: logic.inputBoxController),
+            ],
+          ),
         ),
+        Obx(() => Offstage(
+              offstage: !logic.showThoughtProcessDetail.value,
+              child: buildThoughtDetailRow(),
+            ))
+      ],
+    );
+  }
+
+  Row buildThoughtDetailRow() {
+    return Row(
+      children: [
+        verticalLine(),
+        SizedBox(
+          width: 300,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  children: [
+                    const Text("过程详情", style: TextStyle(fontSize: 16, color: Color(0xff333333))),
+                    const Spacer(),
+                    InkWell(
+                      onTap: () => logic.showThoughtProcessDetail.value = false,
+                      child: buildAssetImage("icon_close.png", 16, null),
+                    )
+                  ],
+                ),
+              ),
+              horizontalLine(),
+              Expanded(
+                child: Obx(() => ListView.builder(
+                    itemCount: logic.currentSubMessageList.length,
+                    itemBuilder: (context, index) => Container(
+                          margin: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: buildSubMessageItem(logic.currentSubMessageList[index], () => logic.currentSubMessageList.refresh()),
+                        ))),
+              ),
+            ],
+          ),
+        )
       ],
     );
   }
 
   Widget buildLeftSettingContainer() {
-    return SingleChildScrollView(
-      child: Container(
-        width: 360,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("模型", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
-            _buildModelSelectWidget(),
-            Container(
-                margin: const EdgeInsets.only(top: 10),
-                child: const Text("系统提示词", style: TextStyle(fontSize: 14, color: Color(0xff333333)))),
-            buildInputPromptContainer(),
-            buildToolOptionColumn(),
-            horizontalLine(),
-            buildLibraryOptionColumn(),
-            horizontalLine(),
-            buildAgentOptionColumn(),
-            buildChildAgentContainer(),
-          ],
+    return Align(
+      alignment: Alignment.topLeft,
+      child: SingleChildScrollView(
+        child: Container(
+          width: 365,
+          padding: const EdgeInsets.all(20),
+          child: Obx(
+            () {
+              bool isAutoAgent = logic.agent.value?.autoAgentFlag ?? false;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isAutoAgent) buildTypeColumn(),
+                  buildModelSelectColumn(isAutoAgent),
+                  if (!isAutoAgent) buildInputPromptColumn(),
+                  if (isAutoAgent) buildModelColumn(),
+                  buildToolOptionColumn(isAutoAgent),
+                  if (!isAutoAgent) buildLibraryOptionColumn(),
+                  buildAudioColumn(isAutoAgent),
+                  if (!isAutoAgent) buildExecutionModeColumn(),
+                  if (!isAutoAgent) buildChildAgentColumn(),
+                ],
+              );
+            },
+          ),
         ),
       ),
+    );
+  }
+
+  Column buildModelColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+            margin: const EdgeInsets.only(top: 10),
+            child: InkWell(
+              onTap: () => logic.isModelExpanded.value = !logic.isModelExpanded.value,
+              child: Row(children: [
+                Obx(() => buildAssetImage(
+                    logic.isModelExpanded.value ? "icon_option_expanded.png" : "icon_option_closed.png", 18, const Color(0xff333333))),
+                const Text("模型", style: TextStyle(fontSize: 14, color: Color(0xff333333)))
+              ]),
+            )),
+        const SizedBox(height: 10),
+        Obx(() => Offstage(
+            offstage: !logic.isModelExpanded.value,
+            child: Column(
+              children: [
+                Container(
+                    margin: const EdgeInsets.only(left: 18),
+                    child: const Text("在模型库中对模型开启“支持 Auto Multi Agent”后，模型将在此处显示。agent将根据任务自动选择模型。",
+                        style: TextStyle(color: Color(0xff999999), fontSize: 12))),
+                Obx(() => Container(
+                    margin: const EdgeInsets.only(top: 10, left: 10),
+                    child: Column(children: [
+                      if (logic.autoAgentModelList.isNotEmpty)
+                        ...List.generate(
+                          !logic.showMoreModel.value && logic.autoAgentModelList.length > 2 ? 2 : logic.autoAgentModelList.length,
+                          (index) => _buildModelItem(index, logic.autoAgentModelList[index]),
+                        )
+                    ]))),
+                Obx(() => Offstage(
+                      offstage: logic.autoAgentModelList.length <= 2,
+                      child: InkWell(
+                        onTap: () => logic.showMoreModel.value = !logic.showMoreModel.value,
+                        child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(logic.showMoreModel.value ? "收起" : "更多",
+                                    style: const TextStyle(fontSize: 14, color: Color(0xff2A82E4))),
+                                const SizedBox(width: 10),
+                                buildAssetImage("icon_down.png", 12, const Color(0xff2A82E4))
+                              ],
+                            )),
+                      ),
+                    )),
+                Offstage(
+                  offstage: logic.autoAgentModelList.isNotEmpty,
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 18, bottom: 10),
+                    child: Row(
+                      children: [
+                        const Text("还没添加可用模型，", style: TextStyle(color: Color(0xff666666), fontSize: 12)),
+                        InkWell(
+                          onTap: () => logic.backToModelPage(),
+                          child: const Text("前往模型管理", style: TextStyle(color: Color(0xff2A82E4), fontSize: 12)),
+                        )
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            ))),
+        horizontalLine(),
+      ],
+    );
+  }
+
+  Column buildChildAgentColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+            margin: const EdgeInsets.only(top: 10),
+            child: Row(
+              children: [
+                InkWell(
+                  onTap: () => logic.isChildAgentsExpanded.value = !logic.isChildAgentsExpanded.value,
+                  child: Row(children: [
+                    Obx(() => buildAssetImage(logic.isChildAgentsExpanded.value ? "icon_option_expanded.png" : "icon_option_closed.png", 18,
+                        const Color(0xff333333))),
+                    const Text("子Agent设置", style: TextStyle(fontSize: 14, color: Color(0xff333333)))
+                  ]),
+                ),
+                const Spacer(),
+                buildClickButton("icon_add.png", "添加", () => logic.showChildAgentSelectDialog()),
+              ],
+            )),
+        const SizedBox(height: 10),
+        Obx(() => Offstage(
+            offstage: !logic.isChildAgentsExpanded.value,
+            child: Container(
+                margin: const EdgeInsets.only(left: 10),
+                child: Column(children: [
+                  if (logic.childAgentList.isNotEmpty)
+                    ...List.generate(
+                      logic.childAgentList.length,
+                      (index) => _buildChildAgentItem(index, logic.childAgentList[index]),
+                    )
+                ])))),
+        //horizontalLine(),
+      ],
+    );
+  }
+
+  Column buildAudioColumn(bool isAutoAgent) {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: () => logic.isAudioExpanded.value = !logic.isAudioExpanded.value,
+          child: Row(children: [
+            Obx(() => buildAssetImage(
+                logic.isAudioExpanded.value ? "icon_option_expanded.png" : "icon_option_closed.png", 18, const Color(0xff333333))),
+            const Text("语音与文本转化配置", style: TextStyle(fontSize: 14, color: Color(0xff333333)))
+          ]),
+        ),
+        Obx(() => Offstage(
+            offstage: !logic.isAudioExpanded.value,
+            child: Container(
+              margin: const EdgeInsets.only(left: 18),
+              child: Column(
+                children: [
+                  Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 10),
+                      child: const Text("开启文字转语音后，AI回复的信息中将显示语音播放功能\n开启语音转文字后，可以使用麦克风进行语音输入",
+                          style: TextStyle(color: Color(0xff999999), fontSize: 12))),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                          margin: const EdgeInsets.only(top: 6),
+                          child: const Text("文字转语音(TTS)", style: TextStyle(fontSize: 12, color: Color(0xff333333)))),
+                      const Spacer(),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Obx(() => Checkbox(
+                                  value: logic.enableTextToSpeech.value,
+                                  activeColor: Colors.blue,
+                                  checkColor: Colors.white,
+                                  onChanged: (isCheck) {
+                                    logic.enableTextToSpeech.value = isCheck ?? false;
+                                    if (!logic.enableTextToSpeech.value) {
+                                      logic.currentTTSModelId.value = "";
+                                      logic.listViewController.setAudioButtonVisible(false);
+                                    }
+                                    logic.isAgentChangeWithoutSave = true;
+                                  })),
+                              const Text("开启", style: TextStyle(fontSize: 12, color: Color(0xff333333))),
+                            ],
+                          ),
+                          DropdownButtonHideUnderline(
+                              child: DropdownButton2(
+                                  customButton: Container(
+                                      width: 200,
+                                      height: 32,
+                                      margin: const EdgeInsets.only(top: 5),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      decoration:
+                                          const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(4))),
+                                      child: Obx(() {
+                                        final selectedModel =
+                                            logic.ttsModelList.firstWhereOrNull((model) => model.id == logic.currentTTSModelId.value);
+                                        String name;
+                                        if (selectedModel == null) {
+                                          name = "请选择TTS模型";
+                                        } else if (selectedModel.nickName == null) {
+                                          name = "模型${selectedModel.id.lastSixChars}";
+                                        } else {
+                                          name = selectedModel.nickName!;
+                                        }
+                                        return Row(
+                                          children: [
+                                            Text(
+                                              name,
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: logic.enableTextToSpeech.value ? const Color(0xff333333) : Colors.grey),
+                                            ),
+                                            const Spacer(),
+                                            buildAssetImage("icon_down.png", 12, const Color(0xff333333))
+                                          ],
+                                        );
+                                      })),
+                                  dropdownStyleData: const DropdownStyleData(
+                                      width: 200,
+                                      offset: Offset(-0, -8),
+                                      padding: EdgeInsets.symmetric(vertical: 0),
+                                      decoration: BoxDecoration(color: Colors.white)),
+                                  menuItemStyleData: const MenuItemStyleData(height: 40),
+                                  items: [
+                                    ...logic.ttsModelList.map((model) => DropdownMenuItem<String>(
+                                        value: model.id,
+                                        child: Text(
+                                          model.nickName ?? "模型${model.id.lastSixChars}",
+                                          style: const TextStyle(fontSize: 13, color: Color(0xff333333)),
+                                        )))
+                                  ],
+                                  onChanged: logic.enableTextToSpeech.value
+                                      ? (value) {
+                                          if (value != null && value is String) {
+                                            logic.currentTTSModelId.value = value;
+                                            logic.listViewController.setAudioButtonVisible(true);
+                                            logic.isAgentChangeWithoutSave = true;
+                                          }
+                                        }
+                                      : null))
+                        ],
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                          margin: const EdgeInsets.only(top: 6),
+                          child: const Text("语音转文字(ASR)", style: TextStyle(fontSize: 12, color: Color(0xff333333)))),
+                      const Spacer(),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Obx(() => Checkbox(
+                                  value: logic.enableSpeechToText.value,
+                                  activeColor: Colors.blue,
+                                  checkColor: Colors.white,
+                                  onChanged: (isCheck) {
+                                    logic.enableSpeechToText.value = isCheck ?? false;
+                                    if (!logic.enableSpeechToText.value) {
+                                      logic.currentASRModelId.value = "";
+                                      logic.inputBoxController.setEnableAudioInput(false);
+                                    }
+                                    logic.isAgentChangeWithoutSave = true;
+                                  })),
+                              const Text("开启", style: TextStyle(fontSize: 12, color: Color(0xff333333))),
+                            ],
+                          ),
+                          DropdownButtonHideUnderline(
+                              child: DropdownButton2(
+                                  customButton: Container(
+                                      width: 200,
+                                      height: 32,
+                                      margin: const EdgeInsets.only(top: 5),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      decoration:
+                                          const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(4))),
+                                      child: Obx(() {
+                                        final selectedModel =
+                                            logic.asrModelList.firstWhereOrNull((model) => model.id == logic.currentASRModelId.value);
+                                        String name;
+                                        if (selectedModel == null) {
+                                          name = "请选择ASR模型";
+                                        } else if (selectedModel.nickName == null) {
+                                          name = "模型${selectedModel.id.lastSixChars}";
+                                        } else {
+                                          name = selectedModel.nickName!;
+                                        }
+                                        return Row(
+                                          children: [
+                                            Text(
+                                              name,
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: logic.enableSpeechToText.value ? const Color(0xff333333) : Colors.grey),
+                                            ),
+                                            const Spacer(),
+                                            buildAssetImage("icon_down.png", 12, const Color(0xff333333))
+                                          ],
+                                        );
+                                      })),
+                                  dropdownStyleData: const DropdownStyleData(
+                                      width: 200,
+                                      offset: Offset(-0, -8),
+                                      padding: EdgeInsets.symmetric(vertical: 0),
+                                      decoration: BoxDecoration(color: Colors.white)),
+                                  menuItemStyleData: const MenuItemStyleData(height: 40),
+                                  items: [
+                                    ...logic.asrModelList.map((model) => DropdownMenuItem<String>(
+                                          value: model.id,
+                                          child: Text(model.nickName ?? "模型${model.id.lastSixChars}",
+                                              style: const TextStyle(fontSize: 13, color: Color(0xff333333))),
+                                        ))
+                                  ],
+                                  onChanged: logic.enableSpeechToText.value
+                                      ? (value) {
+                                          if (value != null && value is String) {
+                                            logic.currentASRModelId.value = value;
+                                            logic.inputBoxController.setEnableAudioInput(true);
+                                            logic.isAgentChangeWithoutSave = true;
+                                          }
+                                        }
+                                      : null))
+                        ],
+                      )
+                    ],
+                  )
+                ],
+              ),
+            ))),
+        const SizedBox(height: 10),
+        if (!isAutoAgent) horizontalLine(),
+      ],
+    );
+  }
+
+  Column buildExecutionModeColumn() {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: () => logic.isExecutionModeExpanded.value = !logic.isExecutionModeExpanded.value,
+          child: Row(children: [
+            Obx(() => buildAssetImage(
+                logic.isExecutionModeExpanded.value ? "icon_option_expanded.png" : "icon_option_closed.png", 18, const Color(0xff333333))),
+            const Text("执行策略", style: TextStyle(fontSize: 14, color: Color(0xff333333)))
+          ]),
+        ),
+        Obx(() => Offstage(
+            offstage: !logic.isExecutionModeExpanded.value,
+            child: Container(
+              margin: const EdgeInsets.only(left: 18),
+              child: Column(
+                children: [
+                  buildAgentOptionColumn(),
+                  //buildChildAgentContainer(),
+                ],
+              ),
+            ))),
+        const SizedBox(height: 10),
+        horizontalLine(),
+      ],
     );
   }
 
@@ -125,7 +490,7 @@ class AdjustmentPage extends StatelessWidget {
           DropdownButtonHideUnderline(
               child: DropdownButton2(
                   customButton: Container(
-                      width: 240,
+                      width: 220,
                       height: 32,
                       margin: const EdgeInsets.only(top: 5),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -143,7 +508,7 @@ class AdjustmentPage extends StatelessWidget {
                             ],
                           ))),
                   dropdownStyleData: const DropdownStyleData(
-                      width: 240,
+                      width: 220,
                       offset: Offset(-0, -8),
                       padding: EdgeInsets.symmetric(vertical: 0),
                       decoration: BoxDecoration(color: Colors.white)),
@@ -153,7 +518,10 @@ class AdjustmentPage extends StatelessWidget {
                     //DropdownMenuItem<String>(value: "DISTRIBUTE", child: Text("分发", style: TextStyle(fontSize: 13))),
                     DropdownMenuItem<String>(value: "REFLECTION", child: Text("反思", style: TextStyle(fontSize: 13))),
                   ],
-                  onChanged: (value) => logic.setAgentType(value))),
+                  onChanged: (value) {
+                    logic.setAgentType(value);
+                    logic.isAgentChangeWithoutSave = true;
+                  })),
         ],
       ),
       const SizedBox(height: 4),
@@ -164,7 +532,7 @@ class AdjustmentPage extends StatelessWidget {
           DropdownButtonHideUnderline(
               child: DropdownButton2(
                   customButton: Container(
-                      width: 240,
+                      width: 220,
                       height: 32,
                       margin: const EdgeInsets.only(top: 5),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -182,7 +550,7 @@ class AdjustmentPage extends StatelessWidget {
                             ],
                           ))),
                   dropdownStyleData: const DropdownStyleData(
-                      width: 240,
+                      width: 220,
                       offset: Offset(-0, -8),
                       padding: EdgeInsets.symmetric(vertical: 0),
                       decoration: BoxDecoration(color: Colors.white)),
@@ -200,6 +568,7 @@ class AdjustmentPage extends StatelessWidget {
                     } else if (value == "reject") {
                       logic.operationMode.value = OperationMode.REJECT;
                     }
+                    logic.isAgentChangeWithoutSave = true;
                   })),
         ],
       ),
@@ -208,7 +577,7 @@ class AdjustmentPage extends StatelessWidget {
 
   Container buildChildAgentContainer() {
     return Container(
-        margin: const EdgeInsets.only(top: 10, bottom: 80),
+        margin: const EdgeInsets.only(top: 10, bottom: 0),
         child: Row(children: [
           const Text("子Agent", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
           const Spacer(),
@@ -216,57 +585,85 @@ class AdjustmentPage extends StatelessWidget {
         ]));
   }
 
-  Column buildToolOptionColumn() {
+  Column buildToolOptionColumn(bool isAutoAgent) {
     return Column(
       children: [
         Container(
             margin: const EdgeInsets.only(top: 10),
             child: Row(
               children: [
-                const Text("工具", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
-                const SizedBox(width: 4),
-                JustTheTooltip(
-                  tailBaseWidth: 16,
-                  tailLength: 8,
-                  content: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(6))),
-                      child: const Text("agent在特定场景下可以调用工具，可以更好执行指令", style: TextStyle(color: Color(0xff999999), fontSize: 14))),
-                  child: buildAssetImage("icon_notified.png", 14, const Color(0xff333333)),
+                InkWell(
+                  onTap: () => logic.isToolExpanded.value = !logic.isToolExpanded.value,
+                  child: Row(children: [
+                    Obx(() => buildAssetImage(
+                        logic.isToolExpanded.value ? "icon_option_expanded.png" : "icon_option_closed.png", 18, const Color(0xff333333))),
+                    const Text("工具", style: TextStyle(fontSize: 14, color: Color(0xff333333)))
+                  ]),
                 ),
                 const Spacer(),
                 //buildClickButton("icon_set.png", "设置", () => logic.showToolSelectDialog()),
                 const SizedBox(width: 10),
-                buildClickButton("icon_add.png", "添加", () => logic.showToolFunctionSelectDialog()),
+                if (!isAutoAgent) buildClickButton("icon_add.png", "添加", () => logic.showToolFunctionSelectDialog()),
                 const SizedBox(width: 10),
-                buildToolSettingWidget()
+                if (!isAutoAgent) buildToolSettingWidget()
               ],
             )),
-        Obx(() => Container(
-            margin: const EdgeInsets.only(top: 10),
-            child: Column(children: [
-              if (logic.functionList.isNotEmpty)
-                ...List.generate(
-                  !logic.showMoreTool.value && logic.functionList.length > 2 ? 2 : logic.functionList.length,
-                  (index) => _buildToolFunctionItem(index, logic.functionList[index]),
-                )
-            ]))),
+        const SizedBox(height: 10),
         Obx(() => Offstage(
-              offstage: logic.functionList.length <= 2,
-              child: InkWell(
-                onTap: () => logic.showMoreTool.value = !logic.showMoreTool.value,
-                child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(logic.showMoreTool.value ? "收起" : "更多", style: const TextStyle(fontSize: 14, color: Color(0xff2A82E4))),
-                        const SizedBox(width: 10),
-                        buildAssetImage(logic.showMoreTool.value ? "icon_up.png" : "icon_down.png", 12, const Color(0xff2A82E4))
-                      ],
+            offstage: !logic.isToolExpanded.value,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                    margin: const EdgeInsets.only(left: 18),
+                    child: Text(isAutoAgent ? "在工具库中对工具开启“支持 Auto Multi Agent”后，工具将在此处显示。当指令调用工具时，将自动调用。" : "Agent在特定场景下可以调用工具，可以更好执行指令",
+                        style: const TextStyle(color: Color(0xff999999), fontSize: 12))),
+                Obx(() => Container(
+                    margin: const EdgeInsets.only(top: 10, left: 10),
+                    child: Column(children: [
+                      if (logic.functionList.isNotEmpty)
+                        ...List.generate(
+                          !logic.showMoreTool.value && logic.functionList.length > 2 ? 2 : logic.functionList.length,
+                          (index) => _buildToolFunctionItem(index, logic.functionList[index], isAutoAgent),
+                        )
+                    ]))),
+                Obx(() => Offstage(
+                      offstage: logic.functionList.length <= 2,
+                      child: InkWell(
+                        onTap: () => logic.showMoreTool.value = !logic.showMoreTool.value,
+                        child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  logic.showMoreTool.value ? "收起" : "更多",
+                                  style: const TextStyle(fontSize: 14, color: Color(0xff2A82E4)),
+                                ),
+                                const SizedBox(width: 10),
+                                buildAssetImage(logic.showMoreTool.value ? "icon_up.png" : "icon_down.png", 12, const Color(0xff2A82E4))
+                              ],
+                            )),
+                      ),
                     )),
-              ),
-            ))
+                Offstage(
+                  offstage: !(isAutoAgent && logic.functionList.isEmpty),
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 18, bottom: 10),
+                    child: Row(
+                      children: [
+                        const Text("还没添加可用工具，", style: TextStyle(color: Color(0xff666666), fontSize: 12)),
+                        InkWell(
+                          onTap: () => logic.backToToolPage(),
+                          child: const Text("前往工具管理", style: TextStyle(color: Color(0xff2A82E4), fontSize: 12)),
+                        )
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            ))),
+        horizontalLine(),
       ],
     );
   }
@@ -326,15 +723,16 @@ class AdjustmentPage extends StatelessWidget {
                         const SizedBox(width: 5),
                         const Text("串行", style: TextStyle(fontSize: 14, color: Color(0xff2A82E4)))
                       ])),
-                  DropdownMenuItem<String>(
-                      value: "reject",
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Visibility(
-                            visible: logic.toolOperationMode.value == OperationMode.REJECT,
-                            child: buildAssetImage("icon_checked.png", 12, const Color(0xff2A82E4))),
-                        const SizedBox(width: 5),
-                        const Text("拒绝", style: TextStyle(fontSize: 14, color: Color(0xff2A82E4)))
-                      ])),
+                  // TODO: server支持单个方法的排他性后再支持此选项
+                  // DropdownMenuItem<String>(
+                  //     value: "reject",
+                  //     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  //       Visibility(
+                  //           visible: logic.toolOperationMode.value == OperationMode.REJECT,
+                  //           child: buildAssetImage("icon_checked.png", 12, const Color(0xff2A82E4))),
+                  //       const SizedBox(width: 5),
+                  //       const Text("拒绝", style: TextStyle(fontSize: 14, color: Color(0xff2A82E4)))
+                  //     ])),
                 ],
                 onChanged: (value) {
                   if (value == "parallel") {
@@ -349,41 +747,61 @@ class AdjustmentPage extends StatelessWidget {
 
   Column buildLibraryOptionColumn() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
             margin: const EdgeInsets.only(top: 10),
             child: Row(
               children: [
-                const Text("知识库", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
+                InkWell(
+                  onTap: () => logic.isLibraryExpanded.value = !logic.isLibraryExpanded.value,
+                  child: Row(children: [
+                    Obx(() => buildAssetImage(logic.isLibraryExpanded.value ? "icon_option_expanded.png" : "icon_option_closed.png", 18,
+                        const Color(0xff333333))),
+                    const Text("知识库", style: TextStyle(fontSize: 14, color: Color(0xff333333)))
+                  ]),
+                ),
                 const Spacer(),
                 buildClickButton("icon_add.png", "添加", () => logic.showLibrarySelectDialog()),
               ],
             )),
-        Obx(() => Container(
-            margin: const EdgeInsets.only(top: 10),
-            child: Column(children: [
-              if (logic.libraryList.isNotEmpty)
-                ...List.generate(
-                  !logic.showMoreLibrary.value && logic.libraryList.length > 2 ? 2 : logic.libraryList.length,
-                  (index) => _buildLibraryItem(index, logic.libraryList[index]),
-                )
-            ]))),
+        const SizedBox(height: 10),
         Obx(() => Offstage(
-              offstage: logic.libraryList.length <= 2,
-              child: InkWell(
-                onTap: () => logic.showMoreLibrary.value = !logic.showMoreLibrary.value,
-                child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(logic.showMoreLibrary.value ? "收起" : "更多", style: const TextStyle(fontSize: 14, color: Color(0xff2A82E4))),
-                        const SizedBox(width: 10),
-                        buildAssetImage("icon_down.png", 12, const Color(0xff2A82E4))
-                      ],
-                    )),
-              ),
-            ))
+            offstage: !logic.isLibraryExpanded.value,
+            child: Column(
+              children: [
+                Container(
+                    margin: const EdgeInsets.only(left: 18),
+                    child: const Text("在问答中，agent可以引用知识库的内容回答问题", style: TextStyle(color: Color(0xff999999), fontSize: 12))),
+                Obx(() => Container(
+                    margin: const EdgeInsets.only(top: 10, left: 10),
+                    child: Column(children: [
+                      if (logic.libraryList.isNotEmpty)
+                        ...List.generate(
+                          !logic.showMoreLibrary.value && logic.libraryList.length > 2 ? 2 : logic.libraryList.length,
+                          (index) => _buildLibraryItem(index, logic.libraryList[index]),
+                        )
+                    ]))),
+                Obx(() => Offstage(
+                      offstage: logic.libraryList.length <= 2,
+                      child: InkWell(
+                        onTap: () => logic.showMoreLibrary.value = !logic.showMoreLibrary.value,
+                        child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(logic.showMoreLibrary.value ? "收起" : "更多",
+                                    style: const TextStyle(fontSize: 14, color: Color(0xff2A82E4))),
+                                const SizedBox(width: 10),
+                                buildAssetImage("icon_down.png", 12, const Color(0xff2A82E4))
+                              ],
+                            )),
+                      ),
+                    ))
+              ],
+            ))),
+        horizontalLine(),
       ],
     );
   }
@@ -403,103 +821,151 @@ class AdjustmentPage extends StatelessWidget {
             )));
   }
 
-  Widget buildInputPromptContainer() {
-    return Stack(children: [
-      Obx(() => Container(
-          height: logic.inputPromptHeight.value,
-          margin: const EdgeInsets.symmetric(vertical: 10),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(color: const Color(0xfff5f5f5), borderRadius: BorderRadius.circular(4)),
-          child: TextField(
-              maxLines: null,
-              controller: logic.tipsController,
-              decoration: const InputDecoration(
-                  hintText: '请输入系统提示词', border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 10)),
-              style: const TextStyle(fontSize: 14, color: Color(0xff333333))))),
-      Positioned(
-        right: 0,
-        bottom: 10,
-        child: GestureDetector(
-            onVerticalDragUpdate: (details) => logic.updateHeight(details.delta.dy),
-            child: const Icon(Icons.signal_cellular_4_bar, size: 16, color: Color(0xfff999999))),
-      )
-    ]);
+  Widget buildInputPromptColumn() {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            const Text("系统提示词", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
+            const Spacer(),
+            buildClickButton("icon_search.png", "提示词预览", () => logic.showPromptPreviewDialog()),
+          ],
+        ),
+        Stack(children: [
+          Obx(() => Container(
+              height: logic.inputPromptHeight.value,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: const Color(0xfff5f5f5), borderRadius: BorderRadius.circular(4)),
+              child: TextField(
+                  maxLines: null,
+                  controller: logic.tipsController,
+                  decoration: const InputDecoration(
+                      hintText: '请输入系统提示词', border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 10)),
+                  style: const TextStyle(fontSize: 14, color: Color(0xff333333))))),
+          Positioned(
+            right: 0,
+            bottom: 10,
+            child: GestureDetector(
+                onVerticalDragUpdate: (details) => logic.updateHeight(details.delta.dy),
+                child: const Icon(Icons.signal_cellular_4_bar, size: 16, color: Color(0xff999999))),
+          )
+        ]),
+      ],
+    );
   }
 
-  Widget _buildModelSelectWidget() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(children: [
-        Expanded(
-            child: Container(
-                height: 36,
-                decoration: const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(4))),
-                child: Center(child: Obx(
-                  () {
-                    var newButtonTag = "newButton";
-                    var list = <ModelBean>[];
-                    list.assignAll(logic.modelList);
-                    ModelBean newButton = ModelBean();
-                    newButton.id = newButtonTag;
-                    newButton.name = "新建模型";
-                    list.add(newButton);
-                    var selectId = logic.currentModel?.id ?? "";
-                    return DropdownButtonHideUnderline(
-                        child: DropdownButton2(
-                      isExpanded: true,
-                      items: list.map<DropdownMenuItem<String>>((ModelBean item) {
-                        var textColor = item.id != newButtonTag ? const Color(0xff333333) : const Color(0xff2A82E4);
-                        return DropdownMenuItem<String>(
-                            value: item.id, child: Text(item.name, style: TextStyle(fontSize: 14, color: textColor)));
-                      }).toList(),
-                      value: selectId.isEmpty ? null : selectId,
-                      onChanged: (value) {
-                        if (value != null && value != newButtonTag) {
-                          logic.selectModel(value);
-                          selectId = value;
-                        } else {
-                          logic.showCreateModelDialog();
-                        }
+  Widget buildTypeColumn() {
+    String description = logic.agent.value?.description ?? "";
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("类型", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Auto Multi Agent", style: TextStyle(fontSize: 14, color: Color(0xff666666))),
+              const SizedBox(height: 5),
+              if (description.isNotEmpty) Text(description, style: const TextStyle(fontSize: 14, color: Color(0xff999999))),
+            ],
+          ),
+        ),
+        horizontalLine(),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget buildModelSelectColumn(bool isAutoAgent) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(isAutoAgent ? "系统模型" : "模型", style: const TextStyle(fontSize: 14, color: Color(0xff333333))),
+        if (isAutoAgent)
+          Container(
+              margin: const EdgeInsets.only(top: 4),
+              child: const Text("负责规划的大语言模型，统筹所有信息", style: TextStyle(fontSize: 12, color: Color(0xff999999)))),
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(children: [
+            Expanded(
+                child: Container(
+                    height: 36,
+                    decoration: const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(4))),
+                    child: Center(child: Obx(
+                      () {
+                        var newButtonTag = "newButton";
+                        var list = <ModelBean>[];
+                        list.assignAll(logic.modelList);
+                        ModelBean newButton = ModelBean();
+                        newButton.id = newButtonTag;
+                        newButton.nickName = "新建模型";
+                        list.add(newButton);
+                        var selectId = logic.currentModel?.id ?? "";
+                        return DropdownButtonHideUnderline(
+                          child: DropdownButton2(
+                            isExpanded: true,
+                            items: list.map<DropdownMenuItem<String>>((ModelBean item) {
+                              var textColor = item.id != newButtonTag ? const Color(0xff333333) : const Color(0xff2A82E4);
+                              String nickName = item.nickName ?? "模型${item.id.lastSixChars}";
+                              return DropdownMenuItem<String>(
+                                  value: item.id, child: Text(nickName, style: TextStyle(fontSize: 14, color: textColor)));
+                            }).toList(),
+                            value: selectId.isEmpty ? null : selectId,
+                            onChanged: (value) {
+                              if (value != null && value != newButtonTag) {
+                                logic.selectModel(value, false);
+                                selectId = value;
+                              } else {
+                                logic.showCreateModelDialog();
+                              }
+                            },
+                            dropdownStyleData: const DropdownStyleData(
+                                offset: Offset(0, -10), maxHeight: 200, decoration: BoxDecoration(color: Colors.white)),
+                          ),
+                        );
                       },
-                      dropdownStyleData:
-                          const DropdownStyleData(offset: Offset(0, -10), maxHeight: 200, decoration: BoxDecoration(color: Colors.white)),
-                    ));
-                  },
-                )))),
-        const SizedBox(width: 10),
-        DropdownButtonHideUnderline(
-            child: DropdownButton2(
-                customButton: buildCommonTextButton("更多", 32, 16, null),
-                isExpanded: true,
-                dropdownStyleData: DropdownStyleData(
-                    width: 360,
-                    offset: const Offset(0, -10),
-                    padding: const EdgeInsets.symmetric(vertical: 0),
-                    decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: const BorderRadius.all(Radius.circular(4)),
-                        color: Colors.white)),
-                menuItemStyleData: MenuItemStyleData(
-                    height: 150, overlayColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) => Colors.transparent)),
-                items: [_buildParamsPopItem()],
-                onChanged: (value) {})),
-      ]),
+                    )))),
+            const SizedBox(width: 10),
+            DropdownButtonHideUnderline(
+                child: DropdownButton2(
+                    customButton: buildCommonTextButton("更多", 32, 16, null),
+                    isExpanded: true,
+                    dropdownStyleData: DropdownStyleData(
+                        width: 360,
+                        offset: const Offset(0, -10),
+                        padding: const EdgeInsets.symmetric(vertical: 0),
+                        decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: const BorderRadius.all(Radius.circular(4)),
+                            color: Colors.white)),
+                    menuItemStyleData: MenuItemStyleData(
+                        height: 150, overlayColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) => Colors.transparent)),
+                    items: [_buildParamsPopItem()],
+                    onChanged: (value) {})),
+          ]),
+        ),
+      ],
     );
   }
 
   DropdownMenuItem<String> _buildParamsPopItem() {
     return DropdownMenuItem<String>(
-        child: Column(
-      children: [
-        Obx(() => _buildSliderRow("temperature", 1.0, 0.0, true, logic.sliderTempValue)),
-        Obx(() {
-          String maxTokenString = logic.currentModel?.maxToken ?? "4096";
-          int maxTokenLimit = int.parse(maxTokenString);
-          return _buildSliderRow("maxToken", maxTokenLimit.toDouble(), 1, false, logic.sliderTokenValue);
-        }),
-        Obx(() => _buildSliderRow("topP", 1.0, 0.0, true, logic.sliderTopPValue)),
-      ],
-    ));
+      child: Column(
+        children: [
+          Obx(() => _buildSliderRow("temperature", 1.0, 0.0, true, logic.sliderTempValue)),
+          Obx(() {
+            String maxTokenString = logic.currentModel?.maxToken ?? "4096";
+            int maxTokenLimit = int.parse(maxTokenString);
+            return _buildSliderRow("maxToken", maxTokenLimit.toDouble(), 1, false, logic.sliderTokenValue);
+          }),
+          Obx(() => _buildSliderRow("topP", 1.0, 0.0, true, logic.sliderTopPValue)),
+        ],
+      ),
+    );
   }
 
   Row _buildSliderRow(String title, double maxValue, double minValue, bool needDecimal, Rx<double> sliderValue) {
@@ -517,6 +983,7 @@ class AdjustmentPage extends StatelessWidget {
                 thumbColor: const Color(0xff2A82E4),
                 onChanged: (double value) {
                   sliderValue.value = value;
+                  logic.isAgentChangeWithoutSave = true;
                 })),
         Container(
             width: 48,
@@ -530,7 +997,7 @@ class AdjustmentPage extends StatelessWidget {
     );
   }
 
-  Widget _buildToolFunctionItem(int index, AgentToolFunction function) {
+  Widget _buildToolFunctionItem(int index, AgentToolFunction function, bool isAutoAgent) {
     return MouseRegion(
       onEnter: (event) => logic.toolHoverItemId.value = index.toString(),
       onExit: (event) => logic.toolHoverItemId.value = "",
@@ -556,8 +1023,9 @@ class AdjustmentPage extends StatelessWidget {
                 Text(function.functionDescription,
                     style: const TextStyle(fontSize: 14, color: Color(0xff999999)), maxLines: 1, overflow: TextOverflow.ellipsis)
               ])),
-              const SizedBox(width: 10),
-              InkWell(onTap: () => logic.removeFunction(index), child: buildAssetImage("icon_delete.png", 20, Colors.black)),
+              if (!isAutoAgent) const SizedBox(width: 10),
+              if (!isAutoAgent)
+                InkWell(onTap: () => logic.removeFunction(index), child: buildAssetImage("icon_delete.png", 20, Colors.black)),
             ]));
       }),
     );
@@ -591,8 +1059,64 @@ class AdjustmentPage extends StatelessWidget {
     );
   }
 
-  Container buildTitleContainer() {
-    return Container(
+  Widget _buildModelItem(int index, ModelBean model) {
+    return MouseRegion(
+      onEnter: (event) => logic.modelHoverItemId.value = index.toString(),
+      onExit: (event) => logic.modelHoverItemId.value = "",
+      child: Obx(() {
+        var isSelect = logic.modelHoverItemId.value == index.toString();
+        var backgroundColor = isSelect ? const Color(0xfff5f5f5) : Colors.transparent;
+        return Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: backgroundColor, borderRadius: BorderRadius.circular(8)),
+            //color: backgroundColor,
+            child: Row(children: [
+              Container(
+                  width: 30,
+                  height: 30,
+                  padding: const EdgeInsets.all(8),
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(color: const Color(0xffe8e8e8), borderRadius: BorderRadius.circular(4)),
+                  child: buildAssetImage("icon_default_agent.png", 0, Colors.black)),
+              Expanded(
+                  child: Text(model.nickName ?? model.name,
+                      style: const TextStyle(fontSize: 14, color: Colors.black), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              //InkWell(onTap: () => logic.removeLibrary(index), child: buildAssetImage("icon_delete.png", 20, Colors.black)),
+            ]));
+      }),
+    );
+  }
+
+  Widget _buildChildAgentItem(int index, AgentBean agent) {
+    return MouseRegion(
+      onEnter: (event) => logic.agentHoverItemId.value = index.toString(),
+      onExit: (event) => logic.agentHoverItemId.value = "",
+      child: Obx(() {
+        var isSelect = logic.agentHoverItemId.value == index.toString();
+        var backgroundColor = isSelect ? const Color(0xfff5f5f5) : Colors.transparent;
+        return Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: backgroundColor, borderRadius: BorderRadius.circular(8)),
+            //color: backgroundColor,
+            child: Row(children: [
+              SizedBox(width: 30, height: 30, child: buildAgentProfileImage(agent.iconPath)),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: Text(agent.name,
+                      style: const TextStyle(fontSize: 14, color: Colors.black), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text(agent.agentType == AgentType.REFLECTION ? "反思" : "普通",
+                    style: const TextStyle(fontSize: 14, color: Color(0xff999999))),
+              ),
+              InkWell(onTap: () => logic.removeChildAgent(index), child: buildAssetImage("icon_delete.png", 20, Colors.black)),
+            ]));
+      }),
+    );
+  }
+
+  Widget buildTitleContainer() {
+    return SizedBox(
         height: 60,
         child: Row(children: [
           Obx(() => Offstage(offstage: logic.isFullScreen.value || Platform.isWindows, child: const SizedBox(width: 50))),
@@ -628,188 +1152,32 @@ class AdjustmentPage extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 10),
             child: buildCommonTextButton("保存", 32, 16, () => logic.updateAgentInfo()),
           ),
-          DropdownButtonHideUnderline(
-              child: DropdownButton2(
-                  customButton: buildCommonTextButton("更多", 32, 16, null),
-                  dropdownStyleData: const DropdownStyleData(
-                      width: 80,
-                      offset: Offset(0, -10),
-                      padding: EdgeInsets.symmetric(vertical: 0),
-                      decoration: BoxDecoration(color: Colors.white)),
-                  menuItemStyleData: const MenuItemStyleData(
-                    height: 40,
-                  ),
-                  items: const [
-                    DropdownMenuItem<String>(
-                      value: "delete",
-                      child: Center(child: Text("删除", style: TextStyle(fontSize: 14))),
-                    )
-                  ],
-                  onChanged: (value) {
-                    if (value == "delete") {
-                      var agentId = logic.agent.value?.id ?? "";
-                      logic.removeAgent(agentId);
-                    }
-                  })),
+          Obx(() => Offstage(
+              offstage: logic.agent.value?.autoAgentFlag == true,
+              child: DropdownButtonHideUnderline(
+                  child: DropdownButton2(
+                      customButton: buildCommonTextButton("更多", 32, 16, null),
+                      dropdownStyleData: const DropdownStyleData(
+                          width: 80,
+                          offset: Offset(0, -10),
+                          padding: EdgeInsets.symmetric(vertical: 0),
+                          decoration: BoxDecoration(color: Colors.white)),
+                      menuItemStyleData: const MenuItemStyleData(
+                        height: 40,
+                      ),
+                      items: const [
+                        DropdownMenuItem<String>(
+                          value: "delete",
+                          child: Center(child: Text("删除", style: TextStyle(fontSize: 14))),
+                        )
+                      ],
+                      onChanged: (value) {
+                        if (value == "delete") {
+                          var agentId = logic.agent.value?.id ?? "";
+                          logic.removeAgent(agentId);
+                        }
+                      })))),
           const SizedBox(width: 20)
         ]));
-  }
-
-  Widget _buildMessageItem(int index, ChatMessage chatMessage) {
-    if (chatMessage.sendRole == ChatRole.User) {
-      var iconPath = logic.account?.avatar ?? "";
-      return MouseRegion(
-          onEnter: (event) => logic.messageHoverItemId.value = index.toString(),
-          onExit: (event) => logic.messageHoverItemId.value = "",
-          child: Container(
-            margin: const EdgeInsets.only(top: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(8))),
-                        child: MarkdownBody(
-                            data: chatMessage.message,
-                            onTapLink: (text, url, title) async {
-                              if (url != null) {
-                                WebUtil.openUrl(url);
-                              }
-                            }),
-                      ),
-                      Obx(() => Visibility(
-                          visible: logic.messageHoverItemId.value == index.toString(),
-                          maintainSize: true,
-                          maintainAnimation: true,
-                          maintainState: true,
-                          child: InkWell(
-                              onTap: () => logic.copyToClipboard(chatMessage.message),
-                              child: Container(
-                                  margin: const EdgeInsets.symmetric(vertical: 10),
-                                  child: buildAssetImage("icon_copy.png", 16, const Color(0xff999999))))))
-                    ],
-                  ),
-                ),
-                Container(width: 25, height: 25, margin: const EdgeInsets.only(left: 10, top: 4), child: buildUserProfileImage(iconPath))
-              ],
-            ),
-          ));
-    } else if (chatMessage.sendRole == ChatRole.Agent) {
-      var iconPath = logic.agent.value?.iconPath ?? "";
-      String message = chatMessage.isLoading ? "正在生成..." : chatMessage.message;
-      return MouseRegion(
-          onEnter: (event) => logic.messageHoverItemId.value = index.toString(),
-          onExit: (event) => logic.messageHoverItemId.value = "",
-          child: Container(
-            margin: const EdgeInsets.only(top: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(width: 25, height: 25, margin: const EdgeInsets.only(right: 10, top: 4), child: buildAgentProfileImage(iconPath)),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if ((chatMessage.thoughtList?.length ?? 0) > 0) buildThoughtProcessColumn(chatMessage),
-                      Container(
-                        padding: const EdgeInsets.only(top: 10),
-                        //decoration: const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(8))),
-                        child: MarkdownBody(
-                            data: message,
-                            onTapLink: (text, url, title) async {
-                              if (url != null) {
-                                WebUtil.openUrl(url);
-                              }
-                            }),
-                      ),
-                      if ((chatMessage.childAgentMessageList?.length ?? 0) > 0)
-                        ...List.generate(
-                          chatMessage.childAgentMessageList?.length ?? 0,
-                          (index) => Container(
-                              margin: const EdgeInsets.only(top: 5),
-                              child: Text(chatMessage.childAgentMessageList![index],
-                                  style: const TextStyle(fontSize: 12, color: Color(0xff999999)))),
-                        ),
-                      Obx(() => Visibility(
-                          visible: logic.messageHoverItemId.value == index.toString(),
-                          maintainSize: true,
-                          maintainAnimation: true,
-                          maintainState: true,
-                          child: InkWell(
-                              onTap: () => logic.copyToClipboard(chatMessage.message),
-                              child: Container(
-                                  margin: const EdgeInsets.symmetric(vertical: 10),
-                                  child: buildAssetImage("icon_copy.png", 16, const Color(0xff999999))))))
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ));
-    } else {
-      return Container();
-    }
-  }
-
-  Column buildThoughtProcessColumn(ChatMessage chatMessage) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-            padding: const EdgeInsets.only(top: 10),
-            child: Row(
-              children: [
-                InkWell(
-                    onTap: () {
-                      chatMessage.isThoughtExpanded = !chatMessage.isThoughtExpanded;
-                      logic.chatMessageList.refresh();
-                    },
-                    child: Row(children: [
-                      const Text("思考过程", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
-                      Container(
-                          margin: const EdgeInsets.only(left: 5),
-                          child:
-                              buildAssetImage(chatMessage.isThoughtExpanded ? "icon_up.png" : "icon_down.png", 12, const Color(0xff333333)))
-                    ])),
-                const Spacer()
-              ],
-            )),
-        Offstage(
-          offstage: !chatMessage.isThoughtExpanded,
-          child: Column(
-            children: [
-              ...List.generate(
-                chatMessage.thoughtList?.length ?? 0,
-                (index) => Container(margin: const EdgeInsets.only(top: 5), child: buildThoughtItem(chatMessage.thoughtList![index])),
-              )
-            ],
-          ),
-        )
-      ],
-    );
-  }
-
-  Widget buildThoughtItem(Thought thought) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("工具调用", style: TextStyle(fontSize: 14, color: Color(0xff999999))),
-        const Text("接收信息:", style: TextStyle(fontSize: 12, color: Color(0xff999999))),
-        Container(
-            margin: const EdgeInsets.only(left: 20),
-            child: Text(thought.sentMessage, style: const TextStyle(fontSize: 12, color: Color(0xff999999)))),
-        Text("${thought.roleName}:", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-        Container(
-            margin: const EdgeInsets.only(left: 20),
-            child: Text(thought.receivedMessage, style: const TextStyle(fontSize: 12, color: Color(0xff999999)))),
-      ],
-    );
   }
 }

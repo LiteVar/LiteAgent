@@ -3,27 +3,10 @@ import { Space, Divider, Button, message } from 'antd';
 import { PlusOutlined, AudioOutlined } from '@ant-design/icons';
 import sendSvg from '@/assets/dashboard/send-normal.png';
 import sendDisableSvg from '@/assets/dashboard/send-disable.png';
-import { AgentType, AgentTypeMode } from '@/pages/agent/components/agent-set';
 import { postV1ChatAudioTranscriptions } from '@/client';
 import ResponseCode from '@/constants/ResponseCode';
 import RecordWave from '../record-wave';
-
-interface ChatInputProps {
-  value: string;
-  mode: 'dev' | 'prod';
-  agentType: AgentTypeMode;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onSend: (type: 'text' | 'execute' | 'imageUrl', text?: string) => void;
-  setAsrLoading: (value: boolean) => void;
-  asrModelId: string;
-}
-
-enum InputMode {
-  NORMAL = 'normal',
-  VOICE_INIT = 'voice_init',
-  VOICE_RECORDING = 'voice_recording',
-  VOICE_DONE = 'voice_done',
-}
+import { ChatInputProps, InputMode, ApiResponse, AgentType } from '@/types/chat';
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
   value, 
@@ -126,7 +109,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         body: { audio: audioBlob }
       });
 
-      const res: any = await Promise.race([apiPromise, timeoutPromise]);
+      const res = await Promise.race([apiPromise, timeoutPromise]) as ApiResponse<string>;
 
       if (res.data?.code !== ResponseCode.S_OK) {
         message.error(res.data?.message || '语音转化失败');

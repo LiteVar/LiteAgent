@@ -1,6 +1,6 @@
 package com.litevar.agent.rest.openai.message;
 
-import lombok.AllArgsConstructor;
+import com.litevar.agent.rest.util.CurrentAgentRequest;
 import lombok.Getter;
 
 /**
@@ -10,12 +10,27 @@ import lombok.Getter;
  * @since 2025/4/15 17:59
  */
 @Getter
-@AllArgsConstructor
 public class ChunkMessage implements AgentMessage {
-    private String sessionId;
-    private String taskId;
-    private String agentId;
-    private Integer chunkType;
+    private final String sessionId;
+    private final String parentTaskId;
+    private final String taskId;
+    private final String agentId;
+    private final String requestId;
+    private final Integer chunkType;
 
-    private String part;
+    private final String part;
+
+    public ChunkMessage(CurrentAgentRequest.AgentRequest context, Integer chunkType, String part) {
+        this.chunkType = chunkType;
+        this.part = part;
+        this.sessionId = context.getSessionId();
+        this.taskId = context.getTaskId();
+        this.agentId = context.getAgentId();
+        this.requestId = context.getRequestId();
+        this.parentTaskId = context.getParentTaskId();
+    }
+
+    public ChunkMessage(Integer chunkType, String part) {
+        this(CurrentAgentRequest.getContext(), chunkType, part);
+    }
 }

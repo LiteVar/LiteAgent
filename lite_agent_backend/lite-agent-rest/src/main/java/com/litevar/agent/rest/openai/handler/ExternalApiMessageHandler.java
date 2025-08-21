@@ -6,12 +6,18 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.litevar.agent.base.entity.ToolFunction;
+import com.litevar.agent.base.entity.ToolProvider;
 import com.litevar.agent.base.enums.AgentType;
 import com.litevar.agent.base.vo.ExternalMessage;
 import com.litevar.agent.core.module.agent.ChatService;
+import com.litevar.agent.core.module.tool.ToolFunctionService;
+import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.openai.completion.CompletionResponse;
 import com.litevar.agent.openai.completion.message.AssistantMessage;
 import com.litevar.agent.rest.openai.message.*;
+import com.litevar.agent.rest.util.FunctionUtil;
+import com.litevar.agent.rest.util.SpringUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.codec.ServerSentEvent;
@@ -27,25 +33,25 @@ import java.util.List;
 @Slf4j
 public class ExternalApiMessageHandler extends AgentMessageHandler {
     private final FluxSink<ServerSentEvent<String>> sink;
-    @Getter
-    private final String taskId;
     private final String sessionId;
     private final boolean stream;
     //主agentId
     private final String agentId;
+    @Getter
+    private final String requestId;
 
-    public ExternalApiMessageHandler(String agentId, String sessionId, String taskId, FluxSink<ServerSentEvent<String>> sink, boolean stream) {
+    public ExternalApiMessageHandler(String agentId, String sessionId, FluxSink<ServerSentEvent<String>> sink, boolean stream, String requestId) {
         this.agentId = agentId;
         this.sink = sink;
         this.sessionId = sessionId;
-        this.taskId = taskId;
         this.stream = stream;
+        this.requestId = requestId;
     }
 
     @Override
     public void onSend(UserSendMessage userSendMessage) {
-        if (StrUtil.equals(userSendMessage.getTaskId(), this.taskId)) {
-            sendStatus("start");
+        if (StrUtil.equals(userSendMessage.getRequestId(), this.requestId)) {
+            sendStatus("start", userSendMessage.getTaskId());
             //todo send prompt
             ExternalMessage message = transformSendMsg(userSendMessage);
             sendMessage(message);
@@ -54,7 +60,7 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     @Override
     public void LlmMsg(LlmMessage llmMessage) {
-        if (StrUtil.equals(llmMessage.getTaskId(), this.taskId)
+        if (StrUtil.equals(llmMessage.getRequestId(), this.requestId)
                 && ObjectUtil.notEqual(llmMessage.getAgentType(), AgentType.REFLECTION.getType())) {
             //不输出反思的结果:{information: xxx,score:1}
             ExternalMessage message = transformLlmMsg(llmMessage);
@@ -68,7 +74,7 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     @Override
     public void thinkMsg(LlmMessage llmMessage) {
-        if (StrUtil.equals(llmMessage.getTaskId(), this.taskId) && !stream) {
+        if (StrUtil.equals(llmMessage.getRequestId(), this.requestId) && !stream) {
             ExternalMessage message = transformLlmMsg(llmMessage);
             message.setType("reasoningContent");
             message.setContent(llmMessage.getResponse().getChoices().get(0).getMessage().getReasoningContent());
@@ -78,17 +84,19 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     @Override
     public void onError(ErrorMessage errorMessage) {
-        if (StrUtil.equals(errorMessage.getTaskId(), this.taskId)) {
-            sendStatus("exception");
+        if (StrUtil.equals(errorMessage.getRequestId(), this.requestId)) {
+            sendStatus("exception", errorMessage.getTaskId());
         }
     }
 
     @Override
     public void chunk(ChunkMessage chunkMessage) {
-        if (StrUtil.equals(chunkMessage.getTaskId(), this.taskId)) {
+        if (StrUtil.equals(chunkMessage.getRequestId(), this.requestId)) {
             ExternalMessage message = new ExternalMessage();
             message.setSessionId(chunkMessage.getSessionId());
             message.setTaskId(chunkMessage.getTaskId());
+            message.setAgentId(chunkMessage.getAgentId());
+            message.setParentTaskId(chunkMessage.getParentTaskId());
             message.setRole(isSubAgent(chunkMessage.getAgentId()) ? "subagent" : "assistant");
             message.setTo("agent");
             message.setType(chunkMessage.getChunkType() == 1 ? "reasoningContent" : "text");
@@ -100,8 +108,31 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     @Override
     public void functionCalling(LlmMessage functionCallingMessage) {
-        if (StrUtil.equals(functionCallingMessage.getTaskId(), this.taskId)) {
+        if (StrUtil.equals(functionCallingMessage.getRequestId(), this.requestId)) {
             ExternalMessage message = transformLlmMsg(functionCallingMessage);
+            AssistantMessage assistantMessage = functionCallingMessage.getResponse().getChoices().get(0).getMessage();
+            if (assistantMessage.hasToolCalls()) {
+                List<ExternalMessage.FunctionCall> functionCallList = new ArrayList<>();
+                for (AssistantMessage.ToolCall toolCall : assistantMessage.getToolCalls()) {
+                    ExternalMessage.FunctionCall functionCall = new ExternalMessage.FunctionCall();
+                    functionCall.setName(toolCall.getFunction().getName());
+                    functionCall.setId(toolCall.getId());
+                    JSONObject argObj = JSONUtil.parseObj(toolCall.getFunction().getArguments());
+                    functionCall.setArguments(argObj);
+                    try {
+                        String functionId = FunctionUtil.getFunctionId(toolCall.getFunction().getName());
+                        ToolFunction function = SpringUtil.getBean(ToolFunctionService.class).findById(functionId);
+                        ToolProvider tool = SpringUtil.getBean(ToolService.class).findById(function.getToolId());
+                        functionCall.setToolId(function.getToolId());
+                        functionCall.setToolName(tool.getName());
+                        functionCall.setFunctionId(functionId);
+                        functionCall.setFunctionName(function.getResource());
+                    } catch (Exception e) {
+                    }
+                    functionCallList.add(functionCall);
+                }
+                message.setContent(functionCallList);
+            }
             message.setType("toolCalls");
             sendMessage(message);
         }
@@ -109,7 +140,7 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     @Override
     public void openToolCall(OpenToolMessage openToolMessage) {
-        if (StrUtil.equals(openToolMessage.getTaskId(), this.taskId)) {
+        if (StrUtil.equals(openToolMessage.getRequestId(), this.requestId)) {
             ExternalMessage message = transformOpenToolMsg(openToolMessage);
             log.info("推送open tool 消息给api:{}", message);
             sendTypeMessage(message, "functionCall");
@@ -118,7 +149,7 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     @Override
     public void functionResult(ToolResultMessage toolResultMessage) {
-        if (StrUtil.equals(toolResultMessage.getTaskId(), this.taskId)) {
+        if (StrUtil.equals(toolResultMessage.getRequestId(), this.requestId)) {
             ExternalMessage message = transformFunctionResultMsg(toolResultMessage);
             sendMessage(message);
         }
@@ -126,7 +157,7 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     @Override
     public void reflect(ReflectResultMessage reflectResultMessage) {
-        if (StrUtil.equals(reflectResultMessage.getTaskId(), this.taskId)) {
+        if (StrUtil.equals(reflectResultMessage.getRequestId(), this.requestId)) {
             ExternalMessage message = transformReflectMsg(reflectResultMessage);
             sendMessage(message);
         }
@@ -134,25 +165,15 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     @Override
     public void distribute(DistributeMessage distributeMessage) {
-        if (StrUtil.equals(distributeMessage.getTaskId(), this.taskId)) {
+        if (StrUtil.equals(distributeMessage.getRequestId(), this.requestId)) {
             ExternalMessage message = transformDistributeMsg(distributeMessage);
             sendMessage(message);
         }
     }
 
     @Override
-    public void broadcast(DistributeMessage distributeMessage) {
-        distribute(distributeMessage);
-    }
-
-    @Override
-    public void knowledge(KnowledgeMessage knowledgeMessage) {
-
-    }
-
-    @Override
     public void planning(PlanningMessage planningMessage) {
-        if (StrUtil.equals(planningMessage.getTaskId(), this.taskId)) {
+        if (StrUtil.equals(planningMessage.getRequestId(), this.requestId)) {
             ExternalMessage message = transformPlanningMsg(planningMessage);
             sendMessage(message);
         }
@@ -162,17 +183,21 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
      * 断开连接
      */
     @Override
-    public void disconnect() {
-        sendStatus("done");
+    public void disconnect(String requestId) {
         try {
-            sink.complete();
+            if (!sink.isCancelled()) {
+                sendStatus("done", requestId);
+                sink.complete();
+            }
         } catch (Exception ex) {
-            log.error("断开连接失败,sessionId:{},taskId:{}", sessionId, taskId, ex);
-            sink.error(ex);
+            log.error("断开连接失败,sessionId:{},requestId:{}", sessionId, requestId, ex);
+            if (!sink.isCancelled()) {
+                sink.error(ex);
+            }
         }
     }
 
-    private void sendStatus(String status) {
+    private void sendStatus(String status, String taskId) {
         ExternalMessage message = new ExternalMessage();
         message.setSessionId(sessionId);
         message.setTaskId(taskId);
@@ -190,7 +215,7 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
     private void sendTypeMessage(Object msg, String type) {
         if (sink.isCancelled()) {
-            log.warn("Sink已取消,跳过消息发送,sessionId:{},taskId:{}", sessionId, taskId);
+            log.warn("Sink已取消,跳过消息发送,sessionId:{},requestId:{}", sessionId, requestId);
             return;
         }
 
@@ -202,7 +227,7 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
                     .build();
             sink.next(event);
         } catch (Exception ex) {
-            log.error("发送消息失败,sessionId:{},taskId:{}", sessionId, taskId, ex);
+            log.error("发送消息失败,sessionId:{},requestId:{}", sessionId, requestId, ex);
             sink.error(ex);
         }
     }
@@ -211,6 +236,8 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
     private ExternalMessage transformSendMsg(UserSendMessage msg) {
         ExternalMessage message = new ExternalMessage();
         message.setSessionId(msg.getSessionId());
+        message.setAgentId(msg.getAgentId());
+        message.setParentTaskId(null);
         message.setTaskId(msg.getTaskId());
         message.setRole("user");
         message.setTo("agent");
@@ -222,6 +249,8 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
     private ExternalMessage transformLlmMsg(LlmMessage msg) {
         ExternalMessage message = new ExternalMessage();
         message.setSessionId(msg.getSessionId());
+        message.setAgentId(msg.getAgentId());
+        message.setParentTaskId(msg.getParentTaskId());
         message.setTaskId(msg.getTaskId());
         message.setRole(isSubAgent(msg.getAgentId()) ? "subagent" : "assistant");
         message.setTo("agent");
@@ -238,25 +267,14 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
 
         AssistantMessage assistantMessage = response.getChoices().get(0).getMessage();
         message.setContent(assistantMessage.getContent());
-
-        if (assistantMessage.hasToolCalls()) {
-            List<ExternalMessage.FunctionCall> functionCallList = new ArrayList<>();
-            for (AssistantMessage.ToolCall toolCall : assistantMessage.getToolCalls()) {
-                ExternalMessage.FunctionCall functionCall = new ExternalMessage.FunctionCall();
-                functionCall.setName(toolCall.getFunction().getName());
-                functionCall.setId(toolCall.getId());
-                JSONObject argObj = JSONUtil.parseObj(toolCall.getFunction().getArguments());
-                functionCall.setArguments(argObj);
-                functionCallList.add(functionCall);
-            }
-            message.setContent(functionCallList);
-        }
         return message;
     }
 
     private ExternalMessage transformOpenToolMsg(OpenToolMessage msg) {
         ExternalMessage message = new ExternalMessage();
         message.setSessionId(msg.getSessionId());
+        message.setAgentId(msg.getAgentId());
+        message.setParentTaskId(msg.getParentTaskId());
         message.setTaskId(msg.getTaskId());
         message.setRole(isSubAgent(msg.getAgentId()) ? "subagent" : "agent");
         message.setTo("client");
@@ -270,15 +288,25 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
     private ExternalMessage transformFunctionResultMsg(ToolResultMessage msg) {
         ExternalMessage message = new ExternalMessage();
         message.setSessionId(msg.getSessionId());
+        message.setAgentId(msg.getAgentId());
+        message.setParentTaskId(msg.getParentTaskId());
         message.setTaskId(msg.getTaskId());
         message.setRole(isSubAgent(msg.getAgentId()) ? "subagent" : "tool");
         message.setTo("agent");
         message.setType("toolReturn");
 
         ExternalMessage.ToolReturn toolReturn = new ExternalMessage.ToolReturn();
+        try {
+            ToolFunction function = SpringUtil.getBean(ToolFunctionService.class).findById(msg.getFunctionId());
+            toolReturn.setFunctionName(function.getResource());
+            toolReturn.setFunctionId(function.getId());
+            toolReturn.setToolId(function.getToolId());
+            ToolProvider tool = SpringUtil.getBean(ToolService.class).findById(function.getToolId());
+            toolReturn.setToolName(tool.getName());
+        } catch (Exception ex) {
+        }
         toolReturn.setId(msg.getCallId());
         toolReturn.setResult(msg.getResult());
-        toolReturn.setFunctionName(msg.getFunctionName());
         message.setContent(toolReturn);
         return message;
     }
@@ -286,6 +314,8 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
     private ExternalMessage transformReflectMsg(ReflectResultMessage msg) {
         ExternalMessage message = new ExternalMessage();
         message.setSessionId(msg.getSessionId());
+        message.setAgentId(msg.getAgentId());
+        message.setParentTaskId(msg.getParentTaskId());
         message.setTaskId(msg.getTaskId());
         message.setRole(isSubAgent(msg.getAgentId()) ? "subagent" : "reflection");
         message.setTo("agent");
@@ -312,6 +342,8 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
     private ExternalMessage transformDistributeMsg(DistributeMessage msg) {
         ExternalMessage message = new ExternalMessage();
         message.setSessionId(msg.getSessionId());
+        message.setAgentId(msg.getAgentId());
+        message.setParentTaskId(msg.getParentTaskId());
         message.setTaskId(msg.getTaskId());
         message.setRole("subagent");
         message.setTo("agent");
@@ -327,6 +359,8 @@ public class ExternalApiMessageHandler extends AgentMessageHandler {
     private ExternalMessage transformPlanningMsg(PlanningMessage msg) {
         ExternalMessage message = new ExternalMessage();
         message.setSessionId(msg.getSessionId());
+        message.setAgentId(msg.getAgentId());
+        message.setParentTaskId(msg.getParentTaskId());
         message.setTaskId(msg.getTaskId());
         message.setRole("assistant");
         message.setTo("agent");

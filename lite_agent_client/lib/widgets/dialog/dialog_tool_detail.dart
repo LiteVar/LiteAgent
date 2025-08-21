@@ -11,12 +11,9 @@ class ToolDetailDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 538,
-        height: 438,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.all(Radius.circular(6)),
-        ),
+        width: 638,
+        height: 538,
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(6))),
         child: Column(
           children: [
             buildTitleContainer(),
@@ -27,81 +24,31 @@ class ToolDetailDialog extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     Center(
                       child: Column(
                         children: [
                           Container(
-                              margin: EdgeInsets.all(20),
-                              child: Text(
-                                tool.name,
-                                style: TextStyle(
-                                    fontSize: 14, color: Colors.black),
-                              )),
-                          Text(
-                            tool.description,
-                            style: TextStyle(fontSize: 14, color: Colors.black),
-                          ),
+                              margin: const EdgeInsets.all(20),
+                              child: Text(tool.name, style: const TextStyle(fontSize: 14, color: Color(0xFF333333)))),
                           Container(
-                              margin: EdgeInsets.symmetric(vertical: 10),
-                              child: Divider(height: 0.1))
+                              margin: const EdgeInsets.symmetric(horizontal: 40),
+                              child: Text(tool.description, style: const TextStyle(fontSize: 14, color: Color(0xFF333333)))),
+                          Container(margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 10), child: const Divider(height: 0.1))
                         ],
                       ),
                     ),
+                    const SizedBox(height: 20),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          "schema:",
-                          style: TextStyle(fontSize: 14, color: Colors.black),
-                        ),
-                        Container(
-                          margin: EdgeInsets.all(10),
-                          child: Text(
-                            tool.schemaText,
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                        ),
-                        Text(
-                          "协议类型:",
-                          style: TextStyle(fontSize: 14, color: Colors.black),
-                        ),
-                        Container(
-                            margin: EdgeInsets.all(10),
-                            child: Text(
-                              tool.schemaType,
-                              style:
-                                  TextStyle(fontSize: 14, color: Colors.grey),
-                            )),
-                        Text(
-                          "key类型:",
-                          style: TextStyle(fontSize: 14, color: Colors.black),
-                        ),
-                        Container(
-                            margin: EdgeInsets.all(10),
-                            child: Text(
-                              tool.apiType,
-                              style:
-                                  TextStyle(fontSize: 14, color: Colors.grey),
-                            )),
-                        Text(
-                          "apiKey值:",
-                          style: TextStyle(fontSize: 14, color: Colors.black),
-                        ),
-                        Container(
-                            margin: EdgeInsets.all(10),
-                            child: Text(
-                              tool.apiText,
-                              style:
-                                  TextStyle(fontSize: 14, color: Colors.grey),
-                            )),
+                        buildInfoRow(title: "Schema类型:", content: tool.schemaType),
+                        buildInfoRow(title: "Schema文稿:", content: tool.schemaText),
+                        buildInfoRow(title: "API Key类型:", content: tool.apiType),
+                        buildInfoRow(title: "Api Key值:", content: tool.apiText),
+                        buildInfoRow(title: "Auto MultiAgents:", content: tool.supportMultiAgent ?? false ? "支持" : "不支持"),
                       ],
                     )
-                    /*buildToolDesColumn(),
-                        buildSchemaInputColumn(),
-                        buildAPIInputColumn(),
-                        const SizedBox(height: 10),
-                        buildBottomButton()*/
                   ],
                 ),
               )),
@@ -112,22 +59,38 @@ class ToolDetailDialog extends StatelessWidget {
     );
   }
 
+  Widget buildInfoRow({required String title, required String content}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+              width: 125, child: Text(title, textAlign: TextAlign.right, style: const TextStyle(fontSize: 14, color: Color(0xFF333333)))),
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.only(left: 10),
+              child: Text(content, style: const TextStyle(fontSize: 14, color: Color(0xFF999999))),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
   Container buildTitleContainer() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 5, 16, 5),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       decoration: const BoxDecoration(
         color: Color(0xFFf5f5f5),
-        borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(6), topRight: Radius.circular(6)),
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(6), topRight: Radius.circular(6)),
       ),
       child: Row(children: [
         const Text("工具详情"),
-        const Expanded(child: Spacer()),
+        const Spacer(),
         IconButton(
           icon: const Icon(Icons.close, size: 16, color: Colors.black),
-          onPressed: () {
-            Get.back();
-          },
+          onPressed: () => Get.back(),
         )
       ]),
     );

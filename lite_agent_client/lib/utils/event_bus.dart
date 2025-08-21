@@ -10,6 +10,8 @@ class EventBusMessage {
   static const String login = "login";
   static const String logout = "logout";
   static const String sync = "synchronization";
+  static const String delete = "delete";
+  static const String switchPage = "switchPage";
 }
 
 class MessageEvent {

@@ -200,6 +200,10 @@ class AgentPage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  Offstage(
+                    offstage: agent.autoAgentFlag != true,
+                    child: const Text("类型:Auto Multi Agent", style: TextStyle(fontSize: 14)),
+                  ),
                   SizedBox(
                       height: 64,
                       child: Text(agent.description ?? "",
@@ -237,7 +241,7 @@ class AgentPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (isLocal)
+                  if (isLocal && agent.autoAgentFlag != true)
                     DropdownButtonHideUnderline(
                         child: DropdownButton2(
                             customButton: Row(
@@ -263,7 +267,7 @@ class AgentPage extends StatelessWidget {
                             ],
                             onChanged: (value) {
                               if (value == "delete") {
-                                logic.removeAgent(agent.id);
+                                logic.showRemoveAgentDialog(agent.id);
                               }
                             }))
                 ],

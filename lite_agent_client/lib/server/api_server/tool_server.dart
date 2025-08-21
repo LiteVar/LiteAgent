@@ -6,6 +6,7 @@ import 'package:lite_agent_client/models/base_response.dart';
 import 'package:lite_agent_client/models/dto/tool.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/server/network/net_util.dart';
+import 'package:lite_agent_client/utils/log_util.dart';
 
 class ToolServer {
   static Future<BaseResponse<List<ToolDTO>?>> getTooList(int tab) async {
@@ -21,7 +22,7 @@ class ToolServer {
       queryParameters: {"tab": tab},
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token, 'Workspace-id': workspaceId}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForList(response, (list) {
       return (list).map((json) => ToolDTO.fromJson(json)).toList();
     });
@@ -38,7 +39,7 @@ class ToolServer {
       "$serverUrl${Constants.apiServerPath}$path/$id",
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJson(response, (json) => ToolDTO.fromJson(json));
   }
 
@@ -54,7 +55,7 @@ class ToolServer {
       data: jsonArray,
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForString(response);
   }
 
@@ -69,7 +70,26 @@ class ToolServer {
       "$serverUrl${Constants.apiDesktopServerPath}$path",
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForString(response);
+  }
+
+  static Future<BaseResponse<List<ToolDTO>>> getAutoAgentToolList() async {
+    String serverUrl = await accountRepository.getApiServerUrl();
+    String token = await accountRepository.getApiToken();
+    String workspaceId = await accountRepository.getWorkSpaceId();
+    if (serverUrl.isEmpty || token.isEmpty) {
+      return BaseResponse(data: null, code: 400, message: "参数缺失");
+    }
+    String path = '/v1/tool/listWithFunction';
+    Map<String, dynamic>? response = await NetUtil.instance.get(
+      "$serverUrl${Constants.apiServerPath}$path",
+      queryParameters: {"tab": 0, "autoAgent": true},
+      options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token, 'Workspace-id': workspaceId}),
+    );
+    Log.d("response:${jsonEncode(response)}");
+    return BaseResponse.fromJsonForList(response, (list) {
+      return (list).map((json) => ToolDTO.fromJson(json)).toList();
+    });
   }
 }

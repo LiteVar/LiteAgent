@@ -35,14 +35,15 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
                     child: Center(child: Obx(() {
                       var isLogin = logic.account.value != null;
                       if (!isLogin) {
-                        return InkWell(
+                        /*return InkWell(
                             onTap: () => logic.showLoginDialog(false),
                             child: const Column(
                               children: [
                                 Icon(Icons.person, color: Colors.white, size: 24.0),
                                 Text("未登录", style: TextStyle(fontSize: 12, color: Colors.white))
                               ],
-                            ));
+                            ));*/
+                        return Container();
                       } else {
                         return SizedBox(height: 24, width: 24, child: buildUserProfileImage(logic.accountAvatar));
                       }

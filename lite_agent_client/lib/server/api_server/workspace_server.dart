@@ -6,6 +6,7 @@ import 'package:lite_agent_client/models/base_response.dart';
 import 'package:lite_agent_client/models/dto/workspace.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/server/network/net_util.dart';
+import 'package:lite_agent_client/utils/log_util.dart';
 
 class WorkSpaceServer {
   static Future<BaseResponse<List<WorkSpaceDTO>?>> getWorkspaceList() async {
@@ -21,7 +22,7 @@ class WorkSpaceServer {
         headers: {'Content-Type': 'application/json', 'Authorization': token},
       ),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForList(response, (list) {
       return (list).map((json) => WorkSpaceDTO.fromJson(json)).toList();
     });

@@ -77,7 +77,7 @@ const ToolInfoModal: React.FC<ToolInfoModalProps> = (props) => {
               </Paragraph>
             </Descriptions.Item>
           )}
-          <Descriptions.Item label="Auto MultiAgent">{!!toolDetail?.autoAgent ? '支持' : '不支持'}</Descriptions.Item>
+          <Descriptions.Item label="Auto MultiAgent">{toolDetail?.autoAgent ? '支持' : '不支持'}</Descriptions.Item>
         </Descriptions>
 
         {toolInfo?.canEdit &&

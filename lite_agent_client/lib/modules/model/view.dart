@@ -1,6 +1,7 @@
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lite_agent_client/utils/extension/string_extension.dart';
 import 'package:lite_agent_client/widgets/common_widget.dart';
 
 import '../../models/local_data_model.dart';
@@ -34,7 +35,13 @@ class ModelPage extends StatelessWidget {
                 return GridView.count(
                     crossAxisCount: 4,
                     childAspectRatio: 3 / 2.2,
-                    children: List.generate(logic.modelList.length, (index) => _buildModelItem(logic.modelList[index])));
+                    children: List.generate(
+                      logic.modelList.length,
+                      (index) => InkWell(
+                        onTap: () => logic.showDetailDialog(logic.modelList[index]),
+                        child: _buildModelItem(logic.modelList[index]),
+                      ),
+                    ));
               } else {
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -67,24 +74,40 @@ class ModelPage extends StatelessWidget {
   Widget _buildModelItem(ModelBean model) {
     return Container(
       margin: const EdgeInsets.all(10),
-      padding: const EdgeInsets.fromLTRB(15, 10, 15, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       decoration: BoxDecoration(border: Border.all(color: itemBorderColor), borderRadius: BorderRadius.circular(8.0)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(width: 30, height: 30, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(6))),
-              const SizedBox(width: 16),
+              Container(
+                  width: 39, height: 39, decoration: BoxDecoration(color: const Color(0xffcccccc), borderRadius: BorderRadius.circular(6))),
+              const SizedBox(width: 10),
               Expanded(
-                  child: Text(model.name,
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, color: Colors.black)))
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(model.nickName ?? "模型${model.id.lastSixChars}",
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, color: Color(0xff333333))),
+                    ),
+                    Flexible(
+                      child: Text(model.name,
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xffa6a6a6))),
+                    ),
+                  ],
+                ),
+              )
             ],
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 48,
-            child: Text(model.key, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
+          const SizedBox(height: 10),
+          Text("${model.type ?? "LLM"}模型",
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, color: Color(0xffc2c2c2))),
+          Flexible(
+            child: Text(model.key,
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, color: Color(0xffc2c2c2))),
           ),
           const Spacer(),
           buildBottomButton(model)

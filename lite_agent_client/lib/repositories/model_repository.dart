@@ -1,10 +1,14 @@
 import 'dart:convert';
 
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
+import 'package:lite_agent_client/models/dto/model.dart';
 import 'package:lite_agent_client/server/api_server/model_server.dart';
+import 'package:lite_agent_client/utils/extension/string_extension.dart';
 
 import '../models/local_data_model.dart';
 import 'account_repository.dart';
+import '../utils/log_util.dart';
 
 final modelRepository = ModelRepository();
 
@@ -36,7 +40,7 @@ class ModelRepository {
     if (await accountRepository.isLogin()) {
       await uploadToServer([llm]);
     }
-    print("updateModel:$key");
+    Log.d("updateModel:$key");
   }
 
   Future<ModelBean?> getModelFromBox(String key) async {
@@ -52,15 +56,32 @@ class ModelRepository {
     var iterable = models.iterator;
     while (iterable.moveNext()) {
       var model = iterable.current;
-      var jsonMap = {"id": model.id, "name": model.name, "baseUrl": model.url, "apiKey": model.key, "type": "text"};
+      if (!model.id.isNumericOnly) {
+        continue;
+      }
+      String type = model.type ?? "LLM";
+      if (type != "LLM") {
+        type = type.toLowerCase();
+      }
+      String nickName = model.nickName ?? "模型${model.id.lastSixChars ?? ""}";
+      var jsonMap = {
+        "id": model.id,
+        "alias": nickName,
+        "name": model.name,
+        "baseUrl": model.url,
+        "apiKey": model.key,
+        "type": type,
+        "autoAgent": model.supportMultiAgent ?? false,
+        "toolInvoke": model.supportToolCalling ?? true,
+        "deepThink": model.supportDeepThinking ?? false,
+      };
       list.add(jsonMap);
     }
     String jsonString = json.encode(list);
     List<dynamic> jsonArray = json.decode(jsonString);
-    //print("jsonString:$jsonString");
     var response = await ModelServer.modelSync(jsonArray);
     if (response.code == 200) {
-      print("modelUploadServer:${list.length}");
+      Log.i("modelUploadServer:${list.length}");
     }
   }
 
@@ -68,5 +89,14 @@ class ModelRepository {
     var models = <ModelBean>[];
     models.addAll(((await _modelBox).values));
     uploadToServer(models);
+  }
+
+  Future<List<ModelDTO>> getCloudAutoAgentModelList() async {
+    List<ModelDTO> list = [];
+    var response = await ModelServer.getAutoAgentModelList();
+    if (response.data != null) {
+      list.addAll(response.data!.list);
+    }
+    return list;
   }
 }

@@ -20,12 +20,20 @@ AgentDetailDTO _$AgentDetailDTOFromJson(Map<String, dynamic> json) =>
       (json['datasetList'] as List<dynamic>?)
           ?.map((e) => LibraryDto.fromJson(e as Map<String, dynamic>))
           .toList(),
-    );
+    )
+      ..ttsModel = json['ttsModel'] == null
+          ? null
+          : ModelDTO.fromJson(json['ttsModel'] as Map<String, dynamic>)
+      ..asrModel = json['asrModel'] == null
+          ? null
+          : ModelDTO.fromJson(json['asrModel'] as Map<String, dynamic>);
 
 Map<String, dynamic> _$AgentDetailDTOToJson(AgentDetailDTO instance) =>
     <String, dynamic>{
       'agent': instance.agent,
       'model': instance.model,
+      'ttsModel': instance.ttsModel,
+      'asrModel': instance.asrModel,
       'functionList': instance.functionList,
       'datasetList': instance.datasetList,
     };

@@ -13,7 +13,6 @@ import com.litevar.agent.base.enums.EmbedStatus;
 import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.vo.DocumentCreateForm;
-import com.litevar.agent.rest.config.LocalStorageProperties;
 import com.litevar.agent.rest.springai.document.SimpleDocumentSplitter;
 import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
 import com.mongoplus.conditions.update.LambdaUpdateChainWrapper;
@@ -41,8 +40,6 @@ import java.util.stream.Collectors;
 @Service
 public class DocumentService extends ServiceImpl<DatasetDocument> {
     @Autowired
-    private LocalStorageProperties localStorageProperties;
-    @Autowired
     private DatasetService datasetService;
     @Autowired
     private SegmentService segmentService;
@@ -64,17 +61,6 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
         save(document);
 
         document = getById(document.getId());
-
-//        if (file != null) {
-//            String saveFile = LocalFileUtil.saveFile(file, localStorageProperties.getDatasetFilePath());
-//            document.setMd5Hash(saveFile);
-//            document.setFilePath(localStorageProperties.getDatasetFilePath() + saveFile);
-//
-//            // Calculate word count from file content
-//            String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-//            int wordCount = content.trim().split("\\s+").length;
-//            document.setWordCount(wordCount);
-//        }
 
         List<Document> segments = splitDocument(form, false, datasetId, document.getId());
         List<DocumentSegment> documentSegments = segmentService.embedSegments(dataset.getWorkspaceId(), datasetId, document.getId(), segments);
@@ -209,15 +195,6 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
                 }
             }
         });
-
-//        DocumentSplitter splitter;
-//        if (StrUtil.isBlank(form.getSeparator())) {
-//            splitter = DocumentSplitterFactory.createRecursive(500, 50);
-//        } else {
-//            splitter = DocumentSplitterFactory.createCustom(form.getChunkSize(), 50, form.getSeparator());
-//        }
-//
-//        List<Document> segments = splitter.splitAll(documents);
 
         List<Document> segments = new SimpleDocumentSplitter(form.getSeparator(), form.getChunkSize()).split(documents);
 

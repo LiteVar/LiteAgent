@@ -43,14 +43,18 @@ class AccountRepository {
     await SPUtil.setString(SharedPreferencesUtil.tokenKey, token);
   }
 
-  Future<String> getApiToken() async {
+  Future<String> getOriginalToken(bool original) async {
     if (_token.isEmpty) {
       _token = await SPUtil.getString(SharedPreferencesUtil.tokenKey) ?? "";
     }
     if (_token.isNotEmpty) {
-      return "Bearer $_token";
+      return original ? _token : "Bearer $_token";
     }
     return "";
+  }
+
+  Future<String> getApiToken() async {
+    return await getOriginalToken(false);
   }
 
   Future<void> setWorkSpace(WorkSpaceDTO workspace) async {
@@ -137,7 +141,7 @@ class AccountRepository {
   Future<void> logout() async {
     var response = await AccountServer.logout();
     //if (response.code == 200) {
-      await clearLoginInfo();
+    await clearLoginInfo();
     //}
   }
 

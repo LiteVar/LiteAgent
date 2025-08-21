@@ -22,7 +22,7 @@ const DatasetIndex: React.FC = () => {
   const navigate = useNavigate();
   const [pagination, setPagination] = useState<PaginationConfig>({
     current: 1,
-    pageSize: 10,
+    pageSize: 12,
   });
 
   const { data, isLoading, refetch } = useQuery({
@@ -62,7 +62,7 @@ const DatasetIndex: React.FC = () => {
       current: 1,
       pageSize: 10,
     });
-  },[searchValue]);
+  }, [searchValue]);
 
   const handleOpenKnowledgeBase = useCallback(
     (id: string) => {

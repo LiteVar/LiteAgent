@@ -11,7 +11,8 @@ class SchemaType {
   static const String OPENAPI = "OpenAPI3(YAML/JSON)";
   static const String OPENMODBUS = "OpenModbus(JSON)";
   static const String JSONRPCHTTP = "OpenRPC(JSON)";
-  static const String OPENTOOL = Protocol.OPENTOOL;
+  static const String OPENTOOL = "第三方OpenTool";
+  static const String MCP_STDIO_TOOLS = "MCP(stdio)";
 }
 
 class EditToolDialog extends StatelessWidget {
@@ -20,37 +21,32 @@ class EditToolDialog extends StatelessWidget {
   late String description;
   late String schemaType;
   late String schemaText;
-  late String thirdSchemaText;
   late String apiType;
   late String apiText;
+  late bool supportMultiAgent;
   late bool isEdit;
   void Function(
-          String name, String description, String schemaType, String schemaText, String thirdSchemaText, String apiType, String apiText)
+          String name, String description, String schemaType, String schemaText, String apiType, String apiText, bool supportMultiAgent)
       onConfirmCallback;
 
   EditToolDialog({super.key, required this.tool, required this.isEdit, required this.onConfirmCallback}) {
     name = tool?.name ?? "";
     description = tool?.description ?? "";
     schemaType = tool?.schemaType ?? "";
-    if (schemaType == Protocol.OPENAPI) {
-      schemaType = SchemaType.OPENAPI;
-    } else if (schemaType == Protocol.JSONRPCHTTP) {
-      schemaType = SchemaType.JSONRPCHTTP;
-    } else if (schemaType == Protocol.OPENMODBUS) {
-      schemaType = SchemaType.OPENMODBUS;
+    if (schemaType == SchemaType.OPENAPI) {
+      schemaType = Protocol.OPENAPI;
+    } else if (schemaType == SchemaType.JSONRPCHTTP) {
+      schemaType = Protocol.JSONRPCHTTP;
+    } else if (schemaType == SchemaType.OPENMODBUS) {
+      schemaType = Protocol.OPENMODBUS;
     }
     schemaText = tool?.schemaText ?? "";
-    thirdSchemaText = tool?.thirdSchemaText ?? "";
     apiType = tool?.apiType ?? "";
-    if (apiType == "Bearer") {
-      apiType == "bearer";
-    } else if (apiType == "Basic") {
-      apiType == "basic";
-    }
     apiText = tool?.apiText ?? "";
+    supportMultiAgent = tool?.supportMultiAgent ?? false;
   }
 
-  final schemaTypeList = <String>[SchemaType.OPENAPI, SchemaType.JSONRPCHTTP, SchemaType.OPENMODBUS];
+  final schemaTypeList = <String>[Protocol.OPENAPI, Protocol.JSONRPCHTTP, Protocol.OPENMODBUS, Protocol.OPENTOOL, Protocol.MCP_STDIO_TOOLS];
 
   final itemBorderColor = const Color(0xFFd9d9d9);
   final logic = Get.put(EditToolDialogController());
@@ -60,43 +56,49 @@ class EditToolDialog extends StatelessWidget {
     String description = logic.desController.text;
     String schemaType = logic.selectSchemaType.value ?? "";
     String schemaText = logic.schemaTextController.text;
-    String thirdSchemaText = logic.thirdSchemaTextController.text;
     String apiType = "";
-    if (logic.selectAPIType.value == "Bearer" || logic.selectAPIType.value == "Basic") {
-      apiType = logic.selectAPIType.value ?? "";
+    String apiText = "";
+    if (schemaType == SchemaType.OPENAPI || schemaType == SchemaType.JSONRPCHTTP) {
+      if (logic.selectAPIType.value == "Bearer" || logic.selectAPIType.value == "Basic") {
+        apiType = logic.selectAPIType.value ?? "";
+      }
+      apiText = logic.apiTextController.text;
     }
-    String apiText = logic.apiTextController.text;
     if (name.isEmpty) {
       AlarmUtil.showAlertDialog("工具名称不能为空");
       return;
     }
-    if ((schemaText.isEmpty || schemaType.isEmpty) && thirdSchemaText.isEmpty) {
-      AlarmUtil.showAlertDialog("以下内容至少有一项不能为空：\n    * 类型和文稿\n    * 第三方open tool");
+    if ((schemaText.isEmpty || schemaType.isEmpty)) {
+      AlarmUtil.showAlertDialog("类型和文稿不能为空");
       return;
     }
-    if (thirdSchemaText.isNotEmpty && !(await thirdSchemaText.isOpenToolJson())) {
-      AlarmUtil.showAlertDialog("第三方Tool Schema解析失败");
-      return;
-    }
-    if (schemaText.isNotEmpty &&!(await isSchemaTextCorrect(schemaType, schemaText))) {
+    if (schemaText.isNotEmpty && !(await isSchemaTextCorrect(schemaType, schemaText))) {
       AlarmUtil.showAlertDialog("Schema解析失败");
       return;
     }
-    onConfirmCallback(name, description, schemaType, schemaText, thirdSchemaText, apiType, apiText);
+    onConfirmCallback(name, description, schemaType, schemaText, apiType, apiText, logic.supportAutoMultiAgents.value);
     Get.back();
   }
 
   Future<bool> isSchemaTextCorrect(String schemaType, String schemaText) async {
-    if (schemaType == SchemaType.OPENAPI) {
-      if ((await schemaText.isOpenAIJson()) || schemaText.isOpenAIYaml()) {
+    if (schemaType == Protocol.OPENAPI) {
+      if ((await schemaText.isOpenAIJson()) || await schemaText.isOpenAIYaml()) {
         return true;
       }
-    } else if (schemaType == SchemaType.OPENMODBUS) {
+    } else if (schemaType == Protocol.OPENMODBUS) {
       if ((await schemaText.isOpenModBusJson())) {
         return true;
       }
-    } else if (schemaType == SchemaType.JSONRPCHTTP) {
+    } else if (schemaType == Protocol.JSONRPCHTTP) {
       if ((await schemaText.isOpenPPCJson())) {
+        return true;
+      }
+    } else if (schemaType == Protocol.OPENTOOL) {
+      if ((await schemaText.isOpenToolJson())) {
+        return true;
+      }
+    } else if (schemaType == Protocol.MCP_STDIO_TOOLS) {
+      if ((schemaText.isMCPServersJson())) {
         return true;
       }
     }
@@ -105,7 +107,7 @@ class EditToolDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    logic.initData(name, description, schemaType, schemaText, thirdSchemaText, apiType, apiText);
+    logic.initData(name, description, schemaType, schemaText, apiType, apiText, supportMultiAgent);
     return Center(
         child: Container(
             width: 538,
@@ -120,7 +122,13 @@ class EditToolDialog extends StatelessWidget {
                           child: Column(children: [
                             buildToolDesColumn(),
                             buildSchemaInputColumn(),
-                            buildAPIInputColumn(),
+                            //buildMCPInputColumn(),
+                            Obx(() => Offstage(
+                                  offstage: !(logic.selectSchemaType.value == Protocol.OPENAPI ||
+                                      logic.selectSchemaType.value == Protocol.JSONRPCHTTP),
+                                  child: buildAPIInputColumn(),
+                                )),
+                            buildOtherSettingColumn(),
                             const SizedBox(height: 10),
                             buildBottomButton()
                           ])))),
@@ -155,6 +163,51 @@ class EditToolDialog extends StatelessWidget {
     );
   }
 
+  Column buildOtherSettingColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("其他", style: TextStyle(fontSize: 14, color: Colors.black)),
+        Container(margin: const EdgeInsets.fromLTRB(0, 18, 0, 12), child: const Divider(height: 0.1)),
+        Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text("是否支持Auto Multi Agent使用", style: TextStyle(fontSize: 14, color: Colors.black)),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                child: Obx(() => Row(
+                      children: [
+                        Radio<bool>(
+                          activeColor: Colors.blue,
+                          value: true,
+                          groupValue: logic.supportAutoMultiAgents.value,
+                          onChanged: (value) => logic.supportAutoMultiAgents.value = value!,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity:
+                              const VisualDensity(horizontal: VisualDensity.minimumDensity, vertical: VisualDensity.minimumDensity),
+                          splashRadius: 0,
+                        ),
+                        const Text("是", style: TextStyle(fontSize: 14)),
+                        const SizedBox(width: 40),
+                        Radio<bool>(
+                          activeColor: Colors.blue,
+                          value: false,
+                          groupValue: logic.supportAutoMultiAgents.value,
+                          onChanged: (value) => logic.supportAutoMultiAgents.value = value!,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity:
+                              const VisualDensity(horizontal: VisualDensity.minimumDensity, vertical: VisualDensity.minimumDensity),
+                          splashRadius: 0,
+                        ),
+                        const Text("否", style: TextStyle(fontSize: 14)),
+                      ],
+                    )),
+              ),
+            ]))
+      ],
+    );
+  }
+
   Column buildAPIInputColumn() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +217,7 @@ class EditToolDialog extends StatelessWidget {
         Container(
             margin: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("类型", style: TextStyle(fontSize: 14, color: Colors.black)),
+              const Text("认证类型", style: TextStyle(fontSize: 14, color: Colors.black)),
               Container(
                   height: 36,
                   margin: const EdgeInsets.symmetric(vertical: 8),
@@ -188,7 +241,7 @@ class EditToolDialog extends StatelessWidget {
                             ),
                           )))),
               const SizedBox(height: 10),
-              buildInputWidget("Key值", false, 75, null, "请输入API Key", logic.apiTextController),
+              buildInputWidget(title: "Key值", itemHeight: 75, hint: "请输入API Key", controller: logic.apiTextController),
             ]))
       ],
     );
@@ -203,7 +256,11 @@ class EditToolDialog extends StatelessWidget {
         Container(
             margin: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("类型", style: TextStyle(fontSize: 14, color: Colors.black)),
+              Row(children: [
+                const Text("类型", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
+                Container(
+                    margin: const EdgeInsets.only(left: 10), child: const Text("*", style: TextStyle(fontSize: 14, color: Colors.red)))
+              ]),
               Container(
                   height: 36,
                   margin: const EdgeInsets.symmetric(vertical: 8),
@@ -214,37 +271,56 @@ class EditToolDialog extends StatelessWidget {
                             child: DropdownButton2(
                               isExpanded: true,
                               items: schemaTypeList
-                                  .map<DropdownMenuItem<String>>((String item) =>
-                                      DropdownMenuItem<String>(value: item, child: Text(item, style: const TextStyle(fontSize: 14))))
+                                  .map<DropdownMenuItem<String>>((String item) => DropdownMenuItem<String>(
+                                      value: item, child: Text(getSchemaTypeOptionString(item), style: const TextStyle(fontSize: 14))))
                                   .toList(),
                               value: logic.selectSchemaType.value,
-                              hint: const Text("这里显示协议类型", style: TextStyle(fontSize: 14)),
+                              hint: const Text("这里显示协议类型", style: TextStyle(fontSize: 14, color: Color(0x40000000))),
                               onChanged: (value) => logic.selectSchemaType.value = value,
                               dropdownStyleData: const DropdownStyleData(
                                   offset: Offset(0, -10), maxHeight: 200, decoration: BoxDecoration(color: Colors.white)),
                             ),
                           )))),
               const SizedBox(height: 10),
-              buildInputWidget("文稿", false, 175, null, "请输入schema文稿", logic.schemaTextController),
-              const SizedBox(height: 10),
-              buildInputWidget("第三方open tool", false, 175, null, "请输入第三方open tool schema文稿", logic.thirdSchemaTextController),
+              buildInputWidget(title: "文稿", isRequired: true, itemHeight: 175, hint: "请输入schema文稿", controller: logic.schemaTextController),
             ]))
       ],
     );
   }
 
-  Column buildInputWidget(String title, bool isRequired, double itemHeight, int? maxLines, String hint, TextEditingController controller) {
+  String getSchemaTypeOptionString(String type) {
+    return switch (type) {
+      Protocol.OPENAPI => SchemaType.OPENAPI,
+      Protocol.OPENMODBUS => SchemaType.OPENMODBUS,
+      Protocol.JSONRPCHTTP => SchemaType.JSONRPCHTTP,
+      Protocol.OPENTOOL => SchemaType.OPENTOOL,
+      Protocol.MCP_STDIO_TOOLS => SchemaType.MCP_STDIO_TOOLS,
+      String() => "",
+    };
+  }
+
+  Column buildInputWidget(
+      {required String title,
+      bool isRequired = false,
+      required double itemHeight,
+      int? maxLines,
+      String? hint,
+      required TextEditingController controller}) {
     var singleLine = maxLines == 1;
     var textField = TextField(
         controller: controller,
         cursorColor: Colors.blue,
         maxLines: maxLines,
         decoration: InputDecoration(
-            hintText: hint, border: InputBorder.none, isDense: singleLine, contentPadding: const EdgeInsets.symmetric(horizontal: 8)),
-        style: const TextStyle(fontSize: 14));
+            hintStyle: const TextStyle(color: Color(0x40000000)),
+            hintText: hint,
+            border: InputBorder.none,
+            isDense: singleLine,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8)),
+        style: const TextStyle(fontSize: 14, color: Color(0xff333333)));
     return Column(children: [
       Row(children: [
-        Text(title, style: const TextStyle(fontSize: 14, color: Colors.black)),
+        Text(title, style: const TextStyle(fontSize: 14, color: Color(0xff333333))),
         if (isRequired)
           Container(margin: const EdgeInsets.only(left: 10), child: const Text("*", style: TextStyle(fontSize: 14, color: Colors.red)))
       ]),
@@ -259,8 +335,8 @@ class EditToolDialog extends StatelessWidget {
 
   Column buildToolDesColumn() {
     return Column(children: [
-      buildInputWidget("工具名称", true, 40, 1, "请输入工具名称", logic.nameController),
-      buildInputWidget("描述", false, 82, null, "用简单几句话将工具介绍给用户", logic.desController),
+      buildInputWidget(title: "工具名称", isRequired: true, itemHeight: 40, maxLines: 1, hint: "请输入工具名称", controller: logic.nameController),
+      buildInputWidget(title: "描述", itemHeight: 82, hint: "用简单几句话将工具介绍给用户", controller: logic.desController),
     ]);
   }
 
@@ -282,32 +358,46 @@ class EditToolDialog extends StatelessWidget {
 }
 
 class EditToolDialogController extends GetxController {
+  final supportAutoMultiAgents = false.obs;
   final apiTypeList = <String>['暂不选择', 'Bearer', 'Basic'];
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController desController = TextEditingController();
   final TextEditingController schemaTextController = TextEditingController();
-  final TextEditingController thirdSchemaTextController = TextEditingController();
   final TextEditingController apiTextController = TextEditingController();
 
   var selectSchemaType = Rx<String?>(null);
   var selectAPIType = Rx<String?>(null);
 
   void initData(
-      String name, String description, String schemaType, String schemaText, String thirdSchemaText, String apiType, String apiText) {
+      String name, String description, String schemaType, String schemaText, String apiType, String apiText, bool supportMultiAgents) {
     nameController.text = name;
     desController.text = description;
     schemaTextController.text = schemaText;
+    selectSchemaType.value = null;
     if (schemaType.isNotEmpty) {
-      selectSchemaType.value = schemaType;
+      switch (schemaType) {
+        case SchemaType.OPENAPI:
+          selectSchemaType.value = Protocol.OPENAPI;
+          break;
+        case SchemaType.OPENMODBUS:
+          selectSchemaType.value = Protocol.OPENMODBUS;
+          break;
+        case SchemaType.JSONRPCHTTP:
+          selectSchemaType.value = Protocol.JSONRPCHTTP;
+          break;
+        default:
+          selectSchemaType.value = schemaType;
+          break;
+      }
     }
-    thirdSchemaTextController.text = thirdSchemaText;
     apiTextController.text = apiText;
     if (apiType.isNotEmpty) {
       selectAPIType.value = apiType;
     } else {
       selectAPIType.value = apiTypeList.first;
     }
+    supportAutoMultiAgents.value = supportMultiAgents;
   }
 
   @override
@@ -315,7 +405,6 @@ class EditToolDialogController extends GetxController {
     nameController.dispose();
     desController.dispose();
     schemaTextController.dispose();
-    thirdSchemaTextController.dispose();
     apiTextController.dispose();
     super.onClose();
   }

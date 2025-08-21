@@ -93,7 +93,9 @@ class AgentDetailDialog extends StatelessWidget {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
               )),
           onPressed: () async {
-            if (agent.isCloud ?? false) {
+            var isCloudAgent = agent.isCloud ?? false;
+            AgentBean? targetAgent;
+            if (isCloudAgent) {
               var agentDetail = await agentRepository.getCloudAgentDetail(agent.id);
               if (agentDetail?.model == null) {
                 AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
@@ -102,6 +104,9 @@ class AgentDetailDialog extends StatelessWidget {
               if (agentDetail?.agent?.type == AgentType.REFLECTION) {
                 AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
                 return;
+              }
+              if (agentDetail?.agent != null) {
+                targetAgent = AgentBean()..translateFromDTO(agentDetail!.agent!);
               }
             } else {
               String modelId = agent.modelId;
@@ -114,8 +119,9 @@ class AgentDetailDialog extends StatelessWidget {
                 AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
                 return;
               }
+              targetAgent = await agentRepository.getAgentFromBox(agent.id);
             }
-            eventBus.fire(AgentMessageEvent(message: EventBusMessage.startChat, agent: agent));
+            eventBus.fire(AgentMessageEvent(message: EventBusMessage.startChat, agent: targetAgent));
             Get.back();
           },
           child: const Text('开始聊天', style: TextStyle(color: Colors.white, fontSize: 14))),

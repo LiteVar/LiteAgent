@@ -18,23 +18,25 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
     };
     return ChatMessage()
       ..sendRole = fields[0] as int
-      ..userName = fields[1] as String
+      ..roleName = fields[1] as String
       ..message = fields[2] as String
       ..imgFilePath = fields[3] as String
       ..childAgentMessageList = (fields[4] as List?)?.cast<String>()
       ..toolName = fields[5] as String?
       ..thoughtList = (fields[6] as List?)?.cast<Thought>()
-      ..taskId = fields[7] as String?;
+      ..taskId = fields[7] as String?
+      ..subMessages = (fields[8] as List?)?.cast<ChatMessage>()
+      ..receivedMessage = fields[9] as String?;
   }
 
   @override
   void write(BinaryWriter writer, ChatMessage obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.sendRole)
       ..writeByte(1)
-      ..write(obj.userName)
+      ..write(obj.roleName)
       ..writeByte(2)
       ..write(obj.message)
       ..writeByte(3)
@@ -46,7 +48,11 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       ..writeByte(6)
       ..write(obj.thoughtList)
       ..writeByte(7)
-      ..write(obj.taskId);
+      ..write(obj.taskId)
+      ..writeByte(8)
+      ..write(obj.subMessages)
+      ..writeByte(9)
+      ..write(obj.receivedMessage);
   }
 
   @override
@@ -163,13 +169,18 @@ class ModelBeanAdapter extends TypeAdapter<ModelBean> {
       ..url = fields[2] as String
       ..key = fields[3] as String
       ..maxToken = fields[4] as String?
-      ..createTime = fields[5] as int?;
+      ..createTime = fields[5] as int?
+      ..type = fields[6] as String?
+      ..nickName = fields[7] as String?
+      ..supportMultiAgent = fields[8] as bool?
+      ..supportToolCalling = fields[9] as bool?
+      ..supportDeepThinking = fields[10] as bool?;
   }
 
   @override
   void write(BinaryWriter writer, ModelBean obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -181,7 +192,17 @@ class ModelBeanAdapter extends TypeAdapter<ModelBean> {
       ..writeByte(4)
       ..write(obj.maxToken)
       ..writeByte(5)
-      ..write(obj.createTime);
+      ..write(obj.createTime)
+      ..writeByte(6)
+      ..write(obj.type)
+      ..writeByte(7)
+      ..write(obj.nickName)
+      ..writeByte(8)
+      ..write(obj.supportMultiAgent)
+      ..writeByte(9)
+      ..write(obj.supportToolCalling)
+      ..writeByte(10)
+      ..write(obj.supportDeepThinking);
   }
 
   @override
@@ -214,13 +235,15 @@ class ToolBeanAdapter extends TypeAdapter<ToolBean> {
       ..apiType = fields[5] as String
       ..apiText = fields[6] as String
       ..createTime = fields[7] as int?
-      ..thirdSchemaText = fields[8] as String?;
+      ..thirdSchemaText = fields[8] as String?
+      ..mcpText = fields[9] as String?
+      ..supportMultiAgent = fields[10] as bool?;
   }
 
   @override
   void write(BinaryWriter writer, ToolBean obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -238,7 +261,11 @@ class ToolBeanAdapter extends TypeAdapter<ToolBean> {
       ..writeByte(7)
       ..write(obj.createTime)
       ..writeByte(8)
-      ..write(obj.thirdSchemaText);
+      ..write(obj.thirdSchemaText)
+      ..writeByte(9)
+      ..write(obj.mcpText)
+      ..writeByte(10)
+      ..write(obj.supportMultiAgent);
   }
 
   @override
@@ -281,13 +308,16 @@ class AgentBeanAdapter extends TypeAdapter<AgentBean> {
       ..operationMode = fields[14] as int?
       ..agentType = fields[15] as int?
       ..childAgentIds = (fields[16] as List?)?.cast<String>()
-      ..toolOperationMode = fields[17] as int?;
+      ..toolOperationMode = fields[17] as int?
+      ..ttsModelId = fields[18] as String?
+      ..asrModelId = fields[19] as String?
+      ..autoAgentFlag = fields[20] as bool?;
   }
 
   @override
   void write(BinaryWriter writer, AgentBean obj) {
     writer
-      ..writeByte(18)
+      ..writeByte(21)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -323,7 +353,13 @@ class AgentBeanAdapter extends TypeAdapter<AgentBean> {
       ..writeByte(16)
       ..write(obj.childAgentIds)
       ..writeByte(17)
-      ..write(obj.toolOperationMode);
+      ..write(obj.toolOperationMode)
+      ..writeByte(18)
+      ..write(obj.ttsModelId)
+      ..writeByte(19)
+      ..write(obj.asrModelId)
+      ..writeByte(20)
+      ..write(obj.autoAgentFlag);
   }
 
   @override

@@ -8,6 +8,7 @@ import '../../models/dto/agent.dart';
 import '../../models/dto/agent_detail.dart';
 import '../../models/dto/chat.dart';
 import '../../repositories/account_repository.dart';
+import '../../utils/log_util.dart';
 import '../network/net_util.dart';
 
 class AgentServer {
@@ -24,7 +25,7 @@ class AgentServer {
       queryParameters: {"tab": tab},
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token, 'Workspace-id': workspaceId}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForList(response, (list) {
       return (list).map((json) => AgentDTO.fromJson(json)).toList();
     });
@@ -42,7 +43,7 @@ class AgentServer {
       "$serverUrl${Constants.apiDesktopServerPath}$path",
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token, 'Workspace-id': workspaceId}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJson(response, (json) => AgentDetailDTO.fromJson(json));
   }
 
@@ -58,7 +59,7 @@ class AgentServer {
       "$serverUrl${Constants.apiServerPath}$path",
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token, 'Workspace-id': workspaceId}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForList(response, (list) {
       return (list).map((json) => ChatDTO.fromJson(json)).toList();
     });
@@ -76,7 +77,7 @@ class AgentServer {
       data: jsonArray,
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForString(response);
   }
 
@@ -91,7 +92,7 @@ class AgentServer {
       "$serverUrl${Constants.apiDesktopServerPath}$path",
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token}),
     );
-    print("response:${jsonEncode(response)}");
+    Log.d("response:${jsonEncode(response)}");
     return BaseResponse.fromJsonForString(response);
   }
 }

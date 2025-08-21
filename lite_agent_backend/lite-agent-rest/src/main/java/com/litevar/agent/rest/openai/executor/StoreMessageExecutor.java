@@ -47,10 +47,11 @@ public class StoreMessageExecutor {
         executor.baseMapper = baseMapper;
     }
 
-    public static void store(String sessionId, List<OutMessage> messages) {
+    public static void store(String sessionId, String requestId, List<OutMessage> messages) {
+        RequestMessage requestMessage = new RequestMessage(requestId, messages);
         sessionMap.computeIfAbsent(sessionId, k ->
                         new SessionContext(new ConcurrentLinkedQueue<>(), new AtomicInteger(0)))
-                .messageQueue.addAll(messages);
+                .messageQueue.add(requestMessage);
         CompletableFuture.runAsync(() -> getInstance().store(sessionId));
     }
 
@@ -71,10 +72,10 @@ public class StoreMessageExecutor {
         if (!sessionContext.lack.compareAndSet(0, 1)) {
             return;
         }
-        Queue<OutMessage> queue = sessionContext.messageQueue;
-        List<OutMessage> list = new ArrayList<>();
+        Queue<RequestMessage> queue = sessionContext.messageQueue;
+        List<RequestMessage> list = new ArrayList<>();
         while (!queue.isEmpty()) {
-            OutMessage element = queue.poll();
+            RequestMessage element = queue.poll();
             if (element != null) {
                 list.add(element);
             }
@@ -84,18 +85,20 @@ public class StoreMessageExecutor {
             return;
         }
 
-        Map<String, List<OutMessage>> taskMessageMap = list.stream().collect(Collectors.groupingBy(OutMessage::getTaskId));
+        Map<String, List<OutMessage>> taskMessageMap = list.stream().collect(Collectors.groupingBy(RequestMessage::requestId,
+                Collectors.flatMapping(i -> i.messages().stream(), Collectors.toList())));
         List<String> existTaskIds = queryExistTaskId(sessionId);
 
         if (ObjectUtil.isEmpty(existTaskIds)) {
+            //新session消息
             AgentChatMessage agentMessage = new AgentChatMessage();
             JSONObject sessionInfo = (JSONObject) RedisUtil.getValue(String.format(CacheKey.SESSION_INFO, sessionId));
             BeanUtil.copyProperties(sessionInfo, agentMessage);
 
             List<AgentChatMessage.TaskMessage> taskMessages = new ArrayList<>();
-            taskMessageMap.forEach((taskId, messageList) -> {
+            taskMessageMap.forEach((requestId, messageList) -> {
                 AgentChatMessage.TaskMessage taskMessage = new AgentChatMessage.TaskMessage();
-                taskMessage.setTaskId(taskId);
+                taskMessage.setTaskId(requestId);
                 taskMessage.setMessage(messageList);
                 taskMessages.add(taskMessage);
             });
@@ -154,6 +157,9 @@ public class StoreMessageExecutor {
         return executor;
     }
 
-    private record SessionContext(Queue<OutMessage> messageQueue, AtomicInteger lack) {
+    private record SessionContext(Queue<RequestMessage> messageQueue, AtomicInteger lack) {
+    }
+
+    private record RequestMessage(String requestId, List<OutMessage> messages) {
     }
 }

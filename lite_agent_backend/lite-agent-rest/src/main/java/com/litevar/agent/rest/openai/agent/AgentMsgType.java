@@ -112,16 +112,6 @@ public enum AgentMsgType {
         }
     },
     /**
-     * 普通agent广播消息
-     */
-    BROADCAST_MSG {
-        @Override
-        public void handler(AgentMessage msg) {
-            DistributeMessage message = (DistributeMessage) msg;
-            AgentManager.getHandler(message.getSessionId()).forEach(handler -> handler.broadcast(message));
-        }
-    },
-    /**
      * 知识库调用
      */
     KNOWLEDGE_MSG {

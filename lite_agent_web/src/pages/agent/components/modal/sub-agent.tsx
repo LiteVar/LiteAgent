@@ -5,7 +5,7 @@ import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { AgentDetailVO, AgentDTO } from '@/client';
 import { buildImageUrl } from "@/utils/buildImageUrl";
 import placeholderIcon from "@/assets/agent/agent.png";
-import { AgentType } from '../agent-set';
+import { AgentType } from '@/types/chat';
 
 interface SubAgentModalProps {
   currentAgentId: string;

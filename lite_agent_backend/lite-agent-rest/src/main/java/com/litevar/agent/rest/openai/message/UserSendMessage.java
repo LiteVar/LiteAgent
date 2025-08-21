@@ -2,7 +2,7 @@ package com.litevar.agent.rest.openai.message;
 
 import com.litevar.agent.base.dto.AgentSendMsgDTO;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 
 import java.util.List;
 
@@ -12,7 +12,7 @@ import java.util.List;
  * @author uncle
  * @since 2025/4/11 12:19
  */
-@Data
+@Getter
 @AllArgsConstructor
 public class UserSendMessage implements AgentMessage {
     private String sessionId;
@@ -20,4 +20,6 @@ public class UserSendMessage implements AgentMessage {
     private String agentId;
 
     private List<AgentSendMsgDTO> messageList;
+
+    private String requestId;
 }

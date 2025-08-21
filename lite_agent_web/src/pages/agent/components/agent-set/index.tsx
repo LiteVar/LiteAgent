@@ -3,13 +3,9 @@ import { Button, Divider, Select, message, Collapse } from 'antd';
 import { SettingTwoTone } from '@ant-design/icons';
 
 import { AgentDetailVO } from '@/client';
+import { AgentType } from '@/types/chat';
 
 export type AgentTypeMode = 0 | 1 | 2 | undefined;
-export enum AgentType {
-  NORMAL = 0,
-  DISTRIBUTION = 1,
-  REFLECTION = 2,
-}
 
 interface AgentSetProps {
   agentInfo: AgentDetailVO;

@@ -192,6 +192,8 @@ public class ChatService {
                 for (OutMessage outMessage : i.getMessage()) {
                     ExternalMessage message = new ExternalMessage();
                     message.setSessionId(agentChatMessage.getSessionId());
+                    message.setAgentId(outMessage.getAgentId());
+                    message.setParentTaskId(outMessage.getParentTaskId());
                     message.setTaskId(i.getTaskId());
                     if (StrUtil.equals(outMessage.getRole(), "user") && StrUtil.equals(outMessage.getType(), "text")) {
                         //用户发送的文本

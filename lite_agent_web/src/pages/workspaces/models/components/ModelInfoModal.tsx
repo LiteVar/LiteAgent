@@ -24,9 +24,9 @@ const ModelInfoModal: React.FC<ModelInfoModalProps> = ({ visible, onClose, model
         <Descriptions.Item label="API Key" key="apiKey">
           {modelInfo?.canEdit ? modelInfo?.apiKey : '******'}
         </Descriptions.Item>
-        {modelInfo?.type === 'LLM' && <Descriptions.Item label="工具调用" key="toolInvoke">{!!modelInfo?.toolInvoke ? '是' : '否'}</Descriptions.Item>}
-        {modelInfo?.type === 'LLM' && <Descriptions.Item label="深度思考" key="deepThink">{!!modelInfo?.deepThink ? '是' : '否'}</Descriptions.Item>}
-        {modelInfo?.type === 'LLM' && <Descriptions.Item label="Auto MultiAgent" key="autoAgent">{!!modelInfo?.autoAgent ? '是' : '否'}</Descriptions.Item>}
+        {modelInfo?.type === 'LLM' && <Descriptions.Item label="工具调用" key="toolInvoke">{modelInfo?.toolInvoke ? '是' : '否'}</Descriptions.Item>}
+        {modelInfo?.type === 'LLM' && <Descriptions.Item label="深度思考" key="deepThink">{modelInfo?.deepThink ? '是' : '否'}</Descriptions.Item>}
+        {modelInfo?.type === 'LLM' && <Descriptions.Item label="Auto MultiAgent" key="autoAgent">{modelInfo?.autoAgent ? '是' : '否'}</Descriptions.Item>}
       </Descriptions>
     </Modal>
   );

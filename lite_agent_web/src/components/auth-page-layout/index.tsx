@@ -31,14 +31,14 @@ const AuthPageLayout: FC<AuthLayoutProps> = ({ children }) => {
         <a
           href="https://beian.miit.gov.cn/#/Integrated/index"
           target="_blank"
-          className={`${LINK_CLASS} px-3`}
+          className={`${LINK_CLASS} px-3`} rel="noreferrer"
         >
           粤ICP备2021065541号
         </a>
         <a
           href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44010602009917"
           target="_blank"
-          className={LINK_CLASS}
+          className={LINK_CLASS} rel="noreferrer"
         >
           <img src={govIcon} className="align-middle" />
           <span>粤公网安备 44010602009917号</span>

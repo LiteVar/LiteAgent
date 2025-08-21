@@ -51,12 +51,6 @@
             <artifactId>spring-ai-tika-document-reader</artifactId>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>com.openai</groupId>-->
-<!--            <artifactId>openai-java</artifactId>-->
-<!--            <version>1.6.1</version>-->
-<!--        </dependency>-->
-
         <dependency>
             <groupId>io.milvus</groupId>
             <artifactId>milvus-sdk-java</artifactId>

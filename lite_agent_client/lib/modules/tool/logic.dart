@@ -128,8 +128,8 @@ class ToolLogic extends GetxController with WindowListener {
         ));
   }
 
-  void updateLocalTool(String id, String name, String description, String schemaType, String schemaText, String thirdSchemaText,
-      String apiType, String apiText) async {
+  void updateLocalTool(String id, String name, String description, String schemaType, String schemaText, String apiType, String apiText,
+      bool supportMultiAgent) async {
     var localList = _toolListMap[TAB_LOCAL];
     if (localList == null) {
       return;
@@ -145,7 +145,7 @@ class ToolLogic extends GetxController with WindowListener {
       }
     } else {
       targetId = snowFlakeUtil.getId();
-      var tool = ToolDTO(targetId, "", "", name, description, 0, "", "", "", "", false, "", ""); //just for showing
+      var tool = ToolDTO(targetId, "", "", name, description, 0, "", "", "", false, "", "", false, null); //just for showing
       localList.add(tool);
     }
     currentToolList.refresh();
@@ -158,11 +158,11 @@ class ToolLogic extends GetxController with WindowListener {
     }
     targetTool.name = name;
     targetTool.description = description;
-    targetTool.schemaText = schemaText;
-    targetTool.thirdSchemaText = thirdSchemaText;
     targetTool.schemaType = schemaType;
+    targetTool.schemaText = schemaText;
     targetTool.apiText = apiText;
     targetTool.apiType = apiType;
+    targetTool.supportMultiAgent = supportMultiAgent;
     toolRepository.updateTool(targetId, targetTool);
   }
 
@@ -193,37 +193,51 @@ class ToolLogic extends GetxController with WindowListener {
         EditToolDialog(
           tool: tool,
           isEdit: tool != null,
-          onConfirmCallback: (String name, String description, String schemaType, String schemaText, String thirdSchemaText, String apiType,
-              String apiText) {
-            updateLocalTool(tool?.id ?? "", name, description, schemaType, schemaText, thirdSchemaText, apiType, apiText);
+          onConfirmCallback: (name, description, schemaType, schemaText, apiType, apiText, supportMultiAgent) {
+            updateLocalTool(tool?.id ?? "", name, description, schemaType, schemaText, apiType, apiText, supportMultiAgent);
             switchTab(TAB_LOCAL);
           },
         ));
   }
 
-  Future<void> showToolDetailDialog(String toolId) async {
+  Future<void> showCloudToolDetailDialog(String toolId) async {
     var tool = await toolRepository.getCloudToolDetail(toolId);
     if (tool != null) {
-      ToolBean toolBean = ToolBean();
-      toolBean.name = tool.name ?? "";
-      toolBean.description = tool.description ?? "";
-      toolBean.schemaText = tool.schemaStr ?? "";
       String schemaType = "";
       switch (tool.schemaType) {
         case 1:
-          schemaType = "openapi";
+          schemaType = SchemaType.OPENAPI;
           break;
         case 2:
-          schemaType = "jsonrpc";
+          schemaType = SchemaType.JSONRPCHTTP;
           break;
         case 3:
-          schemaType = "open_modbus";
+          schemaType = SchemaType.OPENMODBUS;
+          break;
+        case 4:
+          schemaType = SchemaType.OPENTOOL;
+          break;
+        case 5:
+          //The online MCP is in SSE format
+          //schemaType = SchemaType.MCP_STDIO_TOOLS;
+          schemaType = "MCP(SSE)";
           break;
       }
-      toolBean.schemaType = schemaType;
-      toolBean.apiText = tool.apiKey ?? "";
-      toolBean.apiType = tool.apiKeyType ?? "";
+      ToolBean toolBean = ToolBean()
+        ..name = tool.name ?? ""
+        ..description = tool.description ?? ""
+        ..schemaText = tool.schemaStr ?? ""
+        ..schemaType = schemaType
+        ..apiText = tool.apiKey ?? ""
+        ..apiType = tool.apiKeyType ?? "";
       Get.dialog(ToolDetailDialog(tool: toolBean));
+    }
+  }
+
+  Future<void> showLocalToolDetailDialog(String toolId) async {
+    var tool = await toolRepository.getToolFromBox(toolId);
+    if (tool != null) {
+      Get.dialog(ToolDetailDialog(tool: tool));
     }
   }
 

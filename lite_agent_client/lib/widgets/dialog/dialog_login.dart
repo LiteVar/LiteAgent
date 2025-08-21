@@ -157,9 +157,9 @@ class LoginDialog extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        buildAssetImage("icon_default_agent.png", 40, Colors.black),
-        const SizedBox(width: 20),
-        const Text("LiteAgent", style: TextStyle(fontSize: 24, color: Colors.black))
+        SizedBox(width: 200, height: 60, child: Image.asset("assets/images/logo_banner.png", fit: BoxFit.contain, color: null))
+        //const SizedBox(width: 20),
+        //const Text("LiteAgent", style: TextStyle(fontSize: 24, color: Colors.black))
       ],
     );
   }

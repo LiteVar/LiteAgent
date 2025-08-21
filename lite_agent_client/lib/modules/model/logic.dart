@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
 import 'package:lite_agent_client/repositories/model_repository.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
+import 'package:lite_agent_client/widgets/dialog/dialog_model_detail.dart';
 import 'package:lite_agent_client/widgets/dialog/dialog_model_edit.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -71,7 +72,8 @@ class ModelLogic extends GetxController with WindowListener {
         ));
   }
 
-  Future<void> updateModel(String id, String modelName, String url, String key, int maxToken) async {
+  Future<void> updateModel(String id, String type, String modelName, String nickName, String url, String key, int maxToken,
+      bool supportMultiAgent, bool supportToolCalling, bool supportDeepThinking) async {
     ModelBean? targetModel;
     if (id.isNotEmpty) {
       for (var model in modelList) {
@@ -87,10 +89,15 @@ class ModelLogic extends GetxController with WindowListener {
       modelList.add(targetModel);
     }
     if (targetModel != null) {
+      targetModel.type = type;
       targetModel.name = modelName;
+      targetModel.nickName = nickName;
       targetModel.key = key;
       targetModel.url = url;
       targetModel.maxToken = maxToken.toString();
+      targetModel.supportMultiAgent = supportMultiAgent;
+      targetModel.supportToolCalling = supportToolCalling;
+      targetModel.supportDeepThinking = supportDeepThinking;
       modelList.refresh();
       await modelRepository.updateModel(targetModel.id, targetModel);
       eventBus.fire(ModelMessageEvent(message: EventBusMessage.updateSingleData, model: targetModel));
@@ -107,8 +114,19 @@ class ModelLogic extends GetxController with WindowListener {
         EditModelDialog(
             model: model,
             isEdit: model != null,
-            onConfirmCallback: (String name, String baseUrl, String apiKey, int token) {
-              updateModel(model?.id ?? "", name, baseUrl, apiKey, token);
+            onConfirmCallback: (ModelEditParams params) async {
+              if (params.isDelete && model != null) {
+                modelList.remove(model);
+                await modelRepository.removeModel(model.id);
+                eventBus.fire(ModelMessageEvent(message: EventBusMessage.updateList));
+              } else {
+                updateModel(model?.id ?? "", params.type, params.name, params.nickName, params.baseUrl, params.apiKey, params.maxToken,
+                    params.supportMultiAgent, params.supportToolCalling, params.supportDeepThinking);
+              }
             }));
+  }
+
+  void showDetailDialog(ModelBean model) {
+    Get.dialog(barrierDismissible: false, ModelDetailDialog(model: model));
   }
 }

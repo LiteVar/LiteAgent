@@ -32,6 +32,7 @@ import com.litevar.agent.rest.openai.message.UserSendMessage;
 import com.litevar.agent.rest.service.AgentDatasetRelaService;
 import com.litevar.agent.rest.springai.audio.SpeechService;
 import com.litevar.agent.rest.util.AgentUtil;
+import com.litevar.agent.rest.util.CurrentAgentRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -130,22 +131,31 @@ public class ChatController {
                                                 @RequestParam(value = "isChunk", defaultValue = "true", required = false) Boolean stream,
                                                 @RequestBody @Valid List<AgentSendMsgDTO> dto) {
         return Flux.<ServerSentEvent<String>>create(sink -> {
-                    String taskId = IdUtil.getSnowflakeNextIdStr();
-                    SseClientMessageHandler messageHandler = new SseClientMessageHandler(sessionId, taskId, sink, stream);
-                    Optional<AgentSendMsgDTO> opt = dto.stream().filter(i -> StrUtil.equals(i.getType(), "execute")).findFirst();
+                    //第一级agent的taskId=requestId
+                    String requestId = IdUtil.getSnowflakeNextIdStr();
+                    SseClientMessageHandler messageHandler = new SseClientMessageHandler(sessionId, requestId, sink, stream);
+                    final List<AgentPlanningDTO> taskList = new ArrayList<>();
 
                     try {
+                        Optional<AgentSendMsgDTO> opt = dto.stream().filter(i -> StrUtil.equals(i.getType(), "execute")).findFirst();
                         List<AgentMessageHandler> handlers = AgentManager.getHandler(sessionId);
-                        handlers.add(messageHandler);
                         if (opt.isPresent()) {
-                            AgentSendMsgDTO msg = opt.get();
-                            String planId = msg.getMessage();
-                            Boolean exists = RedisUtil.exists(String.format(CacheKey.SESSION_PLAN_INFO, planId));
-                            if (!exists) {
+                            String planId = opt.get().getMessage();
+                            List<AgentPlanningDTO> cacheTaskList = (List<AgentPlanningDTO>) RedisUtil.getValue(String.format(CacheKey.SESSION_PLAN_INFO, planId));
+                            if (cacheTaskList == null) {
                                 sink.error(new StreamException(404, "找不到该规划信息"));
                                 return;
                             }
+                            taskList.addAll(cacheTaskList);
+
+                            AgentSendMsgDTO executeMsg = new AgentSendMsgDTO();
+                            executeMsg.setType("text");
+                            executeMsg.setMessage("执行方案");
+                            dto.clear();
+                            dto.add(executeMsg);
+                            RedisUtil.delKey(String.format(CacheKey.SESSION_PLAN_INFO, planId));
                         }
+                        handlers.add(messageHandler);
                     } catch (ServiceException ex) {
                         sink.error(new StreamException(ex.getCode(), ex.getMessage()));
                         return;
@@ -154,38 +164,50 @@ public class ChatController {
                         return;
                     }
 
+                    // 设置取消处理器,确保资源清理
+                    sink.onCancel(() -> {
+                        log.info("SSE连接被取消: sessionId={}, requestId={}", sessionId, requestId);
+                        afterChat(sessionId, requestId);
+                    });
+
                     // 响应式异步处理
                     Mono.fromRunnable(() -> {
-                        MultiAgent agent = AgentManager.getAgent(sessionId);
+                                MultiAgent agent = AgentManager.getAgent(sessionId);
+                                String taskId = requestId;
+                                UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), dto, requestId);
+                                AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
 
-                        if (opt.isPresent()) {
-                            AgentSendMsgDTO msg = opt.get();
-                            String planId = msg.getMessage();
-                            List<AgentPlanningDTO> taskList = (List<AgentPlanningDTO>) RedisUtil.getValue(String.format(CacheKey.SESSION_PLAN_INFO, planId));
-                            msg.setMessage("执行方案");
-                            UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), List.of(msg));
-                            AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
+                                CurrentAgentRequest.AgentRequest currentContext = new CurrentAgentRequest.AgentRequest();
+                                currentContext.setSessionId(sessionId);
+                                currentContext.setParentTaskId(null);
+                                currentContext.setTaskId(null);
+                                currentContext.setRequestId(requestId);
+                                currentContext.setAgentId(agent.getAgentId());
+                                CurrentAgentRequest.setContext(currentContext);
 
-                            List<MultiAgent> taskAgentList = agentUtil.createAgent(taskList, agent);
-                            String result = agentUtil.executeAgent(taskAgentList, taskId, stream);
-                            agentUtil.summary(result, agent, taskId, stream);
-                            RedisUtil.delKey(String.format(CacheKey.SESSION_PLAN_INFO, planId));
+                                if (!taskList.isEmpty()) {
+                                    List<MultiAgent> taskAgentList;
+                                    try {
+                                        taskAgentList = agentUtil.createAgent(taskList);
+                                    } catch (Exception e) {
+                                        currentContext.setTaskId(taskId);
+                                        agent.handleError(currentContext, new ServiceException("agent组装失败"));
+                                        return;
+                                    }
 
-                        } else {
-                            UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), dto);
-                            AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
+                                    String result = agentUtil.executeAgent(taskAgentList, stream);
+                                    agentUtil.summary(result, agent, stream);
 
-                            List<Message> submitMsg = new ArrayList<>();
-                            for (AgentSendMsgDTO msgDto : dto) {
-                                submitMsg.add(UserMessage.of(msgDto.getMessage()));
-                            }
-
-                            AgentManager.chat(agent, taskId, submitMsg, stream);
-                        }
-                        messageHandler.disconnect();
-                        AgentManager.getHandler(sessionId).remove(messageHandler);
-                    }).subscribeOn(Schedulers.boundedElastic()).subscribe(null, sink::error, () -> {
-                    });
+                                } else {
+                                    List<Message> submitMsg = new ArrayList<>();
+                                    for (AgentSendMsgDTO msgDto : dto) {
+                                        submitMsg.add(UserMessage.of(msgDto.getMessage()));
+                                    }
+                                    AgentManager.chat(agent, taskId, submitMsg, stream);
+                                }
+                                afterChat(sessionId, requestId);
+                            }).subscribeOn(Schedulers.boundedElastic())
+                            .subscribe(null, sink::error, () -> afterChat(sessionId, requestId));
                 })
                 .timeout(Duration.ofMinutes(10))
                 .doOnError(TimeoutException.class, e -> log.warn("SSE连接超时: sessionId={}", sessionId))
@@ -193,6 +215,16 @@ public class ChatController {
                         .event("timeout")
                         .data("连接超时，请重新发起请求")
                         .build()));
+    }
+
+    private void afterChat(String sessionId, String requestId) {
+        AgentManager.getHandler(sessionId).removeIf(h -> {
+            if (h instanceof SseClientMessageHandler handler && StrUtil.equals(handler.getRequestId(), requestId)) {
+                handler.disconnect(requestId);
+                return true;
+            }
+            return false;
+        });
     }
 
     /**

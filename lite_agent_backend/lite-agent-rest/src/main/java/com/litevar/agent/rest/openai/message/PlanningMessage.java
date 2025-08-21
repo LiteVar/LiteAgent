@@ -1,8 +1,8 @@
 package com.litevar.agent.rest.openai.message;
 
 import com.litevar.agent.base.dto.AgentPlanningDTO;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import com.litevar.agent.rest.util.CurrentAgentRequest;
+import lombok.Getter;
 
 import java.util.List;
 
@@ -12,13 +12,25 @@ import java.util.List;
  * @author uncle
  * @since 2025/6/12 16:21
  */
-@Data
-@AllArgsConstructor
+@Getter
 public class PlanningMessage implements AgentMessage {
-    private String sessionId;
-    private String taskId;
-    private String agentId;
+    private final String sessionId;
+    private final String taskId;
+    private final String agentId;
+    private final String requestId;
+    private final String parentTaskId;
 
-    private List<AgentPlanningDTO> taskList;
-    private String planId;
+    private final List<AgentPlanningDTO> taskList;
+    private final String planId;
+
+    public PlanningMessage(String planId, List<AgentPlanningDTO> taskList) {
+        this.planId = planId;
+        this.taskList = taskList;
+
+        this.sessionId = CurrentAgentRequest.getSessionId();
+        this.taskId = CurrentAgentRequest.getTaskId();
+        this.agentId = CurrentAgentRequest.getAgentId();
+        this.requestId = CurrentAgentRequest.getRequestId();
+        this.parentTaskId = CurrentAgentRequest.getContext().getParentTaskId();
+    }
 }

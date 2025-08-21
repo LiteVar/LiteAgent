@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:image/image.dart';
-import 'package:lite_agent_client/utils/alarm_util.dart';
+import 'package:lite_agent_client/utils/log_util.dart';
 import 'package:path_provider/path_provider.dart';
 
 final fileUtils = FileUtils();
@@ -23,46 +23,15 @@ class FileUtils {
     try {
       if (!Directory(imgDirectoryPath).existsSync()) {
         Directory(imgDirectoryPath).create();
-        print('文件夹创建成功: $imgDirectoryPath');
-      } else {
-        //print('文件夹已经创建过啦');
+        Log.i('文件夹创建成功: $imgDirectoryPath');
       }
     } catch (e) {
-      print('创建文件夹时出错: $e');
+      Log.e('创建文件夹时出错: $e');
     }
     return imgDirectoryPath;
   }
 
-  Future<String?> copyImgFileToImgDirectory(String originImgPath, String targetDirectory) async {
-    if (Directory(targetDirectory).existsSync()) {
-      try {
-        final File originalImageFile = File(originImgPath);
-        String pathSeparator = Platform.pathSeparator;
-        final String targetPath = '$targetDirectory$pathSeparator${originalImageFile.path.split(pathSeparator).last}';
-        await originalImageFile.copy(targetPath);
-        print('图片已复制到: $targetPath');
-        return targetPath;
-      } catch (e) {
-        print('图片复制出错: $e');
-        return null;
-      }
-    }
-    return null;
-  }
-
-  Future<String?> saveImage(File imageFile) async {
-    File file = imageFile;
-    var size = imageFile.readAsBytesSync().length / 1024;
-    if (size > (1024 * 2)) {
-      AlarmUtil.showAlertToast("图片大小不能超过2M");
-      return null;
-    }
-
-    String targetPath = await _getImgDirectory();
-    return copyImgFileToImgDirectory(file.path, targetPath);
-  }
-
-  static Future<String?> processImage(File originalFile) async {
+  Future<String?> processImage(File originalFile) async {
     try {
       // 1. 读取图片
       final bytes = await originalFile.readAsBytes();
@@ -76,27 +45,27 @@ class FileUtils {
 
       // 4. 压缩并保存
       File? processedFile = await _compressAndSave(image);
-      print('文件已保存至: ${processedFile.path}');
+      Log.i('文件已保存至: ${processedFile.path}');
       return processedFile.path;
     } catch (e) {
-      print('图片处理失败: $e');
+      Log.e('图片处理失败: $e');
     }
     return null;
   }
 
-  static Image _resizeImage(Image image, int maxSize) {
+  Image _resizeImage(Image image, int maxSize) {
     final aspectRatio = image.width / image.height;
     return aspectRatio > 1 ? copyResize(image, width: maxSize) : copyResize(image, height: maxSize);
   }
 
-  static Image _cropSquare(Image image) {
+  Image _cropSquare(Image image) {
     final size = image.width > image.height ? image.height : image.width;
     final x = (image.width - size) ~/ 2;
     final y = (image.height - size) ~/ 2;
-    return copyCrop(image, x, y, size, size);
+    return copyCrop(image, x: x, y: y, width: size, height: size);
   }
 
-  static Future<File> _compressAndSave(Image image) async {
+  Future<File> _compressAndSave(Image image) async {
     List<int> bytes;
     String extension = 'jpg';
 
@@ -115,9 +84,10 @@ class FileUtils {
     }
 
     // 保存文件
-    final directory = await getApplicationSupportDirectory();
-    final imgDirectoryPath = '${directory.path}${Platform.pathSeparator}img';
-    final filename = 'processed_${DateTime.now().millisecondsSinceEpoch}.$extension';
-    return File('$imgDirectoryPath/$filename')..writeAsBytes(bytes);
+    var imgDirectoryPath = await _getImgDirectory();
+    var filename = 'processed_${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final file = File('$imgDirectoryPath${Platform.pathSeparator}$filename');
+    await file.writeAsBytes(bytes);
+    return file;
   }
 }

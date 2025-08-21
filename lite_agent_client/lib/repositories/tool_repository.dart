@@ -1,11 +1,15 @@
 import 'dart:convert';
 
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:lite_agent_client/models/dto/tool.dart';
 import 'package:lite_agent_client/server/api_server/tool_server.dart';
 import 'package:lite_agent_client/utils/extension/string_extension.dart';
+import 'package:lite_agent_client/widgets/dialog/dialog_tool_edit.dart';
+import 'package:lite_agent_core_dart/lite_agent_service.dart';
 
 import '../models/local_data_model.dart';
+import '../utils/log_util.dart';
 import 'account_repository.dart';
 
 final toolRepository = ToolRepository();
@@ -49,7 +53,6 @@ class ToolRepository {
     if (await accountRepository.isLogin()) {
       await uploadToServer([tool]);
     }
-    print("updateTool:$key");
   }
 
   Future<ToolBean?> getToolFromBox(String key) async {
@@ -77,6 +80,9 @@ class ToolRepository {
   Future<void> uploadToServer(List<ToolBean> tools) async {
     var list = <ToolDTO>[];
     for (var tool in tools) {
+      if (!tool.id.isNumericOnly) {
+        continue;
+      }
       list.add(tool.translateToDTO());
     }
     list.removeWhere((tool) {
@@ -88,16 +94,25 @@ class ToolRepository {
     });
     String jsonString = json.encode(list);
     List<dynamic> jsonArray = json.decode(jsonString);
-    //print("jsonString:$jsonString");
     var response = await ToolServer.toolSync(jsonArray);
     if (response.code == 200) {
-      print("toolUploadServer:${list.length}");
+      Log.i("toolUploadServer:${list.length}");
     }
   }
 
   Future<void> uploadAllToServer() async {
     var tools = <ToolBean>[];
     tools.addAll(((await _toolBox).values));
+    tools.removeWhere((item) => item.schemaType == SchemaType.MCP_STDIO_TOOLS || item.schemaType == Protocol.MCP_STDIO_TOOLS);
     uploadToServer(tools);
+  }
+
+  Future<List<ToolDTO>> getCloudAutoAgentToolList() async {
+    List<ToolDTO> list = [];
+    var response = await ToolServer.getAutoAgentToolList();
+    if (response.data != null) {
+      list.addAll(response.data!);
+    }
+    return list;
   }
 }

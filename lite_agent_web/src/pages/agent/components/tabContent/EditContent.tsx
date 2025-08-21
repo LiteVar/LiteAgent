@@ -23,7 +23,7 @@ import {
   getV1WorkspaceListOptions
 } from '@/client/@tanstack/query.gen';
 import { useQuery } from '@tanstack/react-query';
-import { AgentTypeMode, AgentType } from '../agent-set';
+import { AgentTypeMode } from '../agent-set';
 import { AutoEnableType } from '../multi-agent';
 import ResponseCode from "@/constants/ResponseCode";
 import { DEFAULT_Max_TOKENS } from '../AdvancedSettingsPopover';
@@ -32,7 +32,7 @@ import AutoAgentType from '../autoAgentType';
 import AutoAgentModelList from '../autoAgentModelList';
 import AutoAgentToolsList from '../autoAgentToolList';
 import AutoAgentBaseSet from '../autoAgentBaseSet';
-import { log } from 'console';
+import { AgentType } from '@/types/chat';
 
 interface EditContentProps {
   agentInfo: AgentDetailVO;
@@ -403,12 +403,8 @@ const EditContent: React.FC<EditContentProps> = (props) => {
     checkMoxToken();
   }, [agentInfo, modelList]);
 
-  if (!visible) {
-    return <div className="invisible w-0 h-0 m-0 p-0" />;
-  }
-
   return (
-    <div className="flex h-full">
+    <div className={visible ? "h-full flex" : "invisible w-0 h-0 m-0 p-0"}>
       {agentInfo?.canEdit ? (
         <div className="w-1/3 bg-white rounded p-6 flex flex-col overflow-y-auto agent-config"
           style={{

@@ -4,20 +4,9 @@ import { Spin } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import { MessageRole } from '../../types/Message';
 import '@/assets/styles/chatMessages.css';
+import { ChatMessagesProps, AgentMessage } from '@/types/chat';
 
-interface IChatMessagesProps {
-  onShowThinkMessage: (index: number) => void;
-  messages: any[];
-  agentIcon: string;
-  mode: 'dev' | 'prod';
-  onRetry: (index: number) => void;
-  asrLoading: boolean;
-  ttsModelId: string;
-  lastThinkMessage: React.RefObject<HTMLDivElement>;
-  onSendMessage: (message: string) => void;
-}
-
-const ChatMessages: React.FC<IChatMessagesProps> = ({
+const ChatMessages: React.FC<ChatMessagesProps> = ({
   onShowThinkMessage,
   messages,
   agentIcon,
@@ -31,7 +20,7 @@ const ChatMessages: React.FC<IChatMessagesProps> = ({
 
   const isLastThinkMessage = useMemo(() => {
     let msgs = JSON.parse(JSON.stringify(messages));
-    msgs = msgs.filter(item => item.role != MessageRole.SEPARATOR)
+    msgs = msgs.filter((item: AgentMessage) => item.role != MessageRole.SEPARATOR)
     return msgs.length > 0 && msgs[msgs.length - 1]?.thoughtProcessMessages?.length > 0;
   }, [messages]);
 
@@ -44,13 +33,13 @@ const ChatMessages: React.FC<IChatMessagesProps> = ({
           <ChatMessage
             isLastThinkMessage={isLastThinkMessage}
             lastThinkMessage={lastThinkMessage}
-            onShowThinkMessage={onShowThinkMessage}
+            onShowThinkMessage={(event) => onShowThinkMessage(event, message)}
             key={index}
             message={message}
             agentIcon={agentIcon}
             mode={mode}
             isLastMessage={isLastMessage}
-            onRetry={onRetry}
+            onRetry={() => onRetry(index)}
             ttsModelId={ttsModelId}
             onSendMessage={onSendMessage}
           />
@@ -70,4 +59,15 @@ const ChatMessages: React.FC<IChatMessagesProps> = ({
   );
 };
 
-export default ChatMessages;
+const MemoizedChatMessages = React.memo(ChatMessages, (prevProps, nextProps) => {
+  // 优化比较逻辑，只在关键属性变化时重新渲染
+  return (
+    prevProps.messages === nextProps.messages &&
+    prevProps.agentIcon === nextProps.agentIcon &&
+    prevProps.asrLoading === nextProps.asrLoading &&
+    prevProps.ttsModelId === nextProps.ttsModelId &&
+    prevProps.mode === nextProps.mode
+  );
+});
+
+export default MemoizedChatMessages;

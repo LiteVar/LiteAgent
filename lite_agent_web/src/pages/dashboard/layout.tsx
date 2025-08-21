@@ -78,10 +78,10 @@ export default function PageLayout({ children, agentMap }: { children: React.Rea
       const chatItems = [];
       recentAgentListResult.data.map((item) => {
         let responding = false;
-        let length = agentMap?.[item.agentId]?.messages?.filter((message) => message.role != MessageRole.SEPARATOR)?.length;
+        const length = agentMap?.[item.agentId]?.messages?.filter((message) => message.role != MessageRole.SEPARATOR)?.length;
         let num = 0;
         agentMap?.[item.agentId]?.messages?.filter((message) => message.role != MessageRole.SEPARATOR)?.map((message, index) => {
-          if (!!message.responding) {
+          if (message.responding) {
             responding = true;
           } else {
             num = num + 1;

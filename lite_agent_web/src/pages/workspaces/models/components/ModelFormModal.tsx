@@ -22,7 +22,7 @@ const ModelFormModal: React.FC<ModelFormModalProps> = (props) => {
 
   const handleSubmit = useCallback(async () => {
     form.validateFields().then((values) => {
-      let submitValues = { ...values, id: initialData?.id };
+      const submitValues = { ...values, id: initialData?.id };
 
       if (submitValues.type === 'tts') {
         // 当类型为 tts 时，且是 prmeasure，设置 responseFormat 为 pcm
@@ -60,7 +60,7 @@ const ModelFormModal: React.FC<ModelFormModalProps> = (props) => {
     if (initialData) {
       // form.setFieldsValue(initialData);
       // 处理 TTS 的 fieldMapping 字段
-      let patch = { ...initialData };
+      const patch = { ...initialData };
       if (
         patch.type === 'tts' &&
         typeof patch.fieldMapping === 'string'

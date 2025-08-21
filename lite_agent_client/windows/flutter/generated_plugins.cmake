@@ -3,7 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audioplayers_windows
   connectivity_plus
+  record_windows
   screen_retriever
   url_launcher_windows
   window_manager

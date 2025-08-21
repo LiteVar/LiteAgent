@@ -8,17 +8,11 @@ import type {
   PostV1AuthLoginOfInitData,
   PostV1AuthLoginOfInitError,
   PostV1AuthLoginOfInitResponse,
-  PostV1AuthLogoutData,
-  PostV1AuthLogoutError,
-  PostV1AuthLogoutResponse,
   GetV1AuthInitStatusError,
   GetV1AuthInitStatusResponse,
   GetV1ToolListData,
   GetV1ToolListError,
   GetV1ToolListResponse,
-  GetV1ToolListWithFunctionData,
-  GetV1ToolListWithFunctionError,
-  GetV1ToolListWithFunctionResponse,
   GetV1ToolDetailByIdData,
   GetV1ToolDetailByIdError,
   GetV1ToolDetailByIdResponse,
@@ -31,9 +25,6 @@ import type {
   DeleteV1ToolByIdData,
   DeleteV1ToolByIdError,
   DeleteV1ToolByIdResponse,
-  PostV1ToolCheckSchemaData,
-  PostV1ToolCheckSchemaError,
-  PostV1ToolCheckSchemaResponse,
   PostV1ModelAddData,
   PostV1ModelAddError,
   PostV1ModelAddResponse,
@@ -46,9 +37,6 @@ import type {
   GetV1ModelListData,
   GetV1ModelListError,
   GetV1ModelListResponse,
-  GetV1ModelProvidersData,
-  GetV1ModelProvidersError,
-  GetV1ModelProvidersResponse,
   PostV1WorkspaceAddData,
   PostV1WorkspaceAddError,
   PostV1WorkspaceAddResponse,
@@ -73,12 +61,6 @@ import type {
   PostV1WorkspaceActivateMemberData,
   PostV1WorkspaceActivateMemberError,
   PostV1WorkspaceActivateMemberResponse,
-  GetV1AgentListData,
-  GetV1AgentListError,
-  GetV1AgentListResponse,
-  GetV1AgentAdminListData,
-  GetV1AgentAdminListError,
-  GetV1AgentAdminListResponse,
   GetV1AgentByIdData,
   GetV1AgentByIdError,
   GetV1AgentByIdResponse,
@@ -88,63 +70,18 @@ import type {
   PutV1AgentByIdData,
   PutV1AgentByIdError,
   PutV1AgentByIdResponse,
-  GetV1AgentAdminInfoByIdData,
-  GetV1AgentAdminInfoByIdError,
-  GetV1AgentAdminInfoByIdResponse,
   PostV1AgentAddData,
   PostV1AgentAddError,
   PostV1AgentAddResponse,
-  PutV1AgentReleaseByIdData,
-  PutV1AgentReleaseByIdError,
-  PutV1AgentReleaseByIdResponse,
   PostV1AgentEnableShareByIdData,
   PostV1AgentEnableShareByIdError,
   PostV1AgentEnableShareByIdResponse,
-  PostV1AgentGenerateApiKeyByIdData,
-  PostV1AgentGenerateApiKeyByIdError,
-  PostV1AgentGenerateApiKeyByIdResponse,
-  PostV1AgentResetSequenceByAgentIdData,
-  PostV1AgentResetSequenceByAgentIdError,
-  PostV1AgentResetSequenceByAgentIdResponse,
-  PostV1ChatInitSessionData,
-  PostV1ChatInitSessionError,
-  PostV1ChatInitSessionResponse,
   GetV1ChatStreamData,
   GetV1ChatStreamError,
   GetV1ChatStreamResponse,
   PostV1ChatInitSessionByAgentIdData,
   PostV1ChatInitSessionByAgentIdError,
   PostV1ChatInitSessionByAgentIdResponse,
-  PostV1ChatStreamBySessionIdData,
-  PostV1ChatStreamBySessionIdError,
-  PostV1ChatStreamBySessionIdResponse,
-  PostV1ChatClearSessionData,
-  PostV1ChatClearSessionError,
-  PostV1ChatClearSessionResponse,
-  PostV1ChatSendBySessionIdData,
-  PostV1ChatSendBySessionIdError,
-  PostV1ChatSendBySessionIdResponse,
-  PostV1ChatClearDebugRecordData,
-  PostV1ChatClearDebugRecordError,
-  PostV1ChatClearDebugRecordResponse,
-  GetV1ChatRecentAgentData,
-  GetV1ChatRecentAgentError,
-  GetV1ChatRecentAgentResponse,
-  GetV1ChatAgentChatByAgentIdData,
-  GetV1ChatAgentChatByAgentIdError,
-  GetV1ChatAgentChatByAgentIdResponse,
-  GetV1ChatAgentChatData,
-  GetV1ChatAgentChatError,
-  GetV1ChatAgentChatResponse,
-  PostV1ChatAudioTranscriptionsData,
-  PostV1ChatAudioTranscriptionsError,
-  PostV1ChatAudioTranscriptionsResponse,
-  PostV1ChatAudioSpeechData,
-  PostV1ChatAudioSpeechError,
-  PostV1ChatAudioSpeechResponse,
-  GetV1ChatAudioSpeechData,
-  GetV1ChatAudioSpeechError,
-  GetV1ChatAudioSpeechResponse,
   GetV1UserInfoData,
   GetV1UserInfoError,
   GetV1UserInfoResponse,
@@ -154,27 +91,51 @@ import type {
   PutV1UserUpdatePwdData,
   PutV1UserUpdatePwdError,
   PutV1UserUpdatePwdResponse,
-  PostV1UserResetPwdCaptchaData,
-  PostV1UserResetPwdCaptchaError,
-  PostV1UserResetPwdCaptchaResponse,
-  PostV1UserResetPwdCaptchaVerifyData,
-  PostV1UserResetPwdCaptchaVerifyError,
-  PostV1UserResetPwdCaptchaVerifyResponse,
-  PostV1UserResetPwdConfirmData,
-  PostV1UserResetPwdConfirmError,
-  PostV1UserResetPwdConfirmResponse,
-  GetV1UserResetPwdByUuidData,
-  GetV1UserResetPwdByUuidError,
-  GetV1UserResetPwdByUuidResponse,
-  PostV1UserResetPwdByUuidData,
-  PostV1UserResetPwdByUuidError,
-  PostV1UserResetPwdByUuidResponse,
+  GetV1AgentListData,
+  GetV1AgentListError,
+  GetV1AgentListResponse,
+  PostV1ChatInitSessionData,
+  PostV1ChatInitSessionError,
+  PostV1ChatInitSessionResponse,
+  GetV1ChatRecentAgentData,
+  GetV1ChatRecentAgentError,
+  GetV1ChatRecentAgentResponse,
+  GetV1ChatAgentChatByAgentIdData,
+  GetV1ChatAgentChatByAgentIdError,
+  GetV1ChatAgentChatByAgentIdResponse,
+  PostV1ChatSendBySessionIdData,
+  PostV1ChatSendBySessionIdError,
+  PostV1ChatSendBySessionIdResponse,
+  GetV1AgentAdminListData,
+  GetV1AgentAdminListError,
+  GetV1AgentAdminListResponse,
+  GetV1AgentAdminInfoByIdData,
+  GetV1AgentAdminInfoByIdError,
+  GetV1AgentAdminInfoByIdResponse,
+  PutV1AgentReleaseByIdData,
+  PutV1AgentReleaseByIdError,
+  PutV1AgentReleaseByIdResponse,
   PostV1FileUploadData,
   PostV1FileUploadError,
   PostV1FileUploadResponse,
   GetV1FileDownloadData,
   GetV1FileDownloadError,
   GetV1FileDownloadResponse,
+  PostV1ChatClearSessionData,
+  PostV1ChatClearSessionError,
+  PostV1ChatClearSessionResponse,
+  PostV1ToolCheckSchemaData,
+  PostV1ToolCheckSchemaError,
+  PostV1ToolCheckSchemaResponse,
+  PostV1ChatClearDebugRecordData,
+  PostV1ChatClearDebugRecordError,
+  PostV1ChatClearDebugRecordResponse,
+  PostV1AuthLogoutData,
+  PostV1AuthLogoutError,
+  PostV1AuthLogoutResponse,
+  GetV1ToolListWithFunctionData,
+  GetV1ToolListWithFunctionError,
+  GetV1ToolListWithFunctionResponse,
   PostV1DatasetAddData,
   PostV1DatasetAddError,
   PostV1DatasetAddResponse,
@@ -187,39 +148,21 @@ import type {
   DeleteV1DatasetByIdData,
   DeleteV1DatasetByIdError,
   DeleteV1DatasetByIdResponse,
-  GetV1DatasetListData,
-  GetV1DatasetListError,
-  GetV1DatasetListResponse,
   GetV1DatasetListDatasetsByAgentData,
   GetV1DatasetListDatasetsByAgentError,
   GetV1DatasetListDatasetsByAgentResponse,
   PutV1DatasetByIdShareData,
   PutV1DatasetByIdShareError,
   PutV1DatasetByIdShareResponse,
-  GetV1DatasetByIdRetrieveData,
-  GetV1DatasetByIdRetrieveError,
-  GetV1DatasetByIdRetrieveResponse,
-  GetV1DatasetByIdRetrieveExternalData,
-  GetV1DatasetByIdRetrieveExternalError,
-  GetV1DatasetByIdRetrieveExternalResponse,
   GetV1DatasetByIdRetrieveHistoryData,
   GetV1DatasetByIdRetrieveHistoryError,
   GetV1DatasetByIdRetrieveHistoryResponse,
-  GetV1DatasetRetrieveHistoryByIdData,
-  GetV1DatasetRetrieveHistoryByIdError,
-  GetV1DatasetRetrieveHistoryByIdResponse,
-  GetV1DatasetByIdApiKeyGenerateData,
-  GetV1DatasetByIdApiKeyGenerateError,
-  GetV1DatasetByIdApiKeyGenerateResponse,
   PostV1DatasetByDatasetIdDocumentsData,
   PostV1DatasetByDatasetIdDocumentsError,
   PostV1DatasetByDatasetIdDocumentsResponse,
   GetV1DatasetByDatasetIdDocumentsData,
   GetV1DatasetByDatasetIdDocumentsError,
   GetV1DatasetByDatasetIdDocumentsResponse,
-  PostV1DatasetDocumentsSplitData,
-  PostV1DatasetDocumentsSplitError,
-  PostV1DatasetDocumentsSplitResponse,
   PutV1DatasetDocumentsByDocumentIdRenameData,
   PutV1DatasetDocumentsByDocumentIdRenameError,
   PutV1DatasetDocumentsByDocumentIdRenameResponse,
@@ -250,9 +193,69 @@ import type {
   DeleteV1DatasetSegmentsBySegmentIdData,
   DeleteV1DatasetSegmentsBySegmentIdError,
   DeleteV1DatasetSegmentsBySegmentIdResponse,
+  GetV1DatasetByIdRetrieveData,
+  GetV1DatasetByIdRetrieveError,
+  GetV1DatasetByIdRetrieveResponse,
+  GetV1DatasetByIdApiKeyGenerateData,
+  GetV1DatasetByIdApiKeyGenerateError,
+  GetV1DatasetByIdApiKeyGenerateResponse,
+  PostV1AgentGenerateApiKeyByIdData,
+  PostV1AgentGenerateApiKeyByIdError,
+  PostV1AgentGenerateApiKeyByIdResponse,
+  PostV1DatasetDocumentsSplitData,
+  PostV1DatasetDocumentsSplitError,
+  PostV1DatasetDocumentsSplitResponse,
   DeleteV1DatasetSegmentsBatchDeleteData,
   DeleteV1DatasetSegmentsBatchDeleteError,
   DeleteV1DatasetSegmentsBatchDeleteResponse,
+  GetV1DatasetListData,
+  GetV1DatasetListError,
+  GetV1DatasetListResponse,
+  PostV1AgentResetSequenceByAgentIdData,
+  PostV1AgentResetSequenceByAgentIdError,
+  PostV1AgentResetSequenceByAgentIdResponse,
+  GetV1DatasetByIdRetrieveExternalData,
+  GetV1DatasetByIdRetrieveExternalError,
+  GetV1DatasetByIdRetrieveExternalResponse,
+  GetV1DatasetRetrieveHistoryByIdData,
+  GetV1DatasetRetrieveHistoryByIdError,
+  GetV1DatasetRetrieveHistoryByIdResponse,
+  PostV1UserResetPwdCaptchaData,
+  PostV1UserResetPwdCaptchaError,
+  PostV1UserResetPwdCaptchaResponse,
+  PostV1UserResetPwdCaptchaVerifyData,
+  PostV1UserResetPwdCaptchaVerifyError,
+  PostV1UserResetPwdCaptchaVerifyResponse,
+  GetV1UserResetPwdByUuidData,
+  GetV1UserResetPwdByUuidError,
+  GetV1UserResetPwdByUuidResponse,
+  PostV1UserResetPwdByUuidData,
+  PostV1UserResetPwdByUuidError,
+  PostV1UserResetPwdByUuidResponse,
+  PostV1ChatAudioTranscriptionsData,
+  PostV1ChatAudioTranscriptionsError,
+  PostV1ChatAudioTranscriptionsResponse,
+  PostV1ChatAudioSpeechData,
+  PostV1ChatAudioSpeechError,
+  PostV1ChatAudioSpeechResponse,
+  GetV1ChatAudioSpeechData,
+  GetV1ChatAudioSpeechError,
+  GetV1ChatAudioSpeechResponse,
+  PostV1UserResetPwdConfirmData,
+  PostV1UserResetPwdConfirmError,
+  PostV1UserResetPwdConfirmResponse,
+  GetV1ChatAgentChatData,
+  GetV1ChatAgentChatError,
+  GetV1ChatAgentChatResponse,
+  GetV1ModelProvidersData,
+  GetV1ModelProvidersError,
+  GetV1ModelProvidersResponse,
+  PostV1ChatStreamBySessionIdData,
+  PostV1ChatStreamBySessionIdError,
+  PostV1ChatStreamBySessionIdResponse,
+  GetApiChatbotV1DeviceListData,
+  GetApiChatbotV1DeviceListError,
+  GetApiChatbotV1DeviceListResponse,
 } from './types.gen';
 
 export const client = createClient(createConfig());
@@ -286,18 +289,6 @@ export const postV1AuthLoginOfInit = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * 退出登录
- */
-export const postV1AuthLogout = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1AuthLogoutData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<ThrowOnError, PostV1AuthLogoutResponse, PostV1AuthLogoutError>({
-    ...options,
-    url: '/v1/auth/logout',
-  });
-};
-
-/**
  * 系统初始化状态
  * 1-已初始化,0-未初始化
  */
@@ -321,22 +312,6 @@ export const getV1ToolList = <ThrowOnError extends boolean = false>(
   return (options?.client ?? client).get<ThrowOnError, GetV1ToolListResponse, GetV1ToolListError>({
     ...options,
     url: '/v1/tool/list',
-  });
-};
-
-/**
- * 工具列表(带function)
- */
-export const getV1ToolListWithFunction = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1ToolListWithFunctionData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1ToolListWithFunctionResponse,
-    GetV1ToolListWithFunctionError
-  >({
-    ...options,
-    url: '/v1/tool/listWithFunction',
   });
 };
 
@@ -391,22 +366,6 @@ export const deleteV1ToolById = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * 检查工具schema是否有效
- */
-export const postV1ToolCheckSchema = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1ToolCheckSchemaData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1ToolCheckSchemaResponse,
-    PostV1ToolCheckSchemaError
-  >({
-    ...options,
-    url: '/v1/tool/checkSchema',
-  });
-};
-
-/**
  * 新建模型
  */
 export const postV1ModelAdd = <ThrowOnError extends boolean = false>(
@@ -452,20 +411,6 @@ export const getV1ModelList = <ThrowOnError extends boolean = false>(
     ...options,
     url: '/v1/model/list',
   });
-};
-
-/**
- * 模型厂商列表
- */
-export const getV1ModelProviders = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1ModelProvidersData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<ThrowOnError, GetV1ModelProvidersResponse, GetV1ModelProvidersError>(
-    {
-      ...options,
-      url: '/v1/model/providers',
-    }
-  );
 };
 
 /**
@@ -589,32 +534,6 @@ export const postV1WorkspaceActivateMember = <ThrowOnError extends boolean = fal
 };
 
 /**
- * agent列表
- */
-export const getV1AgentList = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1AgentListData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<ThrowOnError, GetV1AgentListResponse, GetV1AgentListError>({
-    ...options,
-    url: '/v1/agent/list',
-  });
-};
-
-/**
- * agent列表(管理)
- */
-export const getV1AgentAdminList = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1AgentAdminListData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<ThrowOnError, GetV1AgentAdminListResponse, GetV1AgentAdminListError>(
-    {
-      ...options,
-      url: '/v1/agent/adminList',
-    }
-  );
-};
-
-/**
  * agent详情
  */
 export const getV1AgentById = <ThrowOnError extends boolean = false>(
@@ -651,22 +570,6 @@ export const putV1AgentById = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * agent详情(管理)
- */
-export const getV1AgentAdminInfoById = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1AgentAdminInfoByIdData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1AgentAdminInfoByIdResponse,
-    GetV1AgentAdminInfoByIdError
-  >({
-    ...options,
-    url: '/v1/agent/adminInfo/{id}',
-  });
-};
-
-/**
  * 新建agent
  */
 export const postV1AgentAdd = <ThrowOnError extends boolean = false>(
@@ -675,22 +578,6 @@ export const postV1AgentAdd = <ThrowOnError extends boolean = false>(
   return (options?.client ?? client).post<ThrowOnError, PostV1AgentAddResponse, PostV1AgentAddError>({
     ...options,
     url: '/v1/agent/add',
-  });
-};
-
-/**
- * 发布
- */
-export const putV1AgentReleaseById = <ThrowOnError extends boolean = false>(
-  options: Options<PutV1AgentReleaseByIdData, ThrowOnError>
-) => {
-  return (options?.client ?? client).put<
-    ThrowOnError,
-    PutV1AgentReleaseByIdResponse,
-    PutV1AgentReleaseByIdError
-  >({
-    ...options,
-    url: '/v1/agent/release/{id}',
   });
 };
 
@@ -707,55 +594,6 @@ export const postV1AgentEnableShareById = <ThrowOnError extends boolean = false>
   >({
     ...options,
     url: '/v1/agent/enableShare/{id}',
-  });
-};
-
-/**
- * 生成agent ApiKey
- */
-export const postV1AgentGenerateApiKeyById = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1AgentGenerateApiKeyByIdData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1AgentGenerateApiKeyByIdResponse,
-    PostV1AgentGenerateApiKeyByIdError
-  >({
-    ...options,
-    url: '/v1/agent/generateApiKey/{id}',
-  });
-};
-
-/**
- * 重置方法序列
- */
-export const postV1AgentResetSequenceByAgentId = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1AgentResetSequenceByAgentIdData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1AgentResetSequenceByAgentIdResponse,
-    PostV1AgentResetSequenceByAgentIdError
-  >({
-    ...options,
-    url: '/v1/agent/resetSequence/{agentId}',
-  });
-};
-
-/**
- * 初始化会话
- * <strong>适用于调试</strong>
- */
-export const postV1ChatInitSession = <ThrowOnError extends boolean = false>(
-  options?: Options<PostV1ChatInitSessionData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1ChatInitSessionResponse,
-    PostV1ChatInitSessionError
-  >({
-    ...options,
-    url: '/v1/chat/initSession',
   });
 };
 
@@ -785,169 +623,6 @@ export const postV1ChatInitSessionByAgentId = <ThrowOnError extends boolean = fa
   >({
     ...options,
     url: '/v1/chat/initSession/{agentId}',
-  });
-};
-
-/**
- * 发送会话消息
- */
-export const postV1ChatStreamBySessionId = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1ChatStreamBySessionIdData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1ChatStreamBySessionIdResponse,
-    PostV1ChatStreamBySessionIdError
-  >({
-    ...options,
-    url: '/v1/chat/stream/{sessionId}',
-  });
-};
-
-/**
- * 清空会话信息
- * 退出agent界面时调用,清空上下文时调用
- */
-export const postV1ChatClearSession = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1ChatClearSessionData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1ChatClearSessionResponse,
-    PostV1ChatClearSessionError
-  >({
-    ...options,
-    url: '/v1/chat/clearSession',
-  });
-};
-
-/**
- * @deprecated
- * 发送会话消息
- */
-export const postV1ChatSendBySessionId = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1ChatSendBySessionIdData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1ChatSendBySessionIdResponse,
-    PostV1ChatSendBySessionIdError
-  >({
-    ...options,
-    url: '/v1/chat/send/{sessionId}',
-  });
-};
-
-/**
- * 清空聊天记录
- */
-export const postV1ChatClearDebugRecord = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1ChatClearDebugRecordData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1ChatClearDebugRecordResponse,
-    PostV1ChatClearDebugRecordError
-  >({
-    ...options,
-    url: '/v1/chat/clearDebugRecord',
-  });
-};
-
-/**
- * 最近聊天的agent
- */
-export const getV1ChatRecentAgent = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1ChatRecentAgentData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1ChatRecentAgentResponse,
-    GetV1ChatRecentAgentError
-  >({
-    ...options,
-    url: '/v1/chat/recentAgent',
-  });
-};
-
-/**
- * agent聊天记录
- */
-export const getV1ChatAgentChatByAgentId = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1ChatAgentChatByAgentIdData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1ChatAgentChatByAgentIdResponse,
-    GetV1ChatAgentChatByAgentIdError
-  >({
-    ...options,
-    url: '/v1/chat/agentChat/{agentId}',
-  });
-};
-
-/**
- * agent聊天记录
- * 该agent在本系统调试端、用户端、api调用产生的数据
- */
-export const getV1ChatAgentChat = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1ChatAgentChatData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<ThrowOnError, GetV1ChatAgentChatResponse, GetV1ChatAgentChatError>({
-    ...options,
-    url: '/v1/chat/agentChat',
-  });
-};
-
-/**
- * 音频转文字
- */
-export const postV1ChatAudioTranscriptions = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1ChatAudioTranscriptionsData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1ChatAudioTranscriptionsResponse,
-    PostV1ChatAudioTranscriptionsError
-  >({
-    ...options,
-    ...formDataBodySerializer,
-    headers: {
-      'Content-Type': null,
-    },
-    url: '/v1/chat/audio/transcriptions',
-  });
-};
-
-/**
- * 文字转音频
- */
-export const postV1ChatAudioSpeech = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1ChatAudioSpeechData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1ChatAudioSpeechResponse,
-    PostV1ChatAudioSpeechError
-  >({
-    ...options,
-    url: '/v1/chat/audio/speech',
-  });
-};
-
-/**
- * 文字转音频
- */
-export const getV1ChatAudioSpeech = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1ChatAudioSpeechData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1ChatAudioSpeechResponse,
-    GetV1ChatAudioSpeechError
-  >({
-    ...options,
-    url: '/v1/chat/audio/speech',
   });
 };
 
@@ -988,82 +663,126 @@ export const putV1UserUpdatePwd = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * 重置密码-验证邮箱
+ * agent列表
  */
-export const postV1UserResetPwdCaptcha = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1UserResetPwdCaptchaData, ThrowOnError>
+export const getV1AgentList = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1AgentListData, ThrowOnError>
 ) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1UserResetPwdCaptchaResponse,
-    PostV1UserResetPwdCaptchaError
-  >({
+  return (options?.client ?? client).get<ThrowOnError, GetV1AgentListResponse, GetV1AgentListError>({
     ...options,
-    url: '/v1/user/resetPwd/captcha',
+    url: '/v1/agent/list',
   });
 };
 
 /**
- * 重置密码-检查验证码
+ * 初始化会话
+ * <strong>适用于调试</strong>
  */
-export const postV1UserResetPwdCaptchaVerify = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1UserResetPwdCaptchaVerifyData, ThrowOnError>
+export const postV1ChatInitSession = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatInitSessionData, ThrowOnError>
 ) => {
   return (options?.client ?? client).post<
     ThrowOnError,
-    PostV1UserResetPwdCaptchaVerifyResponse,
-    PostV1UserResetPwdCaptchaVerifyError
+    PostV1ChatInitSessionResponse,
+    PostV1ChatInitSessionError
   >({
     ...options,
-    url: '/v1/user/resetPwd/captcha/verify',
+    url: '/v1/chat/initSession',
   });
 };
 
 /**
- * 重置密码
+ * 最近聊天的agent
  */
-export const postV1UserResetPwdConfirm = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1UserResetPwdConfirmData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1UserResetPwdConfirmResponse,
-    PostV1UserResetPwdConfirmError
-  >({
-    ...options,
-    url: '/v1/user/resetPwd/confirm',
-  });
-};
-
-/**
- * 重置密码-验证链接
- */
-export const getV1UserResetPwdByUuid = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1UserResetPwdByUuidData, ThrowOnError>
+export const getV1ChatRecentAgent = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1ChatRecentAgentData, ThrowOnError>
 ) => {
   return (options?.client ?? client).get<
     ThrowOnError,
-    GetV1UserResetPwdByUuidResponse,
-    GetV1UserResetPwdByUuidError
+    GetV1ChatRecentAgentResponse,
+    GetV1ChatRecentAgentError
   >({
     ...options,
-    url: '/v1/user/resetPwd/{uuid}',
+    url: '/v1/chat/recentAgent',
   });
 };
 
 /**
- * 重置密码
+ * agent聊天记录
  */
-export const postV1UserResetPwdByUuid = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1UserResetPwdByUuidData, ThrowOnError>
+export const getV1ChatAgentChatByAgentId = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1ChatAgentChatByAgentIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1ChatAgentChatByAgentIdResponse,
+    GetV1ChatAgentChatByAgentIdError
+  >({
+    ...options,
+    url: '/v1/chat/agentChat/{agentId}',
+  });
+};
+
+/**
+ * @deprecated
+ * 发送会话消息
+ */
+export const postV1ChatSendBySessionId = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatSendBySessionIdData, ThrowOnError>
 ) => {
   return (options?.client ?? client).post<
     ThrowOnError,
-    PostV1UserResetPwdByUuidResponse,
-    PostV1UserResetPwdByUuidError
+    PostV1ChatSendBySessionIdResponse,
+    PostV1ChatSendBySessionIdError
   >({
     ...options,
-    url: '/v1/user/resetPwd/{uuid}',
+    url: '/v1/chat/send/{sessionId}',
+  });
+};
+
+/**
+ * agent列表(管理)
+ */
+export const getV1AgentAdminList = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1AgentAdminListData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1AgentAdminListResponse, GetV1AgentAdminListError>(
+    {
+      ...options,
+      url: '/v1/agent/adminList',
+    }
+  );
+};
+
+/**
+ * agent详情(管理)
+ */
+export const getV1AgentAdminInfoById = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1AgentAdminInfoByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1AgentAdminInfoByIdResponse,
+    GetV1AgentAdminInfoByIdError
+  >({
+    ...options,
+    url: '/v1/agent/adminInfo/{id}',
+  });
+};
+
+/**
+ * 发布
+ */
+export const putV1AgentReleaseById = <ThrowOnError extends boolean = false>(
+  options: Options<PutV1AgentReleaseByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).put<
+    ThrowOnError,
+    PutV1AgentReleaseByIdResponse,
+    PutV1AgentReleaseByIdError
+  >({
+    ...options,
+    url: '/v1/agent/release/{id}',
   });
 };
 
@@ -1092,6 +811,83 @@ export const getV1FileDownload = <ThrowOnError extends boolean = false>(
   return (options?.client ?? client).get<ThrowOnError, GetV1FileDownloadResponse, GetV1FileDownloadError>({
     ...options,
     url: '/v1/file/download',
+  });
+};
+
+/**
+ * 清空会话信息
+ * 退出agent界面时调用,清空上下文时调用
+ */
+export const postV1ChatClearSession = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatClearSessionData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ChatClearSessionResponse,
+    PostV1ChatClearSessionError
+  >({
+    ...options,
+    url: '/v1/chat/clearSession',
+  });
+};
+
+/**
+ * 检查工具schema是否有效
+ */
+export const postV1ToolCheckSchema = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ToolCheckSchemaData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ToolCheckSchemaResponse,
+    PostV1ToolCheckSchemaError
+  >({
+    ...options,
+    url: '/v1/tool/checkSchema',
+  });
+};
+
+/**
+ * 清空聊天记录
+ */
+export const postV1ChatClearDebugRecord = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatClearDebugRecordData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ChatClearDebugRecordResponse,
+    PostV1ChatClearDebugRecordError
+  >({
+    ...options,
+    url: '/v1/chat/clearDebugRecord',
+  });
+};
+
+/**
+ * 退出登录
+ */
+export const postV1AuthLogout = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1AuthLogoutData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<ThrowOnError, PostV1AuthLogoutResponse, PostV1AuthLogoutError>({
+    ...options,
+    url: '/v1/auth/logout',
+  });
+};
+
+/**
+ * 工具列表(带function)
+ */
+export const getV1ToolListWithFunction = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1ToolListWithFunctionData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1ToolListWithFunctionResponse,
+    GetV1ToolListWithFunctionError
+  >({
+    ...options,
+    url: '/v1/tool/listWithFunction',
   });
 };
 
@@ -1148,18 +944,6 @@ export const deleteV1DatasetById = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * 获取知识库的分页列表。
- */
-export const getV1DatasetList = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1DatasetListData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<ThrowOnError, GetV1DatasetListResponse, GetV1DatasetListError>({
-    ...options,
-    url: '/v1/dataset/list',
-  });
-};
-
-/**
  * List datasets associated with an agent.
  */
 export const getV1DatasetListDatasetsByAgent = <ThrowOnError extends boolean = false>(
@@ -1192,38 +976,6 @@ export const putV1DatasetByIdShare = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * 召回测试
- */
-export const getV1DatasetByIdRetrieve = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1DatasetByIdRetrieveData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1DatasetByIdRetrieveResponse,
-    GetV1DatasetByIdRetrieveError
-  >({
-    ...options,
-    url: '/v1/dataset/{id}/retrieve',
-  });
-};
-
-/**
- * retrieveExternal
- */
-export const getV1DatasetByIdRetrieveExternal = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1DatasetByIdRetrieveExternalData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1DatasetByIdRetrieveExternalResponse,
-    GetV1DatasetByIdRetrieveExternalError
-  >({
-    ...options,
-    url: '/v1/dataset/{id}/retrieve/external',
-  });
-};
-
-/**
  * 检索记录
  */
 export const getV1DatasetByIdRetrieveHistory = <ThrowOnError extends boolean = false>(
@@ -1236,38 +988,6 @@ export const getV1DatasetByIdRetrieveHistory = <ThrowOnError extends boolean = f
   >({
     ...options,
     url: '/v1/dataset/{id}/retrieve/history',
-  });
-};
-
-/**
- * 检索记录 片段详情
- */
-export const getV1DatasetRetrieveHistoryById = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1DatasetRetrieveHistoryByIdData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1DatasetRetrieveHistoryByIdResponse,
-    GetV1DatasetRetrieveHistoryByIdError
-  >({
-    ...options,
-    url: '/v1/dataset/retrieve/history/{id}',
-  });
-};
-
-/**
- * 生成API Key
- */
-export const getV1DatasetByIdApiKeyGenerate = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1DatasetByIdApiKeyGenerateData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1DatasetByIdApiKeyGenerateResponse,
-    GetV1DatasetByIdApiKeyGenerateError
-  >({
-    ...options,
-    url: '/v1/dataset/{id}/apiKey/generate',
   });
 };
 
@@ -1300,22 +1020,6 @@ export const getV1DatasetByDatasetIdDocuments = <ThrowOnError extends boolean = 
   >({
     ...options,
     url: '/v1/dataset/{datasetId}/documents',
-  });
-};
-
-/**
- * 预览将文档分割为片段。
- */
-export const postV1DatasetDocumentsSplit = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1DatasetDocumentsSplitData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<
-    ThrowOnError,
-    PostV1DatasetDocumentsSplitResponse,
-    PostV1DatasetDocumentsSplitError
-  >({
-    ...options,
-    url: '/v1/dataset/documents/split',
   });
 };
 
@@ -1480,6 +1184,70 @@ export const deleteV1DatasetSegmentsBySegmentId = <ThrowOnError extends boolean 
 };
 
 /**
+ * 召回测试
+ */
+export const getV1DatasetByIdRetrieve = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1DatasetByIdRetrieveData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1DatasetByIdRetrieveResponse,
+    GetV1DatasetByIdRetrieveError
+  >({
+    ...options,
+    url: '/v1/dataset/{id}/retrieve',
+  });
+};
+
+/**
+ * 生成API Key
+ */
+export const getV1DatasetByIdApiKeyGenerate = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1DatasetByIdApiKeyGenerateData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1DatasetByIdApiKeyGenerateResponse,
+    GetV1DatasetByIdApiKeyGenerateError
+  >({
+    ...options,
+    url: '/v1/dataset/{id}/apiKey/generate',
+  });
+};
+
+/**
+ * 生成agent ApiKey
+ */
+export const postV1AgentGenerateApiKeyById = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1AgentGenerateApiKeyByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1AgentGenerateApiKeyByIdResponse,
+    PostV1AgentGenerateApiKeyByIdError
+  >({
+    ...options,
+    url: '/v1/agent/generateApiKey/{id}',
+  });
+};
+
+/**
+ * 预览将文档分割为片段。
+ */
+export const postV1DatasetDocumentsSplit = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1DatasetDocumentsSplitData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1DatasetDocumentsSplitResponse,
+    PostV1DatasetDocumentsSplitError
+  >({
+    ...options,
+    url: '/v1/dataset/documents/split',
+  });
+};
+
+/**
  * 批量删除片段。
  */
 export const deleteV1DatasetSegmentsBatchDelete = <ThrowOnError extends boolean = false>(
@@ -1492,5 +1260,256 @@ export const deleteV1DatasetSegmentsBatchDelete = <ThrowOnError extends boolean 
   >({
     ...options,
     url: '/v1/dataset/segments/batchDelete',
+  });
+};
+
+/**
+ * 获取知识库的分页列表。
+ */
+export const getV1DatasetList = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1DatasetListData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1DatasetListResponse, GetV1DatasetListError>({
+    ...options,
+    url: '/v1/dataset/list',
+  });
+};
+
+/**
+ * 重置方法序列
+ */
+export const postV1AgentResetSequenceByAgentId = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1AgentResetSequenceByAgentIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1AgentResetSequenceByAgentIdResponse,
+    PostV1AgentResetSequenceByAgentIdError
+  >({
+    ...options,
+    url: '/v1/agent/resetSequence/{agentId}',
+  });
+};
+
+/**
+ * retrieveExternal
+ */
+export const getV1DatasetByIdRetrieveExternal = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1DatasetByIdRetrieveExternalData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1DatasetByIdRetrieveExternalResponse,
+    GetV1DatasetByIdRetrieveExternalError
+  >({
+    ...options,
+    url: '/v1/dataset/{id}/retrieve/external',
+  });
+};
+
+/**
+ * 检索记录 片段详情
+ */
+export const getV1DatasetRetrieveHistoryById = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1DatasetRetrieveHistoryByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1DatasetRetrieveHistoryByIdResponse,
+    GetV1DatasetRetrieveHistoryByIdError
+  >({
+    ...options,
+    url: '/v1/dataset/retrieve/history/{id}',
+  });
+};
+
+/**
+ * 重置密码-验证邮箱
+ */
+export const postV1UserResetPwdCaptcha = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1UserResetPwdCaptchaData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1UserResetPwdCaptchaResponse,
+    PostV1UserResetPwdCaptchaError
+  >({
+    ...options,
+    url: '/v1/user/resetPwd/captcha',
+  });
+};
+
+/**
+ * 重置密码-检查验证码
+ */
+export const postV1UserResetPwdCaptchaVerify = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1UserResetPwdCaptchaVerifyData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1UserResetPwdCaptchaVerifyResponse,
+    PostV1UserResetPwdCaptchaVerifyError
+  >({
+    ...options,
+    url: '/v1/user/resetPwd/captcha/verify',
+  });
+};
+
+/**
+ * 重置密码-验证链接
+ */
+export const getV1UserResetPwdByUuid = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1UserResetPwdByUuidData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1UserResetPwdByUuidResponse,
+    GetV1UserResetPwdByUuidError
+  >({
+    ...options,
+    url: '/v1/user/resetPwd/{uuid}',
+  });
+};
+
+/**
+ * 重置密码
+ */
+export const postV1UserResetPwdByUuid = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1UserResetPwdByUuidData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1UserResetPwdByUuidResponse,
+    PostV1UserResetPwdByUuidError
+  >({
+    ...options,
+    url: '/v1/user/resetPwd/{uuid}',
+  });
+};
+
+/**
+ * 音频转文字
+ */
+export const postV1ChatAudioTranscriptions = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatAudioTranscriptionsData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ChatAudioTranscriptionsResponse,
+    PostV1ChatAudioTranscriptionsError
+  >({
+    ...options,
+    ...formDataBodySerializer,
+    headers: {
+      'Content-Type': null,
+    },
+    url: '/v1/chat/audio/transcriptions',
+  });
+};
+
+/**
+ * 文字转音频
+ */
+export const postV1ChatAudioSpeech = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatAudioSpeechData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ChatAudioSpeechResponse,
+    PostV1ChatAudioSpeechError
+  >({
+    ...options,
+    url: '/v1/chat/audio/speech',
+  });
+};
+
+/**
+ * 文字转音频
+ */
+export const getV1ChatAudioSpeech = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1ChatAudioSpeechData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1ChatAudioSpeechResponse,
+    GetV1ChatAudioSpeechError
+  >({
+    ...options,
+    url: '/v1/chat/audio/speech',
+  });
+};
+
+/**
+ * 重置密码
+ */
+export const postV1UserResetPwdConfirm = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1UserResetPwdConfirmData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1UserResetPwdConfirmResponse,
+    PostV1UserResetPwdConfirmError
+  >({
+    ...options,
+    url: '/v1/user/resetPwd/confirm',
+  });
+};
+
+/**
+ * agent聊天记录
+ * 该agent在本系统调试端、用户端、api调用产生的数据
+ */
+export const getV1ChatAgentChat = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1ChatAgentChatData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1ChatAgentChatResponse, GetV1ChatAgentChatError>({
+    ...options,
+    url: '/v1/chat/agentChat',
+  });
+};
+
+/**
+ * 模型厂商列表
+ */
+export const getV1ModelProviders = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1ModelProvidersData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1ModelProvidersResponse, GetV1ModelProvidersError>(
+    {
+      ...options,
+      url: '/v1/model/providers',
+    }
+  );
+};
+
+/**
+ * 发送会话消息
+ */
+export const postV1ChatStreamBySessionId = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatStreamBySessionIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ChatStreamBySessionIdResponse,
+    PostV1ChatStreamBySessionIdError
+  >({
+    ...options,
+    url: '/v1/chat/stream/{sessionId}',
+  });
+};
+
+/**
+ * 未命名接口
+ */
+export const getApiChatbotV1DeviceList = <ThrowOnError extends boolean = false>(
+  options?: Options<GetApiChatbotV1DeviceListData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetApiChatbotV1DeviceListResponse,
+    GetApiChatbotV1DeviceListError
+  >({
+    ...options,
+    url: '/api/chatbot/v1/device/list',
   });
 };

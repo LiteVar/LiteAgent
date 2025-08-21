@@ -66,3 +66,11 @@
 .ant-modal-body, .ant-modal-footer {
   padding: 20px 24px !important;
 }
+
+.ant-typography-expand {
+    color: #2a82e4!important;
+}
+
+.ant-typography-collapse {
+    color: #2a82e4!important;
+}

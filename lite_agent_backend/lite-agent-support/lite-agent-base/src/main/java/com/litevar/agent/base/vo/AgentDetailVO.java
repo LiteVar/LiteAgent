@@ -15,6 +15,8 @@ import java.util.List;
 public class AgentDetailVO {
     private Agent agent;
     private LlmModel model;
+    private LlmModel ttsModel;
+    private LlmModel asrModel;
 
     /**
      * 方法列表

@@ -19,18 +19,19 @@ public class ResponseMessageHandler extends AgentMessageHandler {
     private final Map<String, CompletionResponse> responseMap = new HashMap<>();
     @Getter
     private String status = "PROCESSING";
-    private final String agentId, taskId;
+    private final String agentId, requestId, taskId;
 
     public static final String STATE_COMPLETED = "COMPLETED";
 
-    public ResponseMessageHandler(String agentId, String taskId) {
+    public ResponseMessageHandler(String agentId, String requestId, String taskId) {
         this.agentId = agentId;
+        this.requestId = requestId;
         this.taskId = taskId;
     }
 
     @Override
     public void LlmMsg(LlmMessage llmMessage) {
-        if (StrUtil.equals(llmMessage.getTaskId(), this.taskId)) {
+        if (StrUtil.equals(llmMessage.getRequestId(), this.requestId)) {
             this.responseMap.put(llmMessage.getAgentId(), llmMessage.getResponse());
         }
     }

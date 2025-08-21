@@ -14,12 +14,15 @@ ToolDTO _$ToolDTOFromJson(Map<String, dynamic> json) => ToolDTO(
       json['description'] as String?,
       (json['schemaType'] as num?)?.toInt(),
       json['schemaStr'] as String?,
-      json['openSchemaStr'] as String?,
       json['apiKey'] as String?,
       json['apiKeyType'] as String?,
       json['shareFlag'] as bool?,
       json['createTime'] as String?,
       json['updateTime'] as String?,
+      json['autoAgent'] as bool?,
+      (json['functionList'] as List<dynamic>?)
+          ?.map((e) => FunctionDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
 
 Map<String, dynamic> _$ToolDTOToJson(ToolDTO instance) => <String, dynamic>{
@@ -30,10 +33,11 @@ Map<String, dynamic> _$ToolDTOToJson(ToolDTO instance) => <String, dynamic>{
       'description': instance.description,
       'schemaType': instance.schemaType,
       'schemaStr': instance.schemaStr,
-      'openSchemaStr': instance.openSchemaStr,
       'apiKey': instance.apiKey,
       'apiKeyType': instance.apiKeyType,
       'shareFlag': instance.shareFlag,
       'createTime': instance.createTime,
       'updateTime': instance.updateTime,
+      'autoAgent': instance.autoAgent,
+      'functionList': instance.functionList,
     };

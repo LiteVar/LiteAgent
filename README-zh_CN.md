@@ -22,7 +22,7 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
   - 分发Agent(Web, Desktop)
   - 反思Agent(Web, Desktop)
 - Agent模式支持：并行、串行、拒绝
-- Auto Multi Agent(Web)
+- Auto Multi Agent(Web, Desktop)
 
 ### 2. 工具支持
 

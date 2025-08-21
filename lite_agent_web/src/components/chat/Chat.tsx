@@ -1,43 +1,24 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import {
-  AgentDetailVO,
-  OutMessage,
-} from '@/client';
+import React, { useEffect, useMemo } from 'react';
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';
 import ScrollToBottom from './ScrollToBottom';
 import ChatHeader from './ChatHeader';
-import useChatHandleEvent from '@/hooks/useChatHandleEvent';
+import { useChatContext, ChatProvider } from '@/contexts/ChatContext';
 import CloseSvg from '@/assets/dashboard/close.svg';
 import { Modal } from 'antd';
-import SearchResults from '../../pages/dataset/retrievalTest/components/SearchResults';
 import ChatThoughtProcess from './ChatThoughtProcess';
 import { debounce } from 'lodash';
+import { ChatProps } from '@/types/chat';
+import SearchResults from '@/pages/dataset/retrievalTest/components/SearchResults';
+import { AgentDetailVO } from '@/client';
 
-// 扩展消息类型，兼容后续扩展
-export type AgentMessage = OutMessage & {
-  content?: any;
-  think?: any;
-  createTime?: string;
-  messages?: AgentMessage[];
-};
-
-export type AgentMessageMap = {
-  [id: string]: {
-    messages: AgentMessage[];
-  };
-};
-
-interface IChatProps {
-  mode: 'dev' | 'prod';
-  agentInfo: AgentDetailVO | undefined;
+// 内部 Chat 组件，使用 Context
+const ChatInner: React.FC<{
   agentId: string;
-  asrEnabled: boolean;
-  setAgentMap?(agentMap: AgentMessageMap): void;
-}
-
-const Chat: React.FC<IChatProps> = ({ mode = 'prod', agentId, agentInfo, setAgentMap }) => {
-
+  agentInfo: AgentDetailVO;
+  setAgentMap?: (map: any) => void;
+  mode: 'prod' | 'dev';
+}> = ({ agentId, agentInfo, setAgentMap, mode }) => {
   const {
     messagesMap,
     onResetSession,
@@ -64,7 +45,7 @@ const Chat: React.FC<IChatProps> = ({ mode = 'prod', agentId, agentInfo, setAgen
     fetchData,
     hasMore,
     lastThinkMessage,
-  } = useChatHandleEvent({ mode, agentId, agentInfo });
+  } = useChatContext();
 
   const messages = useMemo(() => messagesMap?.[agentId]?.messages || [], [agentId, messagesMap]);
 
@@ -135,7 +116,10 @@ const Chat: React.FC<IChatProps> = ({ mode = 'prod', agentId, agentInfo, setAgen
             }
           >
             {clearList.slice(0, 3).map((clearMessage) => (
-              <div className="mb-3 text-[#999] text-xs text-center">{`${clearMessage.createTime} 消息已被清空`}</div>
+              <div
+                key={clearMessage.id}
+                className="mb-3 text-[#999] text-xs text-center"
+              >{`${clearMessage.createTime} 消息已被清空`}</div>
             ))}
             <ChatMessages
               lastThinkMessage={lastThinkMessage}
@@ -158,7 +142,10 @@ const Chat: React.FC<IChatProps> = ({ mode = 'prod', agentId, agentInfo, setAgen
             onCancel={() => setKnowledgeResultVisible(false)}
           >
             <div className="pt-3">
-              <div className="mb-6">{`检索内容: `}<span className="text-blue-400">{knowledgeQueryText}</span></div>
+              <div className="mb-6">
+                {`检索内容: `}
+                <span className="text-blue-400">{knowledgeQueryText}</span>
+              </div>
               <SearchResults results={knowledgeSearchResults} />
             </div>
           </Modal>
@@ -167,7 +154,7 @@ const Chat: React.FC<IChatProps> = ({ mode = 'prod', agentId, agentInfo, setAgen
             <ChatInput
               value={value}
               mode={mode}
-              agentType={agentInfo?.agent?.type}
+              agentType={agentInfo?.agent?.type!}
               onChange={onInputChange}
               onSend={onSendMessage}
               setAsrLoading={setAsrLoading}
@@ -176,19 +163,32 @@ const Chat: React.FC<IChatProps> = ({ mode = 'prod', agentId, agentInfo, setAgen
           </div>
         </div>
       </div>
-      {!!thinkDetailVisible && thinkMessageIndex != undefined && <div
-        className='flex-none w-[40%] min-w-[360px] bg-[#fff] h-full flex flex-col border-0 border-solid border-l border-l-[#D9D9D9]'>
-        <div className='h-[60px] pl-6 pr-8 flex items-center border-0 border-solid border-b border-b-[#D9D9D9]'>
-          <div className='text-lg text-[#333] flex-1'>过程详情</div>
-          <img onClick={onCloseThinkMessage} className='w-5 h-5 flex-none cursor-pointer' src={CloseSvg} />
+      {!!thinkDetailVisible && thinkMessageIndex != undefined && (
+        <div className="flex-none w-[40%] min-w-[360px] bg-[#fff] h-full flex flex-col border-0 border-solid border-l border-l-[#D9D9D9]">
+          <div className="h-[60px] pl-6 pr-8 flex items-center border-0 border-solid border-b border-b-[#D9D9D9]">
+            <div className="text-lg text-[#333] flex-1">过程详情</div>
+            <img onClick={onCloseThinkMessage} className="w-5 h-5 flex-none cursor-pointer" src={CloseSvg} />
+          </div>
+          <div ref={thinkScrollRef} className="p-6 flex-1 overflow-y-auto overflow-x-hidden text-black/85">
+            {(messages[thinkMessageIndex]?.thoughtProcessMessages?.length ?? 0) > 0 && (
+              <ChatThoughtProcess
+                onSearchKnowledgeResult={onSearchKnowledgeResult}
+                thoughtProcessMessages={messages[thinkMessageIndex]?.thoughtProcessMessages!}
+              />
+            )}
+          </div>
         </div>
-        <div ref={thinkScrollRef} className='p-6 flex-1 overflow-y-auto overflow-x-hidden text-black/85'>
-          {messages[thinkMessageIndex]?.thoughtProcessMessages?.length > 0 &&
-            <ChatThoughtProcess onSearchKnowledgeResult={onSearchKnowledgeResult}
-              thoughtProcessMessages={messages[thinkMessageIndex]?.thoughtProcessMessages} />}
-        </div>
-      </div>}
+      )}
     </div>
+  );
+};
+
+// 主 Chat 组件包装器，提供 Context
+const Chat: React.FC<ChatProps> = ({ mode = 'prod', agentId, agentInfo, setAgentMap }) => {
+  return (
+    <ChatProvider mode={mode} agentId={agentId} agentInfo={agentInfo!}>
+      <ChatInner agentId={agentId} agentInfo={agentInfo!} setAgentMap={setAgentMap} mode={mode} />
+    </ChatProvider>
   );
 };
 

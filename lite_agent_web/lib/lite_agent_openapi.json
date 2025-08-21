@@ -6215,6 +6215,40 @@
         },
         "security": []
       }
+    },
+    "/api/chatbot/v1/device/list": {
+      "get": {
+        "summary": "未命名接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "",
+            "required": false,
+            "example": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQwMTY1MTAsImlhdCI6MTc1MzkzMDExMCwiaXNzIjoid293bm93LXNlcnZlciIsInNvdXJjZSI6Indvd25vdy1zZXJ2ZXIiLCJzdWIiOiIxMzM3IiwidXNlcl9pZCI6MTMzN30.M9z1_8E-ax38BOWHQnb_im99Oa_rflZw3hUJlTGlOMTsWJlBWpi5Yad5lYTYDpz7eQBpLGRrBrMfuRCHx_DEcp857OsX04WQ5O4UXalA0tHEqD-mwIggeA9q1cQ4r49GjStWzQyb1M_YB-wsrUzld-QK0AmaBUqepRAHPs_1734wsJFU-tY7lUasMWELHMtwReMlAW-MOz9IkNcKIwo4slHyBVIGN0ibsTF6WymrNll1RuZckdVWrGU6sB1iQn1kZhunycpgOjICerLZllWXWtHgNpgCzYANRKh4-qmmT9MY_L_h3eCXtGZWMJQYAhQFTT5WHquuvEkoHsS8_m_pCQ",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
     }
   },
   "components": {

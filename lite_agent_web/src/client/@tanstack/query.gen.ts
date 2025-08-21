@@ -5,20 +5,16 @@ import { type UseMutationOptions, queryOptions } from '@tanstack/react-query';
 import {
   postV1AuthLogin,
   postV1AuthLoginOfInit,
-  postV1AuthLogout,
   getV1AuthInitStatus,
   getV1ToolList,
-  getV1ToolListWithFunction,
   getV1ToolDetailById,
   postV1ToolAdd,
   putV1ToolUpdate,
   deleteV1ToolById,
-  postV1ToolCheckSchema,
   postV1ModelAdd,
   deleteV1ModelById,
   putV1ModelUpdate,
   getV1ModelList,
-  getV1ModelProviders,
   postV1WorkspaceAdd,
   getV1WorkspaceList,
   getV1WorkspaceMemberList,
@@ -27,55 +23,40 @@ import {
   putV1WorkspaceMemberByMemberId,
   getV1WorkspaceActivateInfo,
   postV1WorkspaceActivateMember,
-  getV1AgentList,
-  getV1AgentAdminList,
   getV1AgentById,
   deleteV1AgentById,
   putV1AgentById,
-  getV1AgentAdminInfoById,
   postV1AgentAdd,
-  putV1AgentReleaseById,
   postV1AgentEnableShareById,
-  postV1AgentGenerateApiKeyById,
-  postV1AgentResetSequenceByAgentId,
-  postV1ChatInitSession,
   getV1ChatStream,
   postV1ChatInitSessionByAgentId,
-  postV1ChatStreamBySessionId,
-  postV1ChatClearSession,
-  postV1ChatSendBySessionId,
-  postV1ChatClearDebugRecord,
-  getV1ChatRecentAgent,
-  getV1ChatAgentChatByAgentId,
-  getV1ChatAgentChat,
-  postV1ChatAudioTranscriptions,
-  postV1ChatAudioSpeech,
-  getV1ChatAudioSpeech,
   getV1UserInfo,
   putV1UserUpdate,
   putV1UserUpdatePwd,
-  postV1UserResetPwdCaptcha,
-  postV1UserResetPwdCaptchaVerify,
-  postV1UserResetPwdConfirm,
-  getV1UserResetPwdByUuid,
-  postV1UserResetPwdByUuid,
+  getV1AgentList,
+  postV1ChatInitSession,
+  getV1ChatRecentAgent,
+  getV1ChatAgentChatByAgentId,
+  postV1ChatSendBySessionId,
+  getV1AgentAdminList,
+  getV1AgentAdminInfoById,
+  putV1AgentReleaseById,
   postV1FileUpload,
   getV1FileDownload,
+  postV1ChatClearSession,
+  postV1ToolCheckSchema,
+  postV1ChatClearDebugRecord,
+  postV1AuthLogout,
+  getV1ToolListWithFunction,
   postV1DatasetAdd,
   getV1DatasetById,
   putV1DatasetById,
   deleteV1DatasetById,
-  getV1DatasetList,
   getV1DatasetListDatasetsByAgent,
   putV1DatasetByIdShare,
-  getV1DatasetByIdRetrieve,
-  getV1DatasetByIdRetrieveExternal,
   getV1DatasetByIdRetrieveHistory,
-  getV1DatasetRetrieveHistoryById,
-  getV1DatasetByIdApiKeyGenerate,
   postV1DatasetByDatasetIdDocuments,
   getV1DatasetByDatasetIdDocuments,
-  postV1DatasetDocumentsSplit,
   putV1DatasetDocumentsByDocumentIdRename,
   deleteV1DatasetDocumentsByDocumentId,
   deleteV1DatasetDocumentsBatchDelete,
@@ -86,7 +67,27 @@ import {
   getV1DatasetDocumentsByDocumentIdSegmentsSearchByText,
   putV1DatasetSegmentsBySegmentId,
   deleteV1DatasetSegmentsBySegmentId,
+  getV1DatasetByIdRetrieve,
+  getV1DatasetByIdApiKeyGenerate,
+  postV1AgentGenerateApiKeyById,
+  postV1DatasetDocumentsSplit,
   deleteV1DatasetSegmentsBatchDelete,
+  getV1DatasetList,
+  postV1AgentResetSequenceByAgentId,
+  getV1DatasetByIdRetrieveExternal,
+  getV1DatasetRetrieveHistoryById,
+  postV1UserResetPwdCaptcha,
+  postV1UserResetPwdCaptchaVerify,
+  getV1UserResetPwdByUuid,
+  postV1UserResetPwdByUuid,
+  postV1ChatAudioTranscriptions,
+  postV1ChatAudioSpeech,
+  getV1ChatAudioSpeech,
+  postV1UserResetPwdConfirm,
+  getV1ChatAgentChat,
+  getV1ModelProviders,
+  postV1ChatStreamBySessionId,
+  getApiChatbotV1DeviceList,
 } from '../services.gen';
 import type {
   PostV1AuthLoginData,
@@ -95,11 +96,7 @@ import type {
   PostV1AuthLoginOfInitData,
   PostV1AuthLoginOfInitError,
   PostV1AuthLoginOfInitResponse,
-  PostV1AuthLogoutData,
-  PostV1AuthLogoutError,
-  PostV1AuthLogoutResponse,
   GetV1ToolListData,
-  GetV1ToolListWithFunctionData,
   GetV1ToolDetailByIdData,
   PostV1ToolAddData,
   PostV1ToolAddError,
@@ -110,9 +107,6 @@ import type {
   DeleteV1ToolByIdData,
   DeleteV1ToolByIdError,
   DeleteV1ToolByIdResponse,
-  PostV1ToolCheckSchemaData,
-  PostV1ToolCheckSchemaError,
-  PostV1ToolCheckSchemaResponse,
   PostV1ModelAddData,
   PostV1ModelAddError,
   PostV1ModelAddResponse,
@@ -123,7 +117,6 @@ import type {
   PutV1ModelUpdateError,
   PutV1ModelUpdateResponse,
   GetV1ModelListData,
-  GetV1ModelProvidersData,
   PostV1WorkspaceAddData,
   PostV1WorkspaceAddError,
   PostV1WorkspaceAddResponse,
@@ -142,8 +135,6 @@ import type {
   PostV1WorkspaceActivateMemberData,
   PostV1WorkspaceActivateMemberError,
   PostV1WorkspaceActivateMemberResponse,
-  GetV1AgentListData,
-  GetV1AgentAdminListData,
   GetV1AgentByIdData,
   DeleteV1AgentByIdData,
   DeleteV1AgentByIdError,
@@ -151,51 +142,16 @@ import type {
   PutV1AgentByIdData,
   PutV1AgentByIdError,
   PutV1AgentByIdResponse,
-  GetV1AgentAdminInfoByIdData,
   PostV1AgentAddData,
   PostV1AgentAddError,
   PostV1AgentAddResponse,
-  PutV1AgentReleaseByIdData,
-  PutV1AgentReleaseByIdError,
-  PutV1AgentReleaseByIdResponse,
   PostV1AgentEnableShareByIdData,
   PostV1AgentEnableShareByIdError,
   PostV1AgentEnableShareByIdResponse,
-  PostV1AgentGenerateApiKeyByIdData,
-  PostV1AgentGenerateApiKeyByIdError,
-  PostV1AgentGenerateApiKeyByIdResponse,
-  PostV1AgentResetSequenceByAgentIdData,
-  PostV1AgentResetSequenceByAgentIdError,
-  PostV1AgentResetSequenceByAgentIdResponse,
-  PostV1ChatInitSessionData,
-  PostV1ChatInitSessionError,
-  PostV1ChatInitSessionResponse,
   GetV1ChatStreamData,
   PostV1ChatInitSessionByAgentIdData,
   PostV1ChatInitSessionByAgentIdError,
   PostV1ChatInitSessionByAgentIdResponse,
-  PostV1ChatStreamBySessionIdData,
-  PostV1ChatStreamBySessionIdError,
-  PostV1ChatStreamBySessionIdResponse,
-  PostV1ChatClearSessionData,
-  PostV1ChatClearSessionError,
-  PostV1ChatClearSessionResponse,
-  PostV1ChatSendBySessionIdData,
-  PostV1ChatSendBySessionIdError,
-  PostV1ChatSendBySessionIdResponse,
-  PostV1ChatClearDebugRecordData,
-  PostV1ChatClearDebugRecordError,
-  PostV1ChatClearDebugRecordResponse,
-  GetV1ChatRecentAgentData,
-  GetV1ChatAgentChatByAgentIdData,
-  GetV1ChatAgentChatData,
-  PostV1ChatAudioTranscriptionsData,
-  PostV1ChatAudioTranscriptionsError,
-  PostV1ChatAudioTranscriptionsResponse,
-  PostV1ChatAudioSpeechData,
-  PostV1ChatAudioSpeechError,
-  PostV1ChatAudioSpeechResponse,
-  GetV1ChatAudioSpeechData,
   GetV1UserInfoData,
   PutV1UserUpdateData,
   PutV1UserUpdateError,
@@ -203,23 +159,37 @@ import type {
   PutV1UserUpdatePwdData,
   PutV1UserUpdatePwdError,
   PutV1UserUpdatePwdResponse,
-  PostV1UserResetPwdCaptchaData,
-  PostV1UserResetPwdCaptchaError,
-  PostV1UserResetPwdCaptchaResponse,
-  PostV1UserResetPwdCaptchaVerifyData,
-  PostV1UserResetPwdCaptchaVerifyError,
-  PostV1UserResetPwdCaptchaVerifyResponse,
-  PostV1UserResetPwdConfirmData,
-  PostV1UserResetPwdConfirmError,
-  PostV1UserResetPwdConfirmResponse,
-  GetV1UserResetPwdByUuidData,
-  PostV1UserResetPwdByUuidData,
-  PostV1UserResetPwdByUuidError,
-  PostV1UserResetPwdByUuidResponse,
+  GetV1AgentListData,
+  PostV1ChatInitSessionData,
+  PostV1ChatInitSessionError,
+  PostV1ChatInitSessionResponse,
+  GetV1ChatRecentAgentData,
+  GetV1ChatAgentChatByAgentIdData,
+  PostV1ChatSendBySessionIdData,
+  PostV1ChatSendBySessionIdError,
+  PostV1ChatSendBySessionIdResponse,
+  GetV1AgentAdminListData,
+  GetV1AgentAdminInfoByIdData,
+  PutV1AgentReleaseByIdData,
+  PutV1AgentReleaseByIdError,
+  PutV1AgentReleaseByIdResponse,
   PostV1FileUploadData,
   PostV1FileUploadError,
   PostV1FileUploadResponse,
   GetV1FileDownloadData,
+  PostV1ChatClearSessionData,
+  PostV1ChatClearSessionError,
+  PostV1ChatClearSessionResponse,
+  PostV1ToolCheckSchemaData,
+  PostV1ToolCheckSchemaError,
+  PostV1ToolCheckSchemaResponse,
+  PostV1ChatClearDebugRecordData,
+  PostV1ChatClearDebugRecordError,
+  PostV1ChatClearDebugRecordResponse,
+  PostV1AuthLogoutData,
+  PostV1AuthLogoutError,
+  PostV1AuthLogoutResponse,
+  GetV1ToolListWithFunctionData,
   PostV1DatasetAddData,
   PostV1DatasetAddError,
   PostV1DatasetAddResponse,
@@ -230,23 +200,15 @@ import type {
   DeleteV1DatasetByIdData,
   DeleteV1DatasetByIdError,
   DeleteV1DatasetByIdResponse,
-  GetV1DatasetListData,
   GetV1DatasetListDatasetsByAgentData,
   PutV1DatasetByIdShareData,
   PutV1DatasetByIdShareError,
   PutV1DatasetByIdShareResponse,
-  GetV1DatasetByIdRetrieveData,
-  GetV1DatasetByIdRetrieveExternalData,
   GetV1DatasetByIdRetrieveHistoryData,
-  GetV1DatasetRetrieveHistoryByIdData,
-  GetV1DatasetByIdApiKeyGenerateData,
   PostV1DatasetByDatasetIdDocumentsData,
   PostV1DatasetByDatasetIdDocumentsError,
   PostV1DatasetByDatasetIdDocumentsResponse,
   GetV1DatasetByDatasetIdDocumentsData,
-  PostV1DatasetDocumentsSplitData,
-  PostV1DatasetDocumentsSplitError,
-  PostV1DatasetDocumentsSplitResponse,
   PutV1DatasetDocumentsByDocumentIdRenameData,
   PutV1DatasetDocumentsByDocumentIdRenameError,
   PutV1DatasetDocumentsByDocumentIdRenameResponse,
@@ -273,9 +235,49 @@ import type {
   DeleteV1DatasetSegmentsBySegmentIdData,
   DeleteV1DatasetSegmentsBySegmentIdError,
   DeleteV1DatasetSegmentsBySegmentIdResponse,
+  GetV1DatasetByIdRetrieveData,
+  GetV1DatasetByIdApiKeyGenerateData,
+  PostV1AgentGenerateApiKeyByIdData,
+  PostV1AgentGenerateApiKeyByIdError,
+  PostV1AgentGenerateApiKeyByIdResponse,
+  PostV1DatasetDocumentsSplitData,
+  PostV1DatasetDocumentsSplitError,
+  PostV1DatasetDocumentsSplitResponse,
   DeleteV1DatasetSegmentsBatchDeleteData,
   DeleteV1DatasetSegmentsBatchDeleteError,
   DeleteV1DatasetSegmentsBatchDeleteResponse,
+  GetV1DatasetListData,
+  PostV1AgentResetSequenceByAgentIdData,
+  PostV1AgentResetSequenceByAgentIdError,
+  PostV1AgentResetSequenceByAgentIdResponse,
+  GetV1DatasetByIdRetrieveExternalData,
+  GetV1DatasetRetrieveHistoryByIdData,
+  PostV1UserResetPwdCaptchaData,
+  PostV1UserResetPwdCaptchaError,
+  PostV1UserResetPwdCaptchaResponse,
+  PostV1UserResetPwdCaptchaVerifyData,
+  PostV1UserResetPwdCaptchaVerifyError,
+  PostV1UserResetPwdCaptchaVerifyResponse,
+  GetV1UserResetPwdByUuidData,
+  PostV1UserResetPwdByUuidData,
+  PostV1UserResetPwdByUuidError,
+  PostV1UserResetPwdByUuidResponse,
+  PostV1ChatAudioTranscriptionsData,
+  PostV1ChatAudioTranscriptionsError,
+  PostV1ChatAudioTranscriptionsResponse,
+  PostV1ChatAudioSpeechData,
+  PostV1ChatAudioSpeechError,
+  PostV1ChatAudioSpeechResponse,
+  GetV1ChatAudioSpeechData,
+  PostV1UserResetPwdConfirmData,
+  PostV1UserResetPwdConfirmError,
+  PostV1UserResetPwdConfirmResponse,
+  GetV1ChatAgentChatData,
+  GetV1ModelProvidersData,
+  PostV1ChatStreamBySessionIdData,
+  PostV1ChatStreamBySessionIdError,
+  PostV1ChatStreamBySessionIdResponse,
+  GetApiChatbotV1DeviceListData,
 } from '../types.gen';
 
 export const postV1AuthLoginOptions = (options: Options<PostV1AuthLoginData>) => {
@@ -354,44 +356,6 @@ export const postV1AuthLoginOfInitMutation: UseMutationOptions<
   },
 };
 
-export const postV1AuthLogoutOptions = (options: Options<PostV1AuthLogoutData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1AuthLogout({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1AuthLogout',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1AuthLogoutMutation: UseMutationOptions<
-  PostV1AuthLogoutResponse,
-  PostV1AuthLogoutError,
-  Options<PostV1AuthLogoutData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1AuthLogout({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
 export const getV1AuthInitStatusOptions = (options?: Options) => {
   return queryOptions({
     queryFn: async ({ queryKey }) => {
@@ -429,30 +393,6 @@ export const getV1ToolListOptions = (options: Options<GetV1ToolListData>) => {
     queryKey: [
       {
         scope: 'getV1ToolList',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const getV1ToolListWithFunctionOptions = (options: Options<GetV1ToolListWithFunctionData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1ToolListWithFunction({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1ToolListWithFunction',
         params: {
           body: options.body,
           headers: options.headers,
@@ -602,44 +542,6 @@ export const deleteV1ToolByIdMutation: UseMutationOptions<
   },
 };
 
-export const postV1ToolCheckSchemaOptions = (options: Options<PostV1ToolCheckSchemaData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1ToolCheckSchema({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1ToolCheckSchema',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ToolCheckSchemaMutation: UseMutationOptions<
-  PostV1ToolCheckSchemaResponse,
-  PostV1ToolCheckSchemaError,
-  Options<PostV1ToolCheckSchemaData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1ToolCheckSchema({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
 export const postV1ModelAddOptions = (options: Options<PostV1ModelAddData>) => {
   return queryOptions({
     queryFn: async ({ queryKey }) => {
@@ -767,30 +669,6 @@ export const getV1ModelListOptions = (options: Options<GetV1ModelListData>) => {
     queryKey: [
       {
         scope: 'getV1ModelList',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const getV1ModelProvidersOptions = (options: Options<GetV1ModelProvidersData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1ModelProviders({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1ModelProviders',
         params: {
           body: options.body,
           headers: options.headers,
@@ -1068,54 +946,6 @@ export const postV1WorkspaceActivateMemberMutation: UseMutationOptions<
   },
 };
 
-export const getV1AgentListOptions = (options: Options<GetV1AgentListData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1AgentList({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1AgentList',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const getV1AgentAdminListOptions = (options: Options<GetV1AgentAdminListData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1AgentAdminList({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1AgentAdminList',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
 export const getV1AgentByIdOptions = (options: Options<GetV1AgentByIdData>) => {
   return queryOptions({
     queryFn: async ({ queryKey }) => {
@@ -1216,30 +1046,6 @@ export const putV1AgentByIdMutation: UseMutationOptions<
   },
 };
 
-export const getV1AgentAdminInfoByIdOptions = (options: Options<GetV1AgentAdminInfoByIdData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1AgentAdminInfoById({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1AgentAdminInfoById',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
 export const postV1AgentAddOptions = (options: Options<PostV1AgentAddData>) => {
   return queryOptions({
     queryFn: async ({ queryKey }) => {
@@ -1278,44 +1084,6 @@ export const postV1AgentAddMutation: UseMutationOptions<
   },
 };
 
-export const putV1AgentReleaseByIdOptions = (options: Options<PutV1AgentReleaseByIdData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await putV1AgentReleaseById({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'putV1AgentReleaseById',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const putV1AgentReleaseByIdMutation: UseMutationOptions<
-  PutV1AgentReleaseByIdResponse,
-  PutV1AgentReleaseByIdError,
-  Options<PutV1AgentReleaseByIdData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await putV1AgentReleaseById({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
 export const postV1AgentEnableShareByIdOptions = (options: Options<PostV1AgentEnableShareByIdData>) => {
   return queryOptions({
     queryFn: async ({ queryKey }) => {
@@ -1347,122 +1115,6 @@ export const postV1AgentEnableShareByIdMutation: UseMutationOptions<
 > = {
   mutationFn: async (options) => {
     const { data } = await postV1AgentEnableShareById({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const postV1AgentGenerateApiKeyByIdOptions = (options: Options<PostV1AgentGenerateApiKeyByIdData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1AgentGenerateApiKeyById({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1AgentGenerateApiKeyById',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1AgentGenerateApiKeyByIdMutation: UseMutationOptions<
-  PostV1AgentGenerateApiKeyByIdResponse,
-  PostV1AgentGenerateApiKeyByIdError,
-  Options<PostV1AgentGenerateApiKeyByIdData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1AgentGenerateApiKeyById({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const postV1AgentResetSequenceByAgentIdOptions = (
-  options: Options<PostV1AgentResetSequenceByAgentIdData>
-) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1AgentResetSequenceByAgentId({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1AgentResetSequenceByAgentId',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1AgentResetSequenceByAgentIdMutation: UseMutationOptions<
-  PostV1AgentResetSequenceByAgentIdResponse,
-  PostV1AgentResetSequenceByAgentIdError,
-  Options<PostV1AgentResetSequenceByAgentIdData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1AgentResetSequenceByAgentId({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const postV1ChatInitSessionOptions = (options?: Options<PostV1ChatInitSessionData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1ChatInitSession({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1ChatInitSession',
-        params: {
-          body: options?.body,
-          headers: options?.headers,
-          path: options?.path,
-          query: options?.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ChatInitSessionMutation: UseMutationOptions<
-  PostV1ChatInitSessionResponse,
-  PostV1ChatInitSessionError,
-  Options<PostV1ChatInitSessionData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1ChatInitSession({
       ...options,
       throwOnError: true,
     });
@@ -1532,330 +1184,6 @@ export const postV1ChatInitSessionByAgentIdMutation: UseMutationOptions<
     });
     return data;
   },
-};
-
-export const postV1ChatStreamBySessionIdOptions = (options: Options<PostV1ChatStreamBySessionIdData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1ChatStreamBySessionId({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1ChatStreamBySessionId',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ChatStreamBySessionIdMutation: UseMutationOptions<
-  PostV1ChatStreamBySessionIdResponse,
-  PostV1ChatStreamBySessionIdError,
-  Options<PostV1ChatStreamBySessionIdData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1ChatStreamBySessionId({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const postV1ChatClearSessionOptions = (options: Options<PostV1ChatClearSessionData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1ChatClearSession({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1ChatClearSession',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ChatClearSessionMutation: UseMutationOptions<
-  PostV1ChatClearSessionResponse,
-  PostV1ChatClearSessionError,
-  Options<PostV1ChatClearSessionData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1ChatClearSession({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const postV1ChatSendBySessionIdOptions = (options: Options<PostV1ChatSendBySessionIdData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1ChatSendBySessionId({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1ChatSendBySessionId',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ChatSendBySessionIdMutation: UseMutationOptions<
-  PostV1ChatSendBySessionIdResponse,
-  PostV1ChatSendBySessionIdError,
-  Options<PostV1ChatSendBySessionIdData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1ChatSendBySessionId({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const postV1ChatClearDebugRecordOptions = (options: Options<PostV1ChatClearDebugRecordData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1ChatClearDebugRecord({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1ChatClearDebugRecord',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ChatClearDebugRecordMutation: UseMutationOptions<
-  PostV1ChatClearDebugRecordResponse,
-  PostV1ChatClearDebugRecordError,
-  Options<PostV1ChatClearDebugRecordData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1ChatClearDebugRecord({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const getV1ChatRecentAgentOptions = (options: Options<GetV1ChatRecentAgentData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1ChatRecentAgent({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1ChatRecentAgent',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const getV1ChatAgentChatByAgentIdOptions = (options: Options<GetV1ChatAgentChatByAgentIdData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1ChatAgentChatByAgentId({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1ChatAgentChatByAgentId',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const getV1ChatAgentChatOptions = (options: Options<GetV1ChatAgentChatData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1ChatAgentChat({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1ChatAgentChat',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ChatAudioTranscriptionsOptions = (options: Options<PostV1ChatAudioTranscriptionsData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1ChatAudioTranscriptions({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1ChatAudioTranscriptions',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ChatAudioTranscriptionsMutation: UseMutationOptions<
-  PostV1ChatAudioTranscriptionsResponse,
-  PostV1ChatAudioTranscriptionsError,
-  Options<PostV1ChatAudioTranscriptionsData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1ChatAudioTranscriptions({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const postV1ChatAudioSpeechOptions = (options: Options<PostV1ChatAudioSpeechData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1ChatAudioSpeech({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1ChatAudioSpeech',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1ChatAudioSpeechMutation: UseMutationOptions<
-  PostV1ChatAudioSpeechResponse,
-  PostV1ChatAudioSpeechError,
-  Options<PostV1ChatAudioSpeechData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1ChatAudioSpeech({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const getV1ChatAudioSpeechOptions = (options: Options<GetV1ChatAudioSpeechData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1ChatAudioSpeech({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1ChatAudioSpeech',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
 };
 
 export const getV1UserInfoOptions = (options: Options<GetV1UserInfoData>) => {
@@ -1958,10 +1286,10 @@ export const putV1UserUpdatePwdMutation: UseMutationOptions<
   },
 };
 
-export const postV1UserResetPwdCaptchaOptions = (options: Options<PostV1UserResetPwdCaptchaData>) => {
+export const getV1AgentListOptions = (options: Options<GetV1AgentListData>) => {
   return queryOptions({
     queryFn: async ({ queryKey }) => {
-      const { data } = await postV1UserResetPwdCaptcha({
+      const { data } = await getV1AgentList({
         ...options,
         ...queryKey[0].params,
         throwOnError: true,
@@ -1970,7 +1298,7 @@ export const postV1UserResetPwdCaptchaOptions = (options: Options<PostV1UserRese
     },
     queryKey: [
       {
-        scope: 'postV1UserResetPwdCaptcha',
+        scope: 'getV1AgentList',
         params: {
           body: options.body,
           headers: options.headers,
@@ -1982,13 +1310,37 @@ export const postV1UserResetPwdCaptchaOptions = (options: Options<PostV1UserRese
   });
 };
 
-export const postV1UserResetPwdCaptchaMutation: UseMutationOptions<
-  PostV1UserResetPwdCaptchaResponse,
-  PostV1UserResetPwdCaptchaError,
-  Options<PostV1UserResetPwdCaptchaData>
+export const postV1ChatInitSessionOptions = (options: Options<PostV1ChatInitSessionData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1ChatInitSession({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1ChatInitSession',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatInitSessionMutation: UseMutationOptions<
+  PostV1ChatInitSessionResponse,
+  PostV1ChatInitSessionError,
+  Options<PostV1ChatInitSessionData>
 > = {
   mutationFn: async (options) => {
-    const { data } = await postV1UserResetPwdCaptcha({
+    const { data } = await postV1ChatInitSession({
       ...options,
       throwOnError: true,
     });
@@ -1996,12 +1348,10 @@ export const postV1UserResetPwdCaptchaMutation: UseMutationOptions<
   },
 };
 
-export const postV1UserResetPwdCaptchaVerifyOptions = (
-  options: Options<PostV1UserResetPwdCaptchaVerifyData>
-) => {
+export const getV1ChatRecentAgentOptions = (options: Options<GetV1ChatRecentAgentData>) => {
   return queryOptions({
     queryFn: async ({ queryKey }) => {
-      const { data } = await postV1UserResetPwdCaptchaVerify({
+      const { data } = await getV1ChatRecentAgent({
         ...options,
         ...queryKey[0].params,
         throwOnError: true,
@@ -2010,7 +1360,7 @@ export const postV1UserResetPwdCaptchaVerifyOptions = (
     },
     queryKey: [
       {
-        scope: 'postV1UserResetPwdCaptchaVerify',
+        scope: 'getV1ChatRecentAgent',
         params: {
           body: options.body,
           headers: options.headers,
@@ -2022,13 +1372,61 @@ export const postV1UserResetPwdCaptchaVerifyOptions = (
   });
 };
 
-export const postV1UserResetPwdCaptchaVerifyMutation: UseMutationOptions<
-  PostV1UserResetPwdCaptchaVerifyResponse,
-  PostV1UserResetPwdCaptchaVerifyError,
-  Options<PostV1UserResetPwdCaptchaVerifyData>
+export const getV1ChatAgentChatByAgentIdOptions = (options: Options<GetV1ChatAgentChatByAgentIdData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1ChatAgentChatByAgentId({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1ChatAgentChatByAgentId',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatSendBySessionIdOptions = (options: Options<PostV1ChatSendBySessionIdData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1ChatSendBySessionId({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1ChatSendBySessionId',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatSendBySessionIdMutation: UseMutationOptions<
+  PostV1ChatSendBySessionIdResponse,
+  PostV1ChatSendBySessionIdError,
+  Options<PostV1ChatSendBySessionIdData>
 > = {
   mutationFn: async (options) => {
-    const { data } = await postV1UserResetPwdCaptchaVerify({
+    const { data } = await postV1ChatSendBySessionId({
       ...options,
       throwOnError: true,
     });
@@ -2036,10 +1434,10 @@ export const postV1UserResetPwdCaptchaVerifyMutation: UseMutationOptions<
   },
 };
 
-export const postV1UserResetPwdConfirmOptions = (options: Options<PostV1UserResetPwdConfirmData>) => {
+export const getV1AgentAdminListOptions = (options: Options<GetV1AgentAdminListData>) => {
   return queryOptions({
     queryFn: async ({ queryKey }) => {
-      const { data } = await postV1UserResetPwdConfirm({
+      const { data } = await getV1AgentAdminList({
         ...options,
         ...queryKey[0].params,
         throwOnError: true,
@@ -2048,7 +1446,7 @@ export const postV1UserResetPwdConfirmOptions = (options: Options<PostV1UserRese
     },
     queryKey: [
       {
-        scope: 'postV1UserResetPwdConfirm',
+        scope: 'getV1AgentAdminList',
         params: {
           body: options.body,
           headers: options.headers,
@@ -2060,75 +1458,61 @@ export const postV1UserResetPwdConfirmOptions = (options: Options<PostV1UserRese
   });
 };
 
-export const postV1UserResetPwdConfirmMutation: UseMutationOptions<
-  PostV1UserResetPwdConfirmResponse,
-  PostV1UserResetPwdConfirmError,
-  Options<PostV1UserResetPwdConfirmData>
+export const getV1AgentAdminInfoByIdOptions = (options: Options<GetV1AgentAdminInfoByIdData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1AgentAdminInfoById({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1AgentAdminInfoById',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const putV1AgentReleaseByIdOptions = (options: Options<PutV1AgentReleaseByIdData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await putV1AgentReleaseById({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'putV1AgentReleaseById',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const putV1AgentReleaseByIdMutation: UseMutationOptions<
+  PutV1AgentReleaseByIdResponse,
+  PutV1AgentReleaseByIdError,
+  Options<PutV1AgentReleaseByIdData>
 > = {
   mutationFn: async (options) => {
-    const { data } = await postV1UserResetPwdConfirm({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
-};
-
-export const getV1UserResetPwdByUuidOptions = (options: Options<GetV1UserResetPwdByUuidData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1UserResetPwdByUuid({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1UserResetPwdByUuid',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1UserResetPwdByUuidOptions = (options: Options<PostV1UserResetPwdByUuidData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1UserResetPwdByUuid({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1UserResetPwdByUuid',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1UserResetPwdByUuidMutation: UseMutationOptions<
-  PostV1UserResetPwdByUuidResponse,
-  PostV1UserResetPwdByUuidError,
-  Options<PostV1UserResetPwdByUuidData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1UserResetPwdByUuid({
+    const { data } = await putV1AgentReleaseById({
       ...options,
       throwOnError: true,
     });
@@ -2187,6 +1571,182 @@ export const getV1FileDownloadOptions = (options: Options<GetV1FileDownloadData>
     queryKey: [
       {
         scope: 'getV1FileDownload',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatClearSessionOptions = (options: Options<PostV1ChatClearSessionData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1ChatClearSession({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1ChatClearSession',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatClearSessionMutation: UseMutationOptions<
+  PostV1ChatClearSessionResponse,
+  PostV1ChatClearSessionError,
+  Options<PostV1ChatClearSessionData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1ChatClearSession({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const postV1ToolCheckSchemaOptions = (options: Options<PostV1ToolCheckSchemaData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1ToolCheckSchema({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1ToolCheckSchema',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ToolCheckSchemaMutation: UseMutationOptions<
+  PostV1ToolCheckSchemaResponse,
+  PostV1ToolCheckSchemaError,
+  Options<PostV1ToolCheckSchemaData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1ToolCheckSchema({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const postV1ChatClearDebugRecordOptions = (options: Options<PostV1ChatClearDebugRecordData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1ChatClearDebugRecord({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1ChatClearDebugRecord',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatClearDebugRecordMutation: UseMutationOptions<
+  PostV1ChatClearDebugRecordResponse,
+  PostV1ChatClearDebugRecordError,
+  Options<PostV1ChatClearDebugRecordData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1ChatClearDebugRecord({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const postV1AuthLogoutOptions = (options: Options<PostV1AuthLogoutData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1AuthLogout({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1AuthLogout',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1AuthLogoutMutation: UseMutationOptions<
+  PostV1AuthLogoutResponse,
+  PostV1AuthLogoutError,
+  Options<PostV1AuthLogoutData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1AuthLogout({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const getV1ToolListWithFunctionOptions = (options: Options<GetV1ToolListWithFunctionData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1ToolListWithFunction({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1ToolListWithFunction',
         params: {
           body: options.body,
           headers: options.headers,
@@ -2336,30 +1896,6 @@ export const deleteV1DatasetByIdMutation: UseMutationOptions<
   },
 };
 
-export const getV1DatasetListOptions = (options: Options<GetV1DatasetListData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1DatasetList({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1DatasetList',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
 export const getV1DatasetListDatasetsByAgentOptions = (
   options: Options<GetV1DatasetListDatasetsByAgentData>
 ) => {
@@ -2424,56 +1960,6 @@ export const putV1DatasetByIdShareMutation: UseMutationOptions<
   },
 };
 
-export const getV1DatasetByIdRetrieveOptions = (options: Options<GetV1DatasetByIdRetrieveData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1DatasetByIdRetrieve({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1DatasetByIdRetrieve',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const getV1DatasetByIdRetrieveExternalOptions = (
-  options: Options<GetV1DatasetByIdRetrieveExternalData>
-) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1DatasetByIdRetrieveExternal({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1DatasetByIdRetrieveExternal',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
 export const getV1DatasetByIdRetrieveHistoryOptions = (
   options: Options<GetV1DatasetByIdRetrieveHistoryData>
 ) => {
@@ -2489,58 +1975,6 @@ export const getV1DatasetByIdRetrieveHistoryOptions = (
     queryKey: [
       {
         scope: 'getV1DatasetByIdRetrieveHistory',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const getV1DatasetRetrieveHistoryByIdOptions = (
-  options: Options<GetV1DatasetRetrieveHistoryByIdData>
-) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1DatasetRetrieveHistoryById({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1DatasetRetrieveHistoryById',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const getV1DatasetByIdApiKeyGenerateOptions = (
-  options: Options<GetV1DatasetByIdApiKeyGenerateData>
-) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await getV1DatasetByIdApiKeyGenerate({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'getV1DatasetByIdApiKeyGenerate',
         params: {
           body: options.body,
           headers: options.headers,
@@ -2616,44 +2050,6 @@ export const getV1DatasetByDatasetIdDocumentsOptions = (
       },
     ],
   });
-};
-
-export const postV1DatasetDocumentsSplitOptions = (options: Options<PostV1DatasetDocumentsSplitData>) => {
-  return queryOptions({
-    queryFn: async ({ queryKey }) => {
-      const { data } = await postV1DatasetDocumentsSplit({
-        ...options,
-        ...queryKey[0].params,
-        throwOnError: true,
-      });
-      return data;
-    },
-    queryKey: [
-      {
-        scope: 'postV1DatasetDocumentsSplit',
-        params: {
-          body: options.body,
-          headers: options.headers,
-          path: options.path,
-          query: options.query,
-        },
-      },
-    ],
-  });
-};
-
-export const postV1DatasetDocumentsSplitMutation: UseMutationOptions<
-  PostV1DatasetDocumentsSplitResponse,
-  PostV1DatasetDocumentsSplitError,
-  Options<PostV1DatasetDocumentsSplitData>
-> = {
-  mutationFn: async (options) => {
-    const { data } = await postV1DatasetDocumentsSplit({
-      ...options,
-      throwOnError: true,
-    });
-    return data;
-  },
 };
 
 export const putV1DatasetDocumentsByDocumentIdRenameOptions = (
@@ -3028,6 +2424,132 @@ export const deleteV1DatasetSegmentsBySegmentIdMutation: UseMutationOptions<
   },
 };
 
+export const getV1DatasetByIdRetrieveOptions = (options: Options<GetV1DatasetByIdRetrieveData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1DatasetByIdRetrieve({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1DatasetByIdRetrieve',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const getV1DatasetByIdApiKeyGenerateOptions = (
+  options: Options<GetV1DatasetByIdApiKeyGenerateData>
+) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1DatasetByIdApiKeyGenerate({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1DatasetByIdApiKeyGenerate',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1AgentGenerateApiKeyByIdOptions = (options: Options<PostV1AgentGenerateApiKeyByIdData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1AgentGenerateApiKeyById({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1AgentGenerateApiKeyById',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1AgentGenerateApiKeyByIdMutation: UseMutationOptions<
+  PostV1AgentGenerateApiKeyByIdResponse,
+  PostV1AgentGenerateApiKeyByIdError,
+  Options<PostV1AgentGenerateApiKeyByIdData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1AgentGenerateApiKeyById({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const postV1DatasetDocumentsSplitOptions = (options: Options<PostV1DatasetDocumentsSplitData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1DatasetDocumentsSplit({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1DatasetDocumentsSplit',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1DatasetDocumentsSplitMutation: UseMutationOptions<
+  PostV1DatasetDocumentsSplitResponse,
+  PostV1DatasetDocumentsSplitError,
+  Options<PostV1DatasetDocumentsSplitData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1DatasetDocumentsSplit({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
 export const deleteV1DatasetSegmentsBatchDeleteOptions = (
   options: Options<DeleteV1DatasetSegmentsBatchDeleteData>
 ) => {
@@ -3066,4 +2588,508 @@ export const deleteV1DatasetSegmentsBatchDeleteMutation: UseMutationOptions<
     });
     return data;
   },
+};
+
+export const getV1DatasetListOptions = (options: Options<GetV1DatasetListData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1DatasetList({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1DatasetList',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1AgentResetSequenceByAgentIdOptions = (
+  options: Options<PostV1AgentResetSequenceByAgentIdData>
+) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1AgentResetSequenceByAgentId({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1AgentResetSequenceByAgentId',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1AgentResetSequenceByAgentIdMutation: UseMutationOptions<
+  PostV1AgentResetSequenceByAgentIdResponse,
+  PostV1AgentResetSequenceByAgentIdError,
+  Options<PostV1AgentResetSequenceByAgentIdData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1AgentResetSequenceByAgentId({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const getV1DatasetByIdRetrieveExternalOptions = (
+  options: Options<GetV1DatasetByIdRetrieveExternalData>
+) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1DatasetByIdRetrieveExternal({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1DatasetByIdRetrieveExternal',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const getV1DatasetRetrieveHistoryByIdOptions = (
+  options: Options<GetV1DatasetRetrieveHistoryByIdData>
+) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1DatasetRetrieveHistoryById({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1DatasetRetrieveHistoryById',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1UserResetPwdCaptchaOptions = (options: Options<PostV1UserResetPwdCaptchaData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1UserResetPwdCaptcha({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1UserResetPwdCaptcha',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1UserResetPwdCaptchaMutation: UseMutationOptions<
+  PostV1UserResetPwdCaptchaResponse,
+  PostV1UserResetPwdCaptchaError,
+  Options<PostV1UserResetPwdCaptchaData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1UserResetPwdCaptcha({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const postV1UserResetPwdCaptchaVerifyOptions = (
+  options: Options<PostV1UserResetPwdCaptchaVerifyData>
+) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1UserResetPwdCaptchaVerify({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1UserResetPwdCaptchaVerify',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1UserResetPwdCaptchaVerifyMutation: UseMutationOptions<
+  PostV1UserResetPwdCaptchaVerifyResponse,
+  PostV1UserResetPwdCaptchaVerifyError,
+  Options<PostV1UserResetPwdCaptchaVerifyData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1UserResetPwdCaptchaVerify({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const getV1UserResetPwdByUuidOptions = (options: Options<GetV1UserResetPwdByUuidData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1UserResetPwdByUuid({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1UserResetPwdByUuid',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1UserResetPwdByUuidOptions = (options: Options<PostV1UserResetPwdByUuidData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1UserResetPwdByUuid({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1UserResetPwdByUuid',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1UserResetPwdByUuidMutation: UseMutationOptions<
+  PostV1UserResetPwdByUuidResponse,
+  PostV1UserResetPwdByUuidError,
+  Options<PostV1UserResetPwdByUuidData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1UserResetPwdByUuid({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const postV1ChatAudioTranscriptionsOptions = (options: Options<PostV1ChatAudioTranscriptionsData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1ChatAudioTranscriptions({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1ChatAudioTranscriptions',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatAudioTranscriptionsMutation: UseMutationOptions<
+  PostV1ChatAudioTranscriptionsResponse,
+  PostV1ChatAudioTranscriptionsError,
+  Options<PostV1ChatAudioTranscriptionsData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1ChatAudioTranscriptions({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const postV1ChatAudioSpeechOptions = (options: Options<PostV1ChatAudioSpeechData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1ChatAudioSpeech({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1ChatAudioSpeech',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatAudioSpeechMutation: UseMutationOptions<
+  PostV1ChatAudioSpeechResponse,
+  PostV1ChatAudioSpeechError,
+  Options<PostV1ChatAudioSpeechData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1ChatAudioSpeech({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const getV1ChatAudioSpeechOptions = (options: Options<GetV1ChatAudioSpeechData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1ChatAudioSpeech({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1ChatAudioSpeech',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1UserResetPwdConfirmOptions = (options: Options<PostV1UserResetPwdConfirmData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1UserResetPwdConfirm({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1UserResetPwdConfirm',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1UserResetPwdConfirmMutation: UseMutationOptions<
+  PostV1UserResetPwdConfirmResponse,
+  PostV1UserResetPwdConfirmError,
+  Options<PostV1UserResetPwdConfirmData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1UserResetPwdConfirm({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const getV1ChatAgentChatOptions = (options: Options<GetV1ChatAgentChatData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1ChatAgentChat({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1ChatAgentChat',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const getV1ModelProvidersOptions = (options: Options<GetV1ModelProvidersData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getV1ModelProviders({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getV1ModelProviders',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatStreamBySessionIdOptions = (options: Options<PostV1ChatStreamBySessionIdData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await postV1ChatStreamBySessionId({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'postV1ChatStreamBySessionId',
+        params: {
+          body: options.body,
+          headers: options.headers,
+          path: options.path,
+          query: options.query,
+        },
+      },
+    ],
+  });
+};
+
+export const postV1ChatStreamBySessionIdMutation: UseMutationOptions<
+  PostV1ChatStreamBySessionIdResponse,
+  PostV1ChatStreamBySessionIdError,
+  Options<PostV1ChatStreamBySessionIdData>
+> = {
+  mutationFn: async (options) => {
+    const { data } = await postV1ChatStreamBySessionId({
+      ...options,
+      throwOnError: true,
+    });
+    return data;
+  },
+};
+
+export const getApiChatbotV1DeviceListOptions = (options?: Options<GetApiChatbotV1DeviceListData>) => {
+  return queryOptions({
+    queryFn: async ({ queryKey }) => {
+      const { data } = await getApiChatbotV1DeviceList({
+        ...options,
+        ...queryKey[0].params,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: [
+      {
+        scope: 'getApiChatbotV1DeviceList',
+        params: {
+          body: options?.body,
+          headers: options?.headers,
+          path: options?.path,
+          query: options?.query,
+        },
+      },
+    ],
+  });
 };

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
+import '../../utils/log_util.dart';
 import 'package:lite_agent_client/config/constants.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
 import 'package:lite_agent_client/utils/extension/function_extension.dart';
@@ -218,7 +219,7 @@ class _EditToolDialogState extends State<EditAgentDialog> {
   /*Future<void> uploadImgFile() async {
     var result = await FilePicker.platform.pickFiles(type: FileType.image);
     if (result != null && result.files.single.path != null) {
-      print("path:${result.files.single.path}");
+      Log.d("path:${result.files.single.path}");
       String imgPath = result.files.single.path ?? "";
       if (imgPath.isNotEmpty) {
         EasyLoading.show();
@@ -233,7 +234,7 @@ class _EditToolDialogState extends State<EditAgentDialog> {
           }
         } catch (e) {
           EasyLoading.dismiss();
-          print("上传失败");
+          Log.e("上传失败");
         }
       }
     }
@@ -251,7 +252,7 @@ class _EditToolDialogState extends State<EditAgentDialog> {
         return;
       }
 
-      String? iconPath = await FileUtils.processImage(imageFile);
+      String? iconPath = await fileUtils.processImage(imageFile);
       if (iconPath != null && iconPath.isNotEmpty) {
         _iconPath.value = "${Constants.localFilePrefix}$iconPath";
         _iconPath.refresh();

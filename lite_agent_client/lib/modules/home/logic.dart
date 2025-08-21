@@ -16,6 +16,7 @@ import '../../config/routes.dart';
 import '../../repositories/model_repository.dart';
 import '../../server/local_server/server.dart';
 import '../../widgets/dialog/dialog_user_setting.dart';
+import '../library/logic.dart';
 
 class HomePageLogic extends GetxController with WindowListener {
   static const String PAGE_CHAT = "chat";
@@ -76,6 +77,10 @@ class HomePageLogic extends GetxController with WindowListener {
   }
 
   void switchPage(String page) {
+    if (page == PAGE_LIBRARY && Get.isRegistered<LibraryLogic>()) {
+      LibraryLogic libraryLogic = Get.find();
+      libraryLogic.initData();
+    }
     currentPage.value = page;
     //update();
   }
@@ -101,6 +106,10 @@ class HomePageLogic extends GetxController with WindowListener {
       } else if (event.message == EventBusMessage.logout) {
         account.value = null;
         showLoginDialog(true);
+      } else if (event.message == EventBusMessage.switchPage) {
+        if (event.data != null) {
+          switchPage(event.data as String);
+        }
       }
     });
     _agentSubscription = eventBus.on<AgentMessageEvent>().listen((event) {

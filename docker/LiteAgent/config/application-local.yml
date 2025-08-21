@@ -1,0 +1,25 @@
+spring:
+  data:
+    redis:
+      database: 6
+      host: 127.0.0.1
+      port: 6379
+      password: xxx
+
+mongo-plus:
+  data:
+    mongodb:
+      host: 127.0.0.1
+      port: 27018
+      username: xxx
+      password: xxxxx
+      authentication-database: admin
+      database: lite-agent
+      connect-timeout-m-s: 50000
+
+milvus:
+  host: 127.0.0.1
+  port: 19530
+  username: xxx
+  password: xxxxx
+  database: lite_agent

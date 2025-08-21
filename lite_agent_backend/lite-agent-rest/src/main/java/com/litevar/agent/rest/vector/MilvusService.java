@@ -231,6 +231,26 @@ public class MilvusService {
 		milvusClient.dropCollection(
 			DropCollectionReq.builder().collectionName(collectionName).build()
 		);
+
+		// 强制清理VectorService中的collection schema缓存
+		// 避免重新创建同名但不同dimension的collection时使用旧缓存
+		try {
+			java.lang.reflect.Field vectorServiceField = milvusClient.getClass().getDeclaredField("vectorService");
+			vectorServiceField.setAccessible(true);
+			Object vectorService = vectorServiceField.get(milvusClient);
+
+			java.lang.reflect.Field cacheField = vectorService.getClass().getDeclaredField("cacheCollectionInfo");
+			cacheField.setAccessible(true);
+			Object cacheObject = cacheField.get(vectorService);
+			if (cacheObject instanceof Map) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> cache = (Map<String, Object>) cacheObject;
+				cache.remove(collectionName);
+				log.debug("Cleared collection schema cache for '{}'", collectionName);
+			}
+		} catch (Exception e) {
+			log.warn("Failed to clear collection schema cache for '{}', may cause issues when recreating collection with different schema", collectionName, e);
+		}
 	}
 
 	void loadCollection(String collectionName) {
@@ -263,14 +283,5 @@ public class MilvusService {
 			return false;
 		}
 	}
-
-//	private <T> void checkResponseNotFailed(R<T> response) {
-//		if (response == null) {
-//			throw new RuntimeException("Request to Milvus DB failed. Response is null");
-//		} else if (response.getStatus() != R.Status.Success.getCode()) {
-//			String message = format("Request to Milvus DB failed. Response status:'%d'.%n", response.getStatus());
-//			throw new RuntimeException(message, response.getException());
-//		}
-//	}
 
 }

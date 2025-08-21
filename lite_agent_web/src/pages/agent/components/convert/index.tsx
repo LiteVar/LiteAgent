@@ -76,14 +76,14 @@ const Convert: FC<ConvertProps> = ({
 
   const handleTtsModelChange = useCallback((value: string) => {
     setSelectedTtsModel(value);
-    if (!!ttsModelId) {
+    if (ttsModelId) {
       onTtsEnableChange?.(value);
     }
   }, [ttsModelId, onTtsEnableChange]);
 
   const handleAsrModelChange = useCallback((value: string) => {
     setSelectedAsrModel(value);
-    if (!!asrModelId) {
+    if (asrModelId) {
       onAsrEnableChange?.(value);
     }
   }, [asrModelId, onAsrEnableChange]);
@@ -116,7 +116,7 @@ const Convert: FC<ConvertProps> = ({
                 开启
               </Checkbox>}
               {readonly && <div className='ml-9'>
-                <div className="text-base flex-none">{!!ttsModelId ? "已开启" : "未开启"}</div>
+                <div className="text-base flex-none">{ttsModelId ? "已开启" : "未开启"}</div>
                 {!!ttsModelId && <div className="text-sm mt-2 text-black/25">{audioModelList?.filter(model => model.id === ttsModelId)[0]?.alias}</div>}
               </div>}
             </div>
@@ -141,7 +141,7 @@ const Convert: FC<ConvertProps> = ({
                 开启
               </Checkbox>}
               {readonly && <div className='ml-9'>
-                <div className="text-base flex-none">{!!asrModelId ? "已开启" : "未开启"}</div>
+                <div className="text-base flex-none">{asrModelId ? "已开启" : "未开启"}</div>
                 {!!asrModelId && <div className="text-sm mt-2 text-black/25">{audioModelList?.filter(model => model.id === asrModelId)[0]?.alias}</div>}
               </div>}
             </div>

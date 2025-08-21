@@ -1,9 +1,7 @@
 import React, { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AgentMessage, AgentMessageMap } from '../components/chat/Chat';
 import { message } from 'antd';
 import { EventSourceMessage, fetchEventSource } from '@microsoft/fetch-event-source';
 import {
-  AgentDetailVO,
   getV1ChatAgentChatByAgentId,
   OutMessage,
   postV1ChatClearDebugRecord,
@@ -22,50 +20,18 @@ import useChatStreamDeltaEvent from './useChatStreamDeltaEvent';
 import useChatAdjustAssistantMsg from './useChatAdjustAssistantMsg';
 import { AgentChatMessageClear } from '../client';
 import pLimit from 'p-limit';
+import {
+  AgentMessage,
+  AgentMessageMap,
+  AgentStatusRef,
+  UseChatHandleEventProps,
+  UseChatHandleEventReturn,
+  SSEEventData
+} from '@/types/chat';
 
 const sseQueueLimit = pLimit(3);
 
-interface UseChatHandleEventProps {
-  mode: 'prod' | 'dev';
-  agentId: string;
-  agentInfo: AgentDetailVO;
-}
-
-interface UseChatHandleEventExport {
-  messagesMap: AgentMessageMap;
-  clearList: AgentChatMessageClear[];
-  onInputChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
-  onResetSession: () => Promise<void>;
-  scrollRef: React.RefObject<HTMLDivElement>;
-  thinkScrollRef: React.RefObject<HTMLDivElement>;
-  lastThinkMessage: React.RefObject<HTMLDivElement>;
-  onRetry: () => Promise<void>;
-  showScrollToBottom: boolean;
-  scrollToBottom: () => void;
-  onShowThinkMessage: (event: React.MouseEvent<HTMLDivElement>, message: AgentMessage) => void;
-  onCloseThinkMessage: (event: React.MouseEvent<HTMLDivElement>) => void;
-  thinkDetailVisible: boolean;
-  thinkMessageIndex: number | undefined;
-  value: string;
-  onSendMessage: (type: 'text' | 'execute' | 'imageUrl', text?: string) => Promise<void>;
-  onSearchKnowledgeResult: (event: React.MouseEvent<HTMLSpanElement>, id: string, query: string) => Promise<void>;
-  setKnowledgeResultVisible: (value: boolean) => void;
-  knowledgeResultVisible: boolean;
-  knowledgeQueryText: string;
-  knowledgeSearchResults: SegmentVO[];
-  asrLoading: boolean;
-  hasMore: boolean;
-  setAsrLoading: (value: boolean) => void;
-  fetchData: () => Promise<void>;
-}
-
-export interface AgentStatusRef {
-  id: string | null;
-  agentMessage: AgentMessage | null;
-  responding: boolean;
-}
-
-export default function useChatHandleEvent(props: UseChatHandleEventProps): UseChatHandleEventExport {
+export default function useChatHandleEvent(props: UseChatHandleEventProps): UseChatHandleEventReturn {
   const scrollRef = useRef<HTMLDivElement>(null);
   const thinkScrollRef = useRef<HTMLDivElement>(null);
   const agentStatusRef = useRef<AgentStatusRef[]>([]);
@@ -251,7 +217,7 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
   const thinkMessageIndex = useMemo(() => {
     if (!selectMessage) return undefined;
     const messages = messagesMap?.[props.agentId]?.messages || [];
-    const index = messages.findIndex((msg) => msg.taskId === selectMessage?.taskId && msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.TEXT);
+    const index = messages.findIndex((msg) => msg.id === selectMessage?.id && msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.TEXT);
     if (index > -1) {
       return index;
     } else {
@@ -303,7 +269,7 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
         },
       });
       setMessagesMap((prev) => {
-        let msgMap = JSON.parse(JSON.stringify(prev));
+        const msgMap = JSON.parse(JSON.stringify(prev));
         const msgs = JSON.parse(JSON.stringify(prev?.[props.agentId]?.messages || []));
         if (msgs.length > 0 && msgs[msgs.length - 1]?.role != MessageRole.SEPARATOR) {
           msgs.push({
@@ -324,7 +290,7 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
         },
       });
       setMessagesMap((prev) => {
-        let msgMap = JSON.parse(JSON.stringify(prev));
+        const msgMap = JSON.parse(JSON.stringify(prev));
         msgMap[props.agentId] = { messages: [] };
         return msgMap;
       })
@@ -435,7 +401,7 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
           item.responding = false;
         });
       setMessagesMap((prev) => {
-        let msgMap = JSON.parse(JSON.stringify(prev));
+        const msgMap = JSON.parse(JSON.stringify(prev));
         const newMsgs = JSON.parse(JSON.stringify(prev?.[props.agentId]?.messages || []));
         const index = newMsgs.findIndex(
           (msg) => (msg.id === id && msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.TEXT)
@@ -469,12 +435,12 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
   );
 
   const handleErrorEvent = useCallback(
-    (data: any, id: string) => {
+    (data: SSEEventData, id: string) => {
       setMessagesMap((prev) => {
-        let msgMap = JSON.parse(JSON.stringify(prev));
+        const msgMap = JSON.parse(JSON.stringify(prev));
         const newMsgs = JSON.parse(JSON.stringify(prev?.[props.agentId]?.messages || []));
         const index = newMsgs.findIndex(
-          (msg) => msg.taskId === data.taskId && msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.TEXT
+          (msg) => msg.id === id && msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.TEXT
         );
         if (index != -1) {
           newMsgs[index].responding = true;
@@ -482,7 +448,7 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
         } else {
           // 添加新消息
           let loadingIndex = newMsgs.findIndex(
-            (msg) => msg.taskId === data.taskId && msg.role === MessageRole.SYSTEM && msg.type === 'loading');
+            (msg) => msg.id === id && msg.role === MessageRole.SYSTEM && msg.type === 'loading');
           if (loadingIndex === -1) {
             loadingIndex = newMsgs.length;
           }
@@ -573,7 +539,7 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
               console.log('data----', data);
               if (data && typeof data === 'string') {
                 sendMessageTipEnableRef.current = false;
-                let responseData = JSON.parse(data);
+                const responseData = JSON.parse(data);
                 //判断是否session过期
                 if (responseData?.code === 30002) {
                   await initializeSession();
@@ -592,7 +558,7 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
               console.log('data----', data);
               if (data && typeof data === 'string') {
                 sendMessageTipEnableRef.current = false;
-                let responseData = JSON.parse(data);
+                const responseData = JSON.parse(data);
                 console.log('response data', responseData);
                 message.error(responseData?.message || responseData?.data || '消息发送失败');
               } else {
@@ -629,7 +595,7 @@ export default function useChatHandleEvent(props: UseChatHandleEventProps): UseC
     if (sessionLoading) {
       message.info('服务器响应中，请稍后再试');
       return;
-    };
+    }
     if (!sessionRef.current) {
       const sessionInitialized = await initializeSession();
       if (!sessionInitialized) return;

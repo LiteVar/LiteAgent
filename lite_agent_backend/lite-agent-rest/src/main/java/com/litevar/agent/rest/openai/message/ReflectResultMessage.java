@@ -1,8 +1,8 @@
 package com.litevar.agent.rest.openai.message;
 
 import com.litevar.agent.base.response.ReflectResult;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import com.litevar.agent.rest.util.CurrentAgentRequest;
+import lombok.Getter;
 
 import java.util.List;
 
@@ -12,15 +12,29 @@ import java.util.List;
  * @author uncle
  * @since 2025/4/11 16:55
  */
-@Data
-@AllArgsConstructor
+@Getter
 public class ReflectResultMessage implements AgentMessage {
-    private String sessionId;
-    private String taskId;
-    private String agentId;
-    private String agentName;
+    private final String sessionId;
+    private final String taskId;
+    private final String agentId;
+    private final String agentName;
+    private final String requestId;
+    private final String parentTaskId;
 
-    private String rawInput;
-    private String rawOutput;
-    private List<ReflectResult> reflectOutput;
+    private final String rawInput;
+    private final String rawOutput;
+    private final List<ReflectResult> reflectOutput;
+
+    public ReflectResultMessage(String agentName, String rawInput, String rawOutput, List<ReflectResult> reflectOutput) {
+        this.rawInput = rawInput;
+        this.rawOutput = rawOutput;
+        this.reflectOutput = reflectOutput;
+        this.agentName = agentName;
+
+        this.sessionId = CurrentAgentRequest.getSessionId();
+        this.taskId = CurrentAgentRequest.getTaskId();
+        this.agentId = CurrentAgentRequest.getAgentId();
+        this.requestId = CurrentAgentRequest.getRequestId();
+        this.parentTaskId = CurrentAgentRequest.getContext().getParentTaskId();
+    }
 }

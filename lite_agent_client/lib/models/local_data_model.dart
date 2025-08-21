@@ -5,10 +5,10 @@ import 'package:hive/hive.dart';
 import 'package:lite_agent_client/models/dto/agent.dart';
 import 'package:lite_agent_client/models/dto/function.dart';
 import 'package:lite_agent_client/models/dto/tool.dart';
-import 'package:lite_agent_client/utils/extension/string_extension.dart';
 import 'package:lite_agent_core_dart/lite_agent_service.dart';
 
 import '../config/constants.dart';
+import '../utils/tool_schema_parser.dart';
 import '../widgets/dialog/dialog_tool_edit.dart';
 
 part 'local_data_model.g.dart'; // 自动生成：dart run build_runner build
@@ -18,29 +18,41 @@ class ChatMessage {
   @HiveField(0)
   int sendRole = 0;
   @HiveField(1)
-  String userName = "";
+  String roleName = "";
   @HiveField(2)
   String message = "";
   @HiveField(3)
   String imgFilePath = "";
   @HiveField(4)
-  List<String>? childAgentMessageList; //deprecated in 0.2.0
+  @Deprecated("deprecated in 0.2.0,use subMessages")
+  List<String>? childAgentMessageList;
   @HiveField(5)
-  String? toolName; //deprecated in 0.2.0
+  @Deprecated("deprecated in 0.2.0,use roleName")
+  String? toolName;
   @HiveField(6)
+  @Deprecated("deprecated in 1.0.0,use subMessages")
   List<Thought>? thoughtList;
   @HiveField(7)
-  String? taskId = "";
+  String? taskId = ""; //sometime for MessagesTaskId,sometime for functionId,according to ChatRoleType
+  @HiveField(8)
+  List<ChatMessage>? subMessages;
+  @HiveField(9)
+  String? receivedMessage = ""; //only for subMessages
 
   bool isLoading = false;
-  bool isThoughtExpanded = true;
+  bool isMessageExpanded = true;
 }
 
-class ChatRole {
+class ChatRoleType {
   static const int User = 0;
   static const int Agent = 1;
+  static const int SubAgent = 2;
+  static const int Tool = 3;
+  static const int Reflection = 4;
+  static const int Reasoning = 5;
 }
 
+@Deprecated("deprecated in 1.0.0,use ChatMessage")
 @HiveType(typeId: HiveTypeIds.messageThoughtTypeId)
 class Thought {
   @HiveField(0)
@@ -55,8 +67,10 @@ class Thought {
   String receivedMessage = "";
 }
 
+@Deprecated("deprecated in 1.0.0,use ChatRoleType")
 class ThoughtRoleType {
   static const String Tool = "tool";
+  static const String Agent = "agent";
 }
 
 @HiveType(typeId: HiveTypeIds.agentConversationBeanTypeId)
@@ -87,6 +101,16 @@ class ModelBean {
   String? maxToken = "";
   @HiveField(5)
   int? createTime = 0;
+  @HiveField(6)
+  String? type = "";
+  @HiveField(7)
+  String? nickName = "";
+  @HiveField(8)
+  bool? supportMultiAgent;
+  @HiveField(9)
+  bool? supportToolCalling;
+  @HiveField(10)
+  bool? supportDeepThinking;
 }
 
 class OperationMode {
@@ -120,7 +144,13 @@ class ToolBean {
   @HiveField(7)
   int? createTime = 0;
   @HiveField(8)
+  @Deprecated("deprecated in 1.0.0,use schemaText according to schemaType")
   String? thirdSchemaText = "";
+  @HiveField(9)
+  @Deprecated("deprecated in 1.0.0,use schemaText according to schemaType")
+  String? mcpText = "";
+  @HiveField(10)
+  bool? supportMultiAgent;
 
   List<AgentToolFunction> functionList = <AgentToolFunction>[];
 
@@ -133,13 +163,20 @@ class ToolBean {
       schemaType = 2; //json rpc
     } else if (this.schemaType == SchemaType.OPENMODBUS || this.schemaType == Protocol.OPENMODBUS) {
       schemaType = 3; //open modbus
+    } else if (this.schemaType == SchemaType.OPENTOOL || this.schemaType == Protocol.OPENTOOL) {
+      schemaType = 4; //open tool
     }
     if (apiType == "basic" || apiType == "Basic") {
       apiKeyType = "Basic";
     } else if (apiType == "bearer" || apiType == "Bearer") {
       apiKeyType = "Bearer";
     }
-    return ToolDTO(id, "", "", name, description, schemaType, schemaText, thirdSchemaText, apiText, apiKeyType, false, "", "");
+    return ToolDTO(
+        id, null, null, name, description, schemaType, schemaText, apiText, apiKeyType, false, "", "", supportMultiAgent ?? false, null);
+  }
+
+  Future<void> initToolFunctionList({bool showLoading = false}) async {
+    functionList = await ToolSchemaParser.parseFunctions(this, showLoading);
   }
 }
 
@@ -156,7 +193,8 @@ class AgentBean {
   @HiveField(4)
   String modelId = "";
   @HiveField(5)
-  List<String>? toolList; //deprecated in 0.2.0
+  @Deprecated("deprecated in 0.2.0,use functionList")
+  List<String>? toolList;
   @HiveField(6)
   String prompt = "";
   @HiveField(7)
@@ -181,18 +219,25 @@ class AgentBean {
   List<String>? childAgentIds;
   @HiveField(17)
   int? toolOperationMode = 0;
+  @HiveField(18)
+  String? ttsModelId = "";
+  @HiveField(19)
+  String? asrModelId = "";
+  @HiveField(20)
+  bool? autoAgentFlag = false;
 
-  AgentBean(
-      {this.id = "",
-      this.name = "",
-      this.iconPath = "",
-      this.description = "",
-      this.modelId = "",
-      this.toolList,
-      this.prompt = "",
-      this.temperature = 0.0,
-      this.maxToken = 4096,
-      this.topP = 1.0});
+  AgentBean({
+    this.id = "",
+    this.name = "",
+    this.iconPath = "",
+    this.description = "",
+    this.modelId = "",
+    this.toolList,
+    this.prompt = "",
+    this.temperature = 0.0,
+    this.maxToken = 4096,
+    this.topP = 1.0,
+  });
 
   AgentDTO translateToDTO() {
     String createTime = "";
@@ -217,36 +262,36 @@ class AgentBean {
       }
     }
 
-    return AgentDTO(id, "", "", name, iconPath, description, prompt, modelId, toolList, 0, false, temperature, topP, maxToken, createTime,
-        "", webFunctionList, childAgentIds, agentType ?? 0, operationMode ?? 0, libraryIds, isCloud);
+    return AgentDTO(id, name, iconPath, description, prompt, modelId, false, temperature, topP, maxToken, createTime, webFunctionList,
+        childAgentIds, agentType ?? 0, operationMode ?? 0, libraryIds, isCloud, autoAgentFlag ?? false, ttsModelId, asrModelId);
   }
 
   void translateFromDTO(AgentDTO agent) {
-    this.id = agent.id;
-    this.name = agent.name ?? "";
-    this.iconPath = agent.icon ?? "";
-    this.description = agent.description ?? "";
-    this.modelId = agent.llmModelId ?? "";
-    this.toolList = agent.toolIds ?? <String>[];
-    this.prompt = agent.prompt ?? "";
-    this.temperature = agent.temperature ?? 0.0;
-    this.maxToken = agent.maxTokens ?? 4096;
-    this.topP = agent.topP ?? 0.0;
-    this.isCloud = agent.isCloud;
-    this.createTime = 0;
-    this.functionList = [];
+    id = agent.id;
+    name = agent.name ?? "";
+    iconPath = agent.icon ?? "";
+    description = agent.description ?? "";
+    modelId = agent.llmModelId ?? "";
+    prompt = agent.prompt ?? "";
+    temperature = agent.temperature ?? 0.0;
+    maxToken = agent.maxTokens ?? 4096;
+    topP = agent.topP ?? 0.0;
+    isCloud = agent.isCloud;
+    createTime = 0;
+    functionList = [];
     if (agent.toolFunctionList != null) {
       for (var dto in agent.toolFunctionList!) {
         AgentToolFunction function = AgentToolFunction();
         function.translateFromDTO(dto);
-        this.functionList?.add(function);
+        functionList?.add(function);
       }
     }
-    this.libraryIds = agent.datasetIds;
-    this.operationMode = agent.mode;
-    this.agentType = agent.type;
-    this.childAgentIds = agent.subAgentIds;
-    this.toolOperationMode = 0;
+    libraryIds = agent.datasetIds;
+    operationMode = agent.mode;
+    agentType = agent.type;
+    childAgentIds = agent.subAgentIds;
+    toolOperationMode = 0;
+    autoAgentFlag = agent.autoAgentFlag;
   }
 }
 
@@ -261,7 +306,8 @@ class AgentToolFunction {
   @HiveField(3)
   var functionDescription = "";
   @HiveField(4)
-  int operationMode = 0; //deprecated in 0.2.0
+  @Deprecated("deprecated in 0.2.0,not support")
+  int operationMode = 0;
   @HiveField(5)
   String? requestMethod = "";
   @HiveField(6)
@@ -272,12 +318,12 @@ class AgentToolFunction {
   }
 
   void translateFromDTO(FunctionDto dto) {
-    this.toolId = dto.toolId;
-    this.toolName = "";
-    this.functionName = dto.functionName;
-    this.functionDescription = "";
-    this.operationMode = 0;
-    this.requestMethod = dto.requestMethod;
-    this.isThirdTool = dto.protocol == "external";
+    toolId = dto.toolId ?? "";
+    toolName = "";
+    functionName = dto.functionName;
+    functionDescription = "";
+    operationMode = 0;
+    requestMethod = dto.requestMethod;
+    isThirdTool = dto.protocol == "external";
   }
 }

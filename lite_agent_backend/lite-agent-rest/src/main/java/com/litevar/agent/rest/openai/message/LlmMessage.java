@@ -1,8 +1,8 @@
 package com.litevar.agent.rest.openai.message;
 
 import com.litevar.agent.openai.completion.CompletionResponse;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import com.litevar.agent.rest.util.CurrentAgentRequest;
+import lombok.Getter;
 
 /**
  * 大模型返回的文本消息
@@ -10,13 +10,25 @@ import lombok.Data;
  * @author uncle
  * @since 2025/4/11 12:29
  */
-@Data
-@AllArgsConstructor
+@Getter
 public class LlmMessage implements AgentMessage {
-    private String sessionId;
-    private String taskId;
-    private String agentId;
-    private Integer agentType;
+    private final String sessionId;
+    private final String requestId;
+    private final String parentTaskId;
+    private final String taskId;
+    private final String agentId;
+    private final Integer agentType;
 
-    private CompletionResponse response;
+    private final CompletionResponse response;
+
+    public LlmMessage(Integer agentType, CompletionResponse response) {
+        this.sessionId = CurrentAgentRequest.getSessionId();
+        this.taskId = CurrentAgentRequest.getTaskId();
+        this.agentId = CurrentAgentRequest.getAgentId();
+        this.requestId = CurrentAgentRequest.getRequestId();
+        this.parentTaskId = CurrentAgentRequest.getContext().getParentTaskId();
+
+        this.agentType = agentType;
+        this.response = response;
+    }
 }

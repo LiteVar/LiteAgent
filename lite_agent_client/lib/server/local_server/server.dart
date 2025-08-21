@@ -6,6 +6,9 @@ import 'package:opentool_dart/opentool_dart.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
+import 'package:dart_openai_sdk/dart_openai_sdk.dart';
+
+import '../../utils/log_util.dart' as client_log;
 
 /// 全局工具驱动列表，可供所有代理会话使用
 final List<ToolDriver> globalToolDriverList = [
@@ -30,6 +33,8 @@ void main(List<String> args) async {
 
 Future<void> startServer() async {
   await killProcessUsingPort(config.server.port);
+
+  OpenAI.showLogs = false;
 
   String? dbPath = config.server.dbPath;
   agentManageService = AgentManageServiceByDB(
@@ -89,13 +94,13 @@ Future<void> killProcessUsingPort(int port) async {
           } else {
             await Process.run('kill', ['-9', pid]);
           }
-          print('Terminated process with PID: $pid');
+          client_log.Log.i('Terminated process with PID: $pid');
         }
       }
     } else {
-      print('No process found using port $port');
+      client_log.Log.i('No process found using port $port');
     }
   } catch (e) {
-    print('Error terminating process: $e');
+    client_log.Log.e('Error terminating process: $e');
   }
 }

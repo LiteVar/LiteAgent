@@ -39,7 +39,7 @@ const AutoAgentToolsList: React.FC<ToolsListProps> = ({ workspaceId, readonly })
 	});
 
 	const addToolNameIconToFunc = useCallback((toolList: ToolDTO[]) => {
-		let newTools = { functionList: [] };
+		const newTools = { functionList: [] };
 		toolList?.map(tool => {
 			tool.functionList.map(func => {
 				newTools.functionList.push({

@@ -24,73 +24,68 @@ public class StoreMessageHandler extends AgentMessageHandler {
     @Override
     public void onSend(UserSendMessage userSendMessage) {
         OutMessage outMessage = transformSendMessage(userSendMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        StoreMessageExecutor.store(sessionId, userSendMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void LlmMsg(LlmMessage llmMessage) {
         if (ObjectUtil.notEqual(llmMessage.getAgentType(), AgentType.REFLECTION.getType())) {
             OutMessage outMessage = transformLlmMessage(llmMessage);
-            StoreMessageExecutor.store(sessionId, List.of(outMessage));
+            StoreMessageExecutor.store(sessionId, llmMessage.getRequestId(), List.of(outMessage));
         }
     }
 
     @Override
     public void thinkMsg(LlmMessage llmMessage) {
         OutMessage outMessage = transformThinkMessage(llmMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        StoreMessageExecutor.store(sessionId, llmMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void onError(ErrorMessage errorMessage) {
         OutMessage outMessage = transformErrorMessage(errorMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        StoreMessageExecutor.store(sessionId, errorMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void functionCalling(LlmMessage functionCallingMessage) {
         OutMessage outMessage = transformFunctionCallMessage(functionCallingMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        StoreMessageExecutor.store(sessionId, functionCallingMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void functionResult(ToolResultMessage toolResultMessage) {
         OutMessage outMessage = transformToolResultMessage(toolResultMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        StoreMessageExecutor.store(sessionId, toolResultMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void reflect(ReflectResultMessage reflectResultMessage) {
         OutMessage outMessage = transformReflectMessage(reflectResultMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        StoreMessageExecutor.store(sessionId, reflectResultMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void distribute(DistributeMessage distributeMessage) {
         OutMessage outMessage = transformDistributeMessage(distributeMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
-    }
-
-    @Override
-    public void broadcast(DistributeMessage distributeMessage) {
-        distribute(distributeMessage);
+        StoreMessageExecutor.store(sessionId, distributeMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void knowledge(KnowledgeMessage knowledgeMessage) {
         OutMessage outMessage = transformKnowledgeMessage(knowledgeMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        StoreMessageExecutor.store(sessionId, knowledgeMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void agentSwitch(AgentSwitchMessage agentSwitchMessage) {
-        OutMessage outMessage = transformAgentStatusMessage(agentSwitchMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        OutMessage outMessage = transformAgentSwitchMessage(agentSwitchMessage);
+        StoreMessageExecutor.store(sessionId, agentSwitchMessage.getRequestId(), List.of(outMessage));
     }
 
     @Override
     public void planning(PlanningMessage planningMessage) {
         OutMessage outMessage = transformPlanningMessage(planningMessage);
-        StoreMessageExecutor.store(sessionId, List.of(outMessage));
+        StoreMessageExecutor.store(sessionId, planningMessage.getRequestId(), List.of(outMessage));
     }
 }

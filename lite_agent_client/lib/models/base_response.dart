@@ -1,3 +1,5 @@
+import '../utils/log_util.dart';
+
 class BaseResponse<T> {
   T? data;
   int? code;
@@ -24,7 +26,7 @@ class BaseResponse<T> {
         message: map['message'],
       );
     } catch (e) {
-      print(e);
+      Log.e("BaseResponse.fromJson error: $e");
       return BaseResponse(data: null, code: -2, message: "fromJson error");
     }
   }
@@ -40,7 +42,7 @@ class BaseResponse<T> {
         message: map['message'],
       );
     } catch (e) {
-      print(e);
+      Log.e("BaseResponse.fromJsonForString error: $e");
       return BaseResponse(data: null, code: -2, message: "fromJson error");
     }
   }
@@ -60,7 +62,7 @@ class BaseResponse<T> {
         message: map['message'],
       );
     } catch (e) {
-      print(e);
+      Log.e("BaseResponse.fromJsonForList error: $e");
       return BaseResponse(data: null, code: -2, message: "fromJson error");
     }
   }

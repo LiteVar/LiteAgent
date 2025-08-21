@@ -1,7 +1,7 @@
 package com.litevar.agent.rest.openai.message;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import com.litevar.agent.rest.util.CurrentAgentRequest;
+import lombok.Getter;
 
 /**
  * agent切换消息
@@ -9,12 +9,23 @@ import lombok.Data;
  * @author uncle
  * @since 2025/4/16 12:20
  */
-@Data
-@AllArgsConstructor
+@Getter
 public class AgentSwitchMessage implements AgentMessage {
-    private String sessionId;
-    private String taskId;
-    private String agentId;
+    private final String sessionId;
+    private final String taskId;
+    private final String requestId;
+    private final String parentTaskId;
 
-    private String agentName;
+    private final String agentId;
+    private final String agentName;
+
+    public AgentSwitchMessage(String agentId, String agentName, String taskId) {
+        this.sessionId = CurrentAgentRequest.getSessionId();
+        this.taskId = taskId;
+        this.requestId = CurrentAgentRequest.getRequestId();
+        this.parentTaskId = CurrentAgentRequest.getTaskId();
+
+        this.agentId = agentId;
+        this.agentName = agentName;
+    }
 }

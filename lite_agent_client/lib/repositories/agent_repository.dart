@@ -9,6 +9,7 @@ import 'package:lite_agent_client/server/api_server/agent_server.dart';
 
 import '../models/dto/chat.dart';
 import '../models/local_data_model.dart';
+import '../utils/log_util.dart';
 import 'model_repository.dart';
 
 final agentRepository = AgentRepository();
@@ -23,7 +24,14 @@ class AgentRepository {
   static const String agentBoxKey = "agent_box_key";
   Box<AgentBean>? _box;
 
-  Future<Box<AgentBean>> get _agentBox async => _box ??= await Hive.openBox<AgentBean>(agentBoxKey);
+  Future<Box<AgentBean>> get _agentBox async {
+    if (_box == null) {
+      _box = await Hive.openBox<AgentBean>(agentBoxKey);
+      //remove old auto multi agent
+      await _box?.delete("0");
+    }
+    return _box!;
+  }
 
   Future<Iterable<AgentBean>> getAgentListFromBox() async {
     return (await _agentBox).values;
@@ -53,7 +61,6 @@ class AgentRepository {
     if (await accountRepository.isLogin()) {
       await uploadToServer([agent]);
     }
-    print("updateAgent:$key");
   }
 
   Future<AgentBean?> getAgentFromBox(String key) async {
@@ -69,6 +76,7 @@ class AgentRepository {
     var response = await AgentServer.getAgentList(tab);
     if (response.data != null) {
       list.addAll(response.data!);
+      //list.removeWhere((element) => element.autoAgentFlag ?? false);
       list.forEach((element) => element.isCloud = true);
     }
     return list;
@@ -91,6 +99,9 @@ class AgentRepository {
   Future<void> uploadToServer(List<AgentBean> agents) async {
     var list = <AgentDTO>[];
     for (var agent in agents) {
+      if (!agent.id.isNumericOnly) {
+        continue;
+      }
       var dto = agent.translateToDTO();
       dto.icon = "";
       var model = await modelRepository.getModelFromBox(agent.modelId);
@@ -101,10 +112,10 @@ class AgentRepository {
     }
     String jsonString = json.encode(list);
     List<dynamic> jsonArray = json.decode(jsonString);
-    //print("jsonString:$jsonString");
+    print("jsonString:$jsonString");
     var response = await AgentServer.agentSync(jsonArray);
     if (response.code == 200) {
-      print("agentUploadServer:${list.length}");
+      Log.i("agentUploadServer:${list.length}");
     }
   }
 

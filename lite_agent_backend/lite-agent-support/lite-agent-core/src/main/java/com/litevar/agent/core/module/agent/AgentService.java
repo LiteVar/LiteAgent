@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -131,12 +132,14 @@ public class AgentService extends ServiceImpl<Agent> {
         }
         if (StrUtil.isNotBlank(agent.getTtsModelId())) {
             LlmModel ttsModel = modelService.findByIdNullable(agent.getTtsModelId());
+            vo.setTtsModel(ttsModel);
             if (ttsModel == null) {
                 vo.getAgent().setTtsModelId("");
             }
         }
         if (StrUtil.isNotBlank(agent.getAsrModelId())) {
             LlmModel asrModel = modelService.findByIdNullable(agent.getAsrModelId());
+            vo.setAsrModel(asrModel);
             if (asrModel == null) {
                 vo.getAgent().setAsrModelId("");
             }
@@ -155,9 +158,22 @@ public class AgentService extends ServiceImpl<Agent> {
     public ApiAgentDetailVO apiAgentDetail(String agentId) {
         Agent agent = findById(agentId);
         ApiAgentDetailVO vo = new ApiAgentDetailVO();
-        if (!agent.getFunctionList().isEmpty()) {
-            List<String> functionIds = agent.getFunctionList().stream().map(Agent.AgentFunction::getFunctionId).toList();
-            List<ToolFunction> functionList = toolFunctionService.getByIds(functionIds);
+
+        // 收集所有function ID和子agent信息
+        Set<String> allFunctionIds = new HashSet<>();
+        List<ApiAgentDetailVO.AgentInfo> allSubAgentList = new ArrayList<>();
+
+        // 递归收集所有层级的子agent和function
+        collectAllAgentData(agent, allFunctionIds, allSubAgentList);
+
+        // 设置所有子agent信息
+        if (!allSubAgentList.isEmpty()) {
+            vo.setSubAgentList(allSubAgentList);
+        }
+
+        // 统一处理所有函数（父agent + 所有层级子agent的函数）
+        if (!allFunctionIds.isEmpty()) {
+            List<ToolFunction> functionList = toolFunctionService.getByIds(new ArrayList<>(allFunctionIds));
             Set<String> toolIds = functionList.parallelStream().map(ToolFunction::getToolId).collect(Collectors.toSet());
             Map<String, ToolProvider> toolMap = toolService.getByIds(toolIds).parallelStream().collect(Collectors.toMap(ToolProvider::getId, i -> i));
             List<FunctionVO> fvList = new ArrayList<>();
@@ -175,18 +191,31 @@ public class AgentService extends ServiceImpl<Agent> {
             vo.setFunctionList(fvList);
         }
 
-        if (!agent.getSubAgentIds().isEmpty()) {
-            List<ApiAgentDetailVO.AgentInfo> subAgentList = this.getByIds(agent.getSubAgentIds())
-                    .stream().map(i -> {
-                        ApiAgentDetailVO.AgentInfo info = new ApiAgentDetailVO.AgentInfo();
-                        info.setId(i.getId());
-                        info.setName(i.getName());
-                        return info;
-                    }).toList();
-            vo.setSubAgentList(subAgentList);
+        return vo;
+    }
+
+    /**
+     * 递归收集agent及其所有层级子agent的function和子agent信息
+     */
+    private void collectAllAgentData(Agent agent, Set<String> allFunctionIds, List<ApiAgentDetailVO.AgentInfo> allSubAgentList) {
+        // 添加当前agent的函数
+        if (ObjectUtil.isNotEmpty(agent.getFunctionList())) {
+            allFunctionIds.addAll(agent.getFunctionList().stream().map(Agent.AgentFunction::getFunctionId).toList());
         }
 
-        return vo;
+        // 递归处理子agent
+        if (ObjectUtil.isNotEmpty(agent.getSubAgentIds())) {
+            List<Agent> subAgents = this.getByIds(agent.getSubAgentIds());
+            for (Agent subAgent : subAgents) {
+                ApiAgentDetailVO.AgentInfo info = new ApiAgentDetailVO.AgentInfo();
+                info.setId(subAgent.getId());
+                info.setName(subAgent.getName());
+                allSubAgentList.add(info);
+
+                // 递归收集子agent的数据
+                collectAllAgentData(subAgent, allFunctionIds, allSubAgentList);
+            }
+        }
     }
 
     public Agent addAgent(String workspaceId, AgentCreateForm form, String userId) {
@@ -321,12 +350,21 @@ public class AgentService extends ServiceImpl<Agent> {
                 //"全部"和"系统"没有查到auto agent,要新增一个
                 Agent autoAgent = this.lambdaQuery().eq(Agent::getWorkspaceId, workspaceId).eq(Agent::getAutoAgentFlag, true).one();
                 if (autoAgent == null) {
-                    AgentCreateForm form = new AgentCreateForm();
-                    form.setName("Auto Multi Agent");
-                    form.setDescription("AI能够理解任务，并从工具库和模型库中，搭建一个临时的agent执行任务，可以精准、高效地达成目标。");
-                    form.setAutoAgentFlag(Boolean.TRUE);
-                    Agent agent = addAgent(workspaceId, form, "0");
-                    autoAgent = this.findById(agent.getId());
+                    Boolean canCreate = RedisUtil.setNx(String.format(CacheKey.AUTO_AGENT_CREATE, workspaceId), 1, 20, TimeUnit.SECONDS);
+                    if (canCreate) {
+                        AgentCreateForm form = new AgentCreateForm();
+                        form.setName("Auto Multi Agent");
+                        form.setDescription("AI能够理解任务，并从工具库和模型库中，搭建一个临时的agent执行任务，可以精准、高效地达成目标。");
+                        form.setAutoAgentFlag(Boolean.TRUE);
+                        Agent agent = addAgent(workspaceId, form, "0");
+                        autoAgent = this.findById(agent.getId());
+                    } else {
+                        try {
+                            Thread.sleep(1500);
+                        } catch (InterruptedException e) {
+                        }
+                        autoAgent = this.lambdaQuery().eq(Agent::getWorkspaceId, workspaceId).eq(Agent::getAutoAgentFlag, true).one();
+                    }
                 }
                 if (ObjectUtil.isEmpty(status) || ObjectUtil.equal(autoAgent.getStatus(), status)) {
                     list.add(0, autoAgent);

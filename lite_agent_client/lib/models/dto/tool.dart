@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import 'function.dart';
+
 part 'tool.g.dart';
 
 List<ToolDTO> getToolDTOList(List<dynamic> list) {
@@ -33,9 +35,6 @@ class ToolDTO extends Object {
   @JsonKey(name: 'schemaStr')
   String? schemaStr;
 
-  @JsonKey(name: 'openSchemaStr')
-  String? openSchemaStr;
-
   @JsonKey(name: 'apiKey')
   String? apiKey;
 
@@ -51,6 +50,12 @@ class ToolDTO extends Object {
   @JsonKey(name: 'updateTime')
   String? updateTime;
 
+  @JsonKey(name: 'autoAgent')
+  bool? autoAgent;
+
+  @JsonKey(name: 'functionList')
+  List<FunctionDto>? functionList;
+
   ToolDTO(
     this.id,
     this.userId,
@@ -59,12 +64,13 @@ class ToolDTO extends Object {
     this.description,
     this.schemaType,
     this.schemaStr,
-    this.openSchemaStr,
     this.apiKey,
     this.apiKeyType,
     this.shareFlag,
     this.createTime,
     this.updateTime,
+    this.autoAgent,
+    this.functionList,
   );
 
   factory ToolDTO.fromJson(Map<String, dynamic> srcJson) => _$ToolDTOFromJson(srcJson);

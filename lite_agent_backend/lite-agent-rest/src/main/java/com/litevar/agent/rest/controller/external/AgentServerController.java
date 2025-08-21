@@ -29,26 +29,25 @@ import com.litevar.agent.rest.openai.handler.ExternalApiMessageHandler;
 import com.litevar.agent.rest.openai.message.UserSendMessage;
 import com.litevar.agent.rest.service.AgentDatasetRelaService;
 import com.litevar.agent.rest.util.AgentUtil;
+import com.litevar.agent.rest.util.CurrentAgentRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
-import java.util.concurrent.TimeoutException;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 
 /**
  * agent对外提供api
@@ -56,11 +55,11 @@ import java.util.Optional;
  * @author uncle
  * @since 2025/4/1 10:30
  */
+@Slf4j
 @RestController
 @RequestMapping("/v1")
 public class AgentServerController {
 
-    private static final Logger log = LoggerFactory.getLogger(AgentServerController.class);
     @Autowired
     private AgentService agentService;
     @Autowired
@@ -90,23 +89,29 @@ public class AgentServerController {
                                               @RequestBody @Valid ExternalSendMsgDTO dto) {
         return Flux.<ServerSentEvent<String>>create(sink -> {
                     String agentId = agentUtil.getAgentIdFromToken(token);
+                    String requestId = IdUtil.getSnowflakeNextIdStr();
                     boolean isStream = dto.getIsChunk();
 
-                    String taskId = IdUtil.getSnowflakeNextIdStr();
-                    ExternalApiMessageHandler handler = new ExternalApiMessageHandler(agentId, sessionId, taskId, sink, isStream);
-                    Optional<ExternalSendMsgDTO.Content> opt = dto.getContent().stream().filter(i -> StrUtil.equals(i.getType(), "execute")).findFirst();
+                    List<AgentPlanningDTO> taskList = new ArrayList<>();
+
+                    String taskId = requestId;
+                    ExternalApiMessageHandler handler = new ExternalApiMessageHandler(agentId, sessionId, sink, isStream, requestId);
 
                     try {
-                        AgentManager.getHandler(sessionId).add(handler);
+                        Optional<ExternalSendMsgDTO.Content> opt = dto.getContent().stream().filter(i -> StrUtil.equals(i.getType(), "execute")).findFirst();
+
                         if (opt.isPresent()) {
-                            ExternalSendMsgDTO.Content msg = opt.get();
-                            String planId = msg.getMessage();
-                            Boolean exists = RedisUtil.exists(String.format(CacheKey.SESSION_PLAN_INFO, planId));
-                            if (!exists) {
+                            String planId = opt.get().getMessage();
+                            List<AgentPlanningDTO> cacheTaskList = (List<AgentPlanningDTO>) RedisUtil.getValue(String.format(CacheKey.SESSION_PLAN_INFO, planId));
+                            if (cacheTaskList == null) {
                                 sink.error(new StreamException(404, "找不到该规划信息"));
                                 return;
                             }
+                            taskList.addAll(cacheTaskList);
+
+                            RedisUtil.delKey(String.format(CacheKey.SESSION_PLAN_INFO, planId));
                         }
+                        AgentManager.getHandler(sessionId).add(handler);
                     } catch (ServiceException ex) {
                         sink.error(new StreamException(ex.getCode(), ex.getMessage()));
                         return;
@@ -115,26 +120,36 @@ public class AgentServerController {
                         return;
                     }
 
+                    sink.onCancel(() -> {
+                        log.info("SSE连接被取消: sessionId={}, requestId={}", sessionId, requestId);
+                        afterChat(sessionId, requestId);
+                    });
+
                     // 响应式异步处理
                     Mono.fromRunnable(() -> {
                         MultiAgent agent = AgentManager.getAgent(sessionId);
 
-                        if (opt.isPresent()) {
-                            String planId = opt.get().getMessage();
-                            List<AgentPlanningDTO> taskList = (List<AgentPlanningDTO>) RedisUtil.getValue(String.format(CacheKey.SESSION_PLAN_INFO, planId));
+                        CurrentAgentRequest.AgentRequest currentContext = new CurrentAgentRequest.AgentRequest();
+                        currentContext.setSessionId(sessionId);
+                        currentContext.setParentTaskId(null);
+                        currentContext.setTaskId(null);
+                        currentContext.setRequestId(requestId);
+                        currentContext.setAgentId(agent.getAgentId());
+                        CurrentAgentRequest.setContext(currentContext);
+
+                        if (!taskList.isEmpty()) {
                             AgentSendMsgDTO msg = new AgentSendMsgDTO();
                             msg.setMessage("执行方案");
                             msg.setType("text");
-                            UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), List.of(msg));
+                            UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), List.of(msg), requestId);
                             AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
 
-                            List<MultiAgent> taskAgentList = agentUtil.createAgent(taskList, agent);
-                            String result = agentUtil.executeAgent(taskAgentList, taskId, isStream);
-                            agentUtil.summary(result, agent, taskId, isStream);
-                            RedisUtil.delKey(String.format(CacheKey.SESSION_PLAN_INFO, planId));
+                            List<MultiAgent> taskAgentList = agentUtil.createAgent(taskList);
+                            String result = agentUtil.executeAgent(taskAgentList, isStream);
+                            agentUtil.summary(result, agent, isStream);
                         } else {
                             List<AgentSendMsgDTO> msg = BeanUtil.copyToList(dto.getContent(), AgentSendMsgDTO.class);
-                            UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), msg);
+                            UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), msg, requestId);
                             AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
 
                             List<Message> submitMsg = new ArrayList<>();
@@ -144,10 +159,8 @@ public class AgentServerController {
                             AgentManager.chat(agent, taskId, submitMsg, isStream);
                         }
 
-                        handler.disconnect();
-                        AgentManager.getHandler(sessionId).remove(handler);
-                    }).subscribeOn(Schedulers.boundedElastic()).subscribe(null, sink::error, () -> {
-                    });
+                        afterChat(sessionId, requestId);
+                    }).subscribeOn(Schedulers.boundedElastic()).subscribe(null, sink::error, () -> afterChat(sessionId, requestId));
                 })
                 .timeout(Duration.ofMinutes(10))
                 .doOnError(TimeoutException.class, e -> log.warn("SSE连接超时: sessionId={}", sessionId))
@@ -157,11 +170,21 @@ public class AgentServerController {
                         .build()));
     }
 
+    private void afterChat(String sessionId, String requestId) {
+        AgentManager.getHandler(sessionId).removeIf(h -> {
+            if (h instanceof ExternalApiMessageHandler handler && StrUtil.equals(handler.getRequestId(), requestId)) {
+                handler.disconnect(requestId);
+                return true;
+            }
+            return false;
+        });
+    }
+
     @IgnoreAuth
     @GetMapping("/version")
     public Object version(@RequestHeader(CommonConstant.HEADER_AUTH) String token) {
         agentUtil.getAgentIdFromToken(token);
-        return Dict.create().set("version", "0.2.0");
+        return Dict.create().set("version", "1.0.0");
     }
 
     @IgnoreAuth

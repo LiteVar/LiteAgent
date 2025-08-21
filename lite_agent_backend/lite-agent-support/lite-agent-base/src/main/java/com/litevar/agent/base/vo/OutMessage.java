@@ -20,6 +20,7 @@ public class OutMessage {
      * 消息属于哪个agent的
      */
     private String agentId;
+    private String parentTaskId;
     private String taskId;
     /**
      * user,assistant,tool,reflection,agent
@@ -52,6 +53,10 @@ public class OutMessage {
         private String id;
         private String name;
         private Object arguments;
+        private String toolId;
+        private String toolName;
+        private String functionId;
+        private String functionName;
     }
 
     @Data

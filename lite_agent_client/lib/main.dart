@@ -2,18 +2,24 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:lite_agent_client/models/local_data_model.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:lite_agent_client/utils/log_util.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:window_manager/window_manager.dart';
+
 import 'config/routes.dart';
 
 Future<void> main() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Log util
+  await Log.init();
 
   // Initialize Hive
   await initHive();
@@ -35,6 +41,7 @@ Future<void> initHive() async {
   Hive.registerAdapter(ChatMessageAdapter());
   Hive.registerAdapter(AgentConversationBeanAdapter());
   Hive.registerAdapter(AgentToolFunctionAdapter());
+  Hive.registerAdapter(ThoughtAdapter());
 }
 
 Future<void> copyConfigFile() async {
@@ -44,14 +51,14 @@ Future<void> copyConfigFile() async {
     if (!configDir.existsSync()) {
       configDir.createSync(recursive: true);
     }
-    
+
     final configContent = await rootBundle.loadString('bin/config.json');
     final configFile = File('${configDir.path}${Platform.pathSeparator}config.json');
     await configFile.writeAsString(configContent);
 
     Directory.current = appDir.path;
   } catch (e) {
-    print('Copy config file error: $e');
+    Log.e('Copy config file error', e);
   }
 }
 
@@ -85,6 +92,12 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(useMaterial3: true, brightness: Brightness.light),
       darkTheme: ThemeData(useMaterial3: true, brightness: Brightness.light),
       themeMode: ThemeMode.system,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('zh')],
       locale: const Locale('zh'),
       builder: EasyLoading.init(),
     );

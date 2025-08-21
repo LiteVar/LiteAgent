@@ -64,6 +64,14 @@ class AgentLogic extends GetxController with WindowListener {
 
   Future<void> loadLocalData() async {
     _agentListMap[TAB_LOCAL]!.assignAll((await agentRepository.getAgentDTOListFromBox()));
+    AgentDTO? autoAgent = _agentListMap[TAB_LOCAL]!.firstWhereOrNull((agent) => agent.autoAgentFlag == true);
+    if (autoAgent != null) {
+      _agentListMap[TAB_LOCAL]!.remove(autoAgent);
+      _agentListMap[TAB_LOCAL]!.insert(0, autoAgent);
+    } else {
+      AgentDTO newAgent = await newAutoAgent();
+      _agentListMap[TAB_LOCAL]!.insert(0, newAgent);
+    }
     currentAgentList.refresh();
   }
 
@@ -95,6 +103,8 @@ class AgentLogic extends GetxController with WindowListener {
         if (agent != null) {
           updateAgent(agent, false);
         }
+      } else if (event.message == EventBusMessage.delete && event.agent != null) {
+        _removeAgent(event.agent?.id ?? "");
       }
     });
   }
@@ -111,28 +121,44 @@ class AgentLogic extends GetxController with WindowListener {
     Get.back();
   }
 
-  void removeAgent(String id) {
+  Future<AgentDTO> newAutoAgent() async {
+    String des = "AI能够理解任务，并从工具库和模型库中，搭建一个临时的agent执行任务，可以精准、高效地达成目标。";
+    String agentId = snowFlakeUtil.getId();
+    var newAgent = AgentDTO(
+        agentId, "Auto Multi Agent", "", des, "", "", false, 0.0, 1.0, 4096, "", null, null, null, null, null, false, true, null, null);
+    AgentBean targetAgent = AgentBean();
+    targetAgent.translateFromDTO(newAgent);
+    int createTime = DateTime.now().microsecondsSinceEpoch;
+    targetAgent.createTime = createTime;
+    await agentRepository.updateAgent(newAgent.id, targetAgent);
+    return newAgent;
+  }
+
+  void showRemoveAgentDialog(String id) {
     Get.dialog(
         barrierDismissible: false,
         CommonConfirmDialog(
           title: "删除确认",
           content: "即将删除agent的所有信息，确认删除？",
           confirmString: "删除",
-          onConfirmCallback: () async {
-            var localList = _agentListMap[TAB_LOCAL];
-            if (localList == null) {
-              return;
-            }
-            for (var agent in localList) {
-              if (agent.id == id) {
-                localList.remove(agent);
-                agentRepository.removeAgent(id);
-                currentAgentList.refresh();
-                break;
-              }
-            }
-          },
+          onConfirmCallback: () => _removeAgent(id),
         ));
+  }
+
+  Future<void> _removeAgent(String id) async {
+    var localList = _agentListMap[TAB_LOCAL];
+    if (localList == null) {
+      return;
+    }
+    for (var agent in localList) {
+      if (agent.id == id) {
+        localList.remove(agent);
+        agentRepository.removeAgent(id);
+        eventBus.fire(AgentMessageEvent(message: EventBusMessage.delete, agent: AgentBean()..id = id));
+        currentAgentList.refresh();
+        break;
+      }
+    }
   }
 
   void createNewAgent(String name, String iconPath, String description) async {
@@ -142,9 +168,9 @@ class AgentLogic extends GetxController with WindowListener {
     }
     String agentId = snowFlakeUtil.getId();
     int createTime = DateTime.now().microsecondsSinceEpoch;
-    var agent = AgentDTO(agentId, "", "", name, iconPath, description, "", "", <String>[], 0, false, 0.0, 1.0, 4096, "", "", null, null,
-        null, null, null, false);
-    localList.insert(0, agent);
+    var agent = AgentDTO(
+        agentId, name, iconPath, description, "", "", false, 0.0, 1.0, 4096, "", null, null, null, null, null, false, false, null, null);
+    localList.insert(1, agent);
     currentAgentList.refresh();
 
     AgentBean targetAgent = AgentBean();
@@ -214,7 +240,9 @@ class AgentLogic extends GetxController with WindowListener {
   }
 
   void startChat(AgentDTO agent) async {
-    if (agent.isCloud ?? false) {
+    AgentBean? targetAgent;
+    var isCloudAgent = agent.isCloud ?? false;
+    if (isCloudAgent) {
       var agentDetail = await agentRepository.getCloudAgentDetail(agent.id);
       if (agentDetail?.model == null) {
         AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
@@ -224,6 +252,7 @@ class AgentLogic extends GetxController with WindowListener {
         AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
         return;
       }
+      targetAgent = AgentBean()..translateFromDTO(agent);
     } else {
       String modelId = agent.llmModelId ?? "";
       var model = await modelRepository.getModelFromBox(modelId);
@@ -235,9 +264,8 @@ class AgentLogic extends GetxController with WindowListener {
         AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
         return;
       }
+      targetAgent = await agentRepository.getAgentFromBox(agent.id);
     }
-    AgentBean targetAgent = AgentBean();
-    targetAgent.translateFromDTO(agent);
     eventBus.fire(AgentMessageEvent(message: EventBusMessage.startChat, agent: targetAgent));
   }
 

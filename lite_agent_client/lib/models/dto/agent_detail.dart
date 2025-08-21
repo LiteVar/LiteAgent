@@ -16,6 +16,12 @@ class AgentDetailDTO extends Object {
   @JsonKey(name: 'model')
   ModelDTO? model;
 
+  @JsonKey(name: 'ttsModel')
+  ModelDTO? ttsModel;
+
+  @JsonKey(name: 'asrModel')
+  ModelDTO? asrModel;
+
   @JsonKey(name: 'functionList')
   List<FunctionDto>? functionList;
 

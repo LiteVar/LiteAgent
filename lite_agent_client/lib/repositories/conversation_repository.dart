@@ -38,4 +38,22 @@ class ConversationRepository {
   Future<void> clear() async {
     await (await _conversationBox).clear();
   }
+
+  static const String debugConversationBoxKey = "debug_conversation_box_key";
+  Box<AgentConversationBean>? _debugBox;
+
+  Future<Box<AgentConversationBean>> get _debugConversationBox async =>
+      _debugBox ??= await Hive.openBox<AgentConversationBean>(debugConversationBoxKey);
+
+  Future<void> updateAdjustmentHistory(String key, AgentConversationBean agent) async {
+    await (await _debugConversationBox).put(key, agent);
+  }
+
+  Future<AgentConversationBean?> getAdjustmentHistory(String key) async {
+    return (await _debugConversationBox).get(key);
+  }
+
+  Future<void> removeAdjustmentConversation(String key) async {
+    await (await _debugConversationBox).delete(key);
+  }
 }

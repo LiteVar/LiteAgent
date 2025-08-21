@@ -21,6 +21,8 @@ public class ExternalMessage {
      * 会话id
      */
     private String sessionId;
+    private String agentId;
+    private String parentTaskId;
     /**
      * 任务id
      */
@@ -92,6 +94,10 @@ public class ExternalMessage {
         private String id;
         private String name;
         private JSONObject arguments;
+        private String toolId;
+        private String toolName;
+        private String functionId;
+        private String functionName;
     }
 
     @Data
@@ -99,6 +105,9 @@ public class ExternalMessage {
         private String id;
         private String result;
         private String functionName;
+        private String toolId;
+        private String toolName;
+        private String functionId;
     }
 
     @Data

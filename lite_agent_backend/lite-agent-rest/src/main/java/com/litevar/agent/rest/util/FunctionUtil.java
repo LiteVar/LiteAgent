@@ -7,7 +7,6 @@ import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.entity.ToolFunction;
 import com.litevar.agent.base.util.RedisUtil;
-import com.litevar.agent.core.module.tool.ToolFunctionService;
 import com.litevar.agent.core.module.tool.ToolHandleFactory;
 import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.core.module.tool.executor.FunctionExecutor;
@@ -34,7 +33,7 @@ import java.util.stream.Collectors;
 public class FunctionUtil {
     public static final String TOOL_KNOWLEDGE_BASE = "knowledgeBase";
     public static final String TOOL_AGENT_DISTRIBUTE = "agentDistribute";
-    public static final String TOOL_AUTO_AGENT = "taskExecutor";
+    public static final String TOOL_AUTO_AGENT = "task_plan";
 
     public static List<ToolSpecification> buildTool(List<ToolFunction> functionList) {
         List<ToolSpecification> invokeToolList = new ArrayList<>();
@@ -151,10 +150,10 @@ public class FunctionUtil {
     /**
      * function调用
      */
-    public static String callFunction(String sessionId, String taskId, String callId, String agentId, String contextId, String functionId, String argument) {
-        Integer executeMode = (Integer) RedisUtil.getHashValue(String.format(CacheKey.FUNCTION_EXECUTE_MODE, contextId), functionId);
-        ToolFunction function = SpringUtil.getBean(ToolFunctionService.class).findById(functionId);
+    public static String callFunction(String callId, String contextId, ToolFunction function, String argument) {
+        Integer executeMode = (Integer) RedisUtil.getHashValue(String.format(CacheKey.FUNCTION_EXECUTE_MODE, contextId), function.getId());
         String apiKey = SpringUtil.getBean(ToolService.class).toolApiKey(function.getToolId());
+        CurrentAgentRequest.AgentRequest context = CurrentAgentRequest.getContext();
         Callable<Object> task = () -> {
             JSONObject argObj = JSONUtil.parseObj(argument);
             //调用接口获取结果
@@ -166,8 +165,7 @@ public class FunctionUtil {
             String result;
             if (executor instanceof OpenToolExecutor) {
                 //推一条FunctionCall消息给第三方, 让第三方去调用工具
-                OpenToolMessage msg = new OpenToolMessage(agentId, sessionId, taskId, callId,
-                        function.getResource(), argObj);
+                OpenToolMessage msg = new OpenToolMessage(context, callId, function.getResource(), argObj);
                 AgentManager.handleMsg(AgentMsgType.OPEN_TOOL_CALL_MSG, msg);
             }
             try {
@@ -181,7 +179,7 @@ public class FunctionUtil {
         };
         try {
             //id使用agentId+functionId表示执行模式控制范围是在同一个agent的同一个function有效
-            CompletableFuture<Object> future = TaskExecutor.execute(agentId + functionId, executeMode, task);
+            CompletableFuture<Object> future = TaskExecutor.execute(context.getAgentId() + function.getId(), executeMode, task);
             return (String) future.join();
         } catch (Exception e) {
             return e.getMessage();
@@ -269,7 +267,7 @@ public class FunctionUtil {
     public static ToolSpecification autoAgentToTool() {
         ToolSpecification.Function function = new ToolSpecification.Function();
         function.setName(TOOL_AUTO_AGENT);
-        function.setDescription("Do not use this tool for simple commands like greeting users. It should be automatically invoked when processing user tasks or when you cannot complete/determine the user's request - without requiring user confirmation. During operation, no other tools may be called simultaneously, and this tool can only be invoked once.");
+        function.setDescription("processing user tasks");
         JsonStringSchema task = new JsonStringSchema();
         task.setDescription("the task content, which can be a single task or multiple tasks.When multiple tasks are present,separate them with commas.Output must always match the user's language.");
 

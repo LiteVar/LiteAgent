@@ -1,11 +1,18 @@
 package com.litevar.agent.rest.openai.handler;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
+import com.litevar.agent.base.entity.ToolFunction;
+import com.litevar.agent.base.entity.ToolProvider;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.vo.OutMessage;
+import com.litevar.agent.core.module.tool.ToolFunctionService;
+import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.openai.completion.CompletionResponse;
 import com.litevar.agent.openai.completion.message.AssistantMessage;
 import com.litevar.agent.rest.openai.message.*;
+import com.litevar.agent.rest.util.FunctionUtil;
+import com.litevar.agent.rest.util.SpringUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -89,13 +96,6 @@ public class AgentMessageHandler {
     }
 
     /**
-     * 普通agent广播消息
-     */
-    public void broadcast(DistributeMessage distributeMessage) {
-
-    }
-
-    /**
      * 知识库调用
      */
     public void knowledge(KnowledgeMessage knowledgeMessage) {
@@ -123,7 +123,7 @@ public class AgentMessageHandler {
 
     }
 
-    public void disconnect() {
+    public void disconnect(String requestId) {
 
     }
 
@@ -157,6 +157,7 @@ public class AgentMessageHandler {
     protected OutMessage transformErrorMessage(ErrorMessage msg) {
         OutMessage outMessage = new OutMessage();
         outMessage.setAgentId(msg.getAgentId());
+        outMessage.setParentTaskId(msg.getParentTaskId());
         outMessage.setTaskId(msg.getTaskId());
         outMessage.setRole("agent");
         outMessage.setType("error");
@@ -181,6 +182,19 @@ public class AgentMessageHandler {
             functionCall.setId(i.getId());
             functionCall.setName(i.getFunction().getName());
             functionCall.setArguments(i.getFunction().getArguments());
+            String functionId = FunctionUtil.getFunctionId(i.getFunction().getName());
+            if (StrUtil.isNotBlank(functionId)) {
+                try {
+                    ToolFunction function = SpringUtil.getBean(ToolFunctionService.class).findById(functionId);
+                    ToolProvider tool = SpringUtil.getBean(ToolService.class).findById(function.getToolId());
+                    functionCall.setToolId(function.getToolId());
+                    functionCall.setToolName(tool.getName());
+                    functionCall.setFunctionName(function.getResource());
+                } catch (Exception e) {
+                }
+            }
+            functionCall.setFunctionId(functionId);
+
             callList.add(functionCall);
         });
         outMessage.setToolCalls(callList);
@@ -189,6 +203,7 @@ public class AgentMessageHandler {
 
     private OutMessage llmMessage(LlmMessage msg) {
         OutMessage outMessage = new OutMessage();
+        outMessage.setParentTaskId(msg.getParentTaskId());
         outMessage.setTaskId(msg.getTaskId());
         outMessage.setRole("assistant");
         outMessage.setAgentId(msg.getAgentId());
@@ -203,6 +218,7 @@ public class AgentMessageHandler {
     protected OutMessage transformToolResultMessage(ToolResultMessage msg) {
         OutMessage outMessage = new OutMessage();
         outMessage.setAgentId(msg.getAgentId());
+        outMessage.setParentTaskId(msg.getParentTaskId());
         outMessage.setTaskId(msg.getTaskId());
         outMessage.setRole("tool");
         outMessage.setType("toolReturn");
@@ -214,6 +230,7 @@ public class AgentMessageHandler {
     protected OutMessage transformDistributeMessage(DistributeMessage msg) {
         OutMessage outMessage = new OutMessage();
         outMessage.setAgentId(msg.getAgentId());
+        outMessage.setParentTaskId(msg.getParentTaskId());
         outMessage.setTaskId(msg.getTaskId());
         outMessage.setRole("agent");
         outMessage.setType("dispatch");
@@ -228,6 +245,7 @@ public class AgentMessageHandler {
     protected OutMessage transformReflectMessage(ReflectResultMessage msg) {
         OutMessage outMessage = new OutMessage();
         outMessage.setAgentId(msg.getAgentId());
+        outMessage.setParentTaskId(msg.getParentTaskId());
         outMessage.setTaskId(msg.getTaskId());
         outMessage.setRole("reflection");
         outMessage.setType("reflect");
@@ -240,9 +258,10 @@ public class AgentMessageHandler {
         return outMessage;
     }
 
-    protected OutMessage transformAgentStatusMessage(AgentSwitchMessage msg) {
+    protected OutMessage transformAgentSwitchMessage(AgentSwitchMessage msg) {
         OutMessage outMessage = new OutMessage();
         outMessage.setAgentId(msg.getAgentId());
+        outMessage.setParentTaskId(msg.getParentTaskId());
         outMessage.setTaskId(msg.getTaskId());
         outMessage.setRole("agent");
         outMessage.setType("agentSwitch");
@@ -255,6 +274,7 @@ public class AgentMessageHandler {
     protected OutMessage transformKnowledgeMessage(KnowledgeMessage msg) {
         OutMessage outMessage = new OutMessage();
         outMessage.setAgentId(msg.getAgentId());
+        outMessage.setParentTaskId(msg.getParentTaskId());
         outMessage.setTaskId(msg.getTaskId());
         outMessage.setRole("agent");
         outMessage.setType("knowledge");
@@ -268,6 +288,7 @@ public class AgentMessageHandler {
     protected OutMessage transformPlanningMessage(PlanningMessage msg) {
         OutMessage outMessage = new OutMessage();
         outMessage.setAgentId(msg.getAgentId());
+        outMessage.setParentTaskId(msg.getParentTaskId());
         outMessage.setTaskId(msg.getTaskId());
         outMessage.setRole("agent");
         outMessage.setType("planning");

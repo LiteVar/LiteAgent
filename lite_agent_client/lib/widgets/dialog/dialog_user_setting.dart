@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
+import '../../utils/log_util.dart';
 import 'package:lite_agent_client/models/dto/account.dart';
 import 'package:lite_agent_client/models/dto/workspace.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
@@ -20,7 +21,7 @@ class UserSettingDialog extends StatelessWidget {
   void initData() async {
     var list = await accountRepository.getAccountWorkspaceList();
     String workSpaceId = await accountRepository.getWorkSpaceId();
-    print("workSpaceId:$workSpaceId");
+    Log.d("workSpaceId:$workSpaceId");
     if (list != null && list.isNotEmpty) {
       //workSpace = list[0];
       for (var workSpace in list) {

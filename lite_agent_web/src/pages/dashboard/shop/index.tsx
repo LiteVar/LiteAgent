@@ -36,6 +36,7 @@ const ShopPage: React.FC = () => {
     }),
     enabled: !!workspaceId,
     retry: 1,
+    cacheTime: 0,
     onError: (err) => {
       console.error('Agent列表请求失败:', err);
     }

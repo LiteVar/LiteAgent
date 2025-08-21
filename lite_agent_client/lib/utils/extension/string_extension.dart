@@ -75,7 +75,6 @@ extension StringHomeAbbreviation on String {
 
   Future<bool> isOpenAIJson() async {
     try {
-      json.decode(this) as Map<String, dynamic>;
       await OpenAPILoader().load(this);
       return true;
     } catch (e) {
@@ -85,7 +84,6 @@ extension StringHomeAbbreviation on String {
 
   Future<bool> isOpenModBusJson() async {
     try {
-      json.decode(this) as Map<String, dynamic>;
       await OpenModbusLoader().load(this);
       return true;
     } catch (e) {
@@ -95,7 +93,6 @@ extension StringHomeAbbreviation on String {
 
   Future<bool> isOpenPPCJson() async {
     try {
-      json.decode(this) as Map<String, dynamic>;
       await OpenRPCLoader().load(this);
       return true;
     } catch (e) {
@@ -112,10 +109,11 @@ extension StringHomeAbbreviation on String {
     }
   }
 
-  bool isOpenAIYaml() {
+  Future<bool> isOpenAIYaml() async {
     try {
-      var yaml = loadYaml(this) as YamlMap;
-      return yaml["openapi"] != null && yaml["info"] != null;
+      YamlMap yamlMap = loadYaml(this);
+      await OpenAPILoader().load(jsonEncode(yamlMap));
+      return true;
     } catch (e) {
       return false;
     }
@@ -123,11 +121,36 @@ extension StringHomeAbbreviation on String {
 
   Future<bool> isOpenToolJson() async {
     try {
-      json.decode(this) as Map<String, dynamic>;
       await OpenToolLoader().load(this);
       return true;
     } catch (e) {
       return false;
     }
   }
+
+  bool isMCPServersJson() {
+    try {
+      Map<String, dynamic> json = jsonDecode(this);
+      if (json["mcpServers"] == null) return false;
+      json["mcpServers"].forEach((key, value) {
+        if (value["command"] == null || value["args"] == null || value["command"] is! String || value["args"] is! List) {
+          return false;
+        }
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  String get lastSixChars => length > 6 ? substring(length - 6) : this;
+
+  /// 去除前后空白（包括空格、换行符、制表符等）
+  String trimmed() => replaceAll(RegExp(r'^\s+|\s+$'), '');
+
+  /// 仅去除前导空白
+  String trimFront() => replaceAll(RegExp(r'^\s+'), '');
+
+  /// 仅去除尾部空白
+  String trimEnd() => replaceAll(RegExp(r'\s+$'), '');
 }

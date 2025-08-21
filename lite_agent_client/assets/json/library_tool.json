@@ -1,0 +1,108 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dataset API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "$serverUrl/v1/dataset/$id"
+    }
+  ],
+  "paths": {
+    "/retrieve": {
+      "get": {
+        "description": "检索数据集内容",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "要检索的内容"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功响应",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "workspaceId": {
+                            "type": "string"
+                          },
+                          "datasetId": {
+                            "type": "string"
+                          },
+                          "documentId": {
+                            "type": "string"
+                          },
+                          "embeddingId": {
+                            "type": "string"
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "metadata": {
+                            "type": "string"
+                          },
+                          "wordCount": {
+                            "type": "integer",
+                            "default": 0
+                          },
+                          "tokenCount": {
+                            "type": "integer",
+                            "default": 0
+                          },
+                          "hitCount": {
+                            "type": "integer",
+                            "default": 0
+                          },
+                          "enableFlag": {
+                            "type": "boolean",
+                            "default": false
+                          },
+                          "createTime": {
+                            "type": "string"
+                          },
+                          "updateTime": {
+                            "type": "string"
+                          },
+                          "documentName": {
+                            "type": "string"
+                          },
+                          "score": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

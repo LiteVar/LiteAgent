@@ -21,7 +21,7 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Distribution agent(Web, Desktop)
 - Reflection agent(Web, Desktop)
 - Agent mode support: Parallel, Serial, Reject
-- Auto Multi Agent (Web)
+- Auto Multi Agent (Web, Desktop)
 
 ### 2. Tool Support
 

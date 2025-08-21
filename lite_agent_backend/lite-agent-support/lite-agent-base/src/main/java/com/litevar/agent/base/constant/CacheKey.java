@@ -39,6 +39,7 @@ public interface CacheKey {
     String AGENT_DRAFT = "agent:draft:%s";
     String AGENT_DATASET_DRAFT = "agent:draft:dataset:%s";
     String AGENT_API_KEY = "agent:apiKey";
+    String AUTO_AGENT_CREATE = "agent:auto:%s";
 
     String MODEL_INFO = "model:info";
     String TOOL_INFO = "tool:info";

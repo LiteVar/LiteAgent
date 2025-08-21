@@ -105,7 +105,7 @@ public class OpenAiChatModel {
         if (response.isFunctionCalling()) {
             response.getChoices().get(0).getMessage().getToolCalls().forEach(i -> {
                 String arguments = i.getFunction().getArguments();
-                if (StrUtil.isBlank(arguments)) {
+                if (StrUtil.isBlank(arguments.trim())) {
                     //兼容国产大模型function-calling argument参数为空返回空字符的情况
                     log.error("function-calling argument为空,将arguments修复为空括号");
                     i.getFunction().setArguments("{}");

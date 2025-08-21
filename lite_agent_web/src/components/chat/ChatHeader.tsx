@@ -2,15 +2,9 @@ import React from 'react';
 import { Avatar, Button, Dropdown } from 'antd';
 import { ClearOutlined, EllipsisOutlined } from '@ant-design/icons';
 import ClearImg from '@/assets/agent/clear.png';
+import { ChatHeaderProps } from '@/types/chat';
 
-interface IChatHeaderProps {
-  mode: 'dev' | 'prod';
-  agentId: string;
-  agentName?: string;
-  onResetSession: () => void;
-}
-
-const ChatHeader: React.FC<IChatHeaderProps> = ({ mode, agentId, agentName, onResetSession }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ mode, agentId, agentName, onResetSession }) => {
   const agentDropDownItems = [
     {
       key: `clear-session-${agentId}`,

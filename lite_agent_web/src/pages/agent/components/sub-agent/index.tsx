@@ -16,7 +16,7 @@ import {
   AgentDetailVO, 
   AgentDTO,
 } from '@/client';
-import { AgentType } from '../agent-set';
+import { AgentType } from '@/types/chat';
 import ImgIcon from '../img-icon';
 import removeImg from '@/assets/agent/remove.png';
 import agentImg from '@/assets/agent/agent.png';

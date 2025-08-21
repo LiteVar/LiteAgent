@@ -82,10 +82,15 @@ class ToolPage extends StatelessWidget {
     return Expanded(child: Obx(() {
       if (logic.currentToolList.isNotEmpty) {
         return GridView.count(
-          crossAxisCount: 4,
-          childAspectRatio: 3 / 2.2,
-          children: List.generate(logic.currentToolList.length, (index) => _buildToolItem(logic.currentToolList[index])),
-        );
+            crossAxisCount: 4,
+            childAspectRatio: 3 / 2.2,
+            children: List.generate(logic.currentToolList.length, (index) {
+              var tool = logic.currentToolList[index];
+              return InkWell(
+                onTap: () => logic.showLocalToolDetailDialog(tool.id),
+                child: _buildToolItem(tool),
+              );
+            }));
       } else {
         String text = logic.currentTab.value == ToolLogic.TAB_LOCAL ? "暂无工具，请创建" : "暂无工具";
         return Column(
@@ -191,15 +196,16 @@ class ToolPage extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(width: 30, height: 30, decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(6))),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(color: const Color(0xfff5f5f5), borderRadius: BorderRadius.circular(6)),
+                child: Center(child: buildAssetImage("icon_default_tool.png", 16, Colors.black)),
+              ),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  tool.name ?? "",
-                  style: const TextStyle(fontSize: 16, color: Colors.black),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(tool.name ?? "",
+                    style: const TextStyle(fontSize: 16, color: Colors.black), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               Offstage(
                 offstage: !(tool.shareFlag ?? false),
@@ -207,13 +213,8 @@ class ToolPage extends StatelessWidget {
                   width: 44,
                   height: 24,
                   margin: const EdgeInsets.only(left: 4),
-                  decoration: BoxDecoration(
-                    color: const Color.fromRGBO(255, 195, 0, 1),
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: const Center(
-                    child: Text("已分享", style: TextStyle(fontSize: 10, color: Colors.white)),
-                  ),
+                  decoration: BoxDecoration(color: const Color.fromRGBO(255, 195, 0, 1), borderRadius: BorderRadius.circular(8.0)),
+                  child: const Center(child: Text("已分享", style: TextStyle(fontSize: 10, color: Colors.white))),
                 ),
               )
             ],
@@ -280,14 +281,13 @@ class ToolPage extends StatelessWidget {
                   ));
             } else {
               return InkWell(
-                  onTap: () {
-                    logic.showToolDetailDialog(tool.id);
-                  },
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    buildAssetImage("icon_file_text.png", 16, Colors.blue),
-                    const SizedBox(width: 4),
-                    const Text('查看详情', style: TextStyle(color: Colors.blue, fontSize: 14))
-                  ]));
+                onTap: () => logic.showCloudToolDetailDialog(tool.id),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  buildAssetImage("icon_file_text.png", 16, Colors.blue),
+                  const SizedBox(width: 4),
+                  const Text('查看详情', style: TextStyle(color: Colors.blue, fontSize: 14))
+                ]),
+              );
             }
           })
         ],

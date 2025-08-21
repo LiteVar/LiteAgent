@@ -1,12 +1,11 @@
-import 'dart:io';
-
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
+import 'package:lite_agent_client/widgets/input_box_container.dart';
 
 import '../../models/local_data_model.dart';
-import '../../utils/web_util.dart';
 import '../../widgets/common_widget.dart';
+import '../../widgets/listview_chat_message.dart';
 import 'logic.dart';
 
 class ChatPage extends StatelessWidget {
@@ -42,41 +41,75 @@ class ChatPage extends StatelessWidget {
         style: ButtonStyle(
             padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 40)),
             backgroundColor: WidgetStateProperty.all(buttonColor),
-            shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
-            )),
+            shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)))),
         onPressed: () => logic.onStartChatButtonClick(),
         child: const Text('开始聊天', style: TextStyle(color: Colors.white, fontSize: 14)));
   }
 
   Widget _buildAgentListView() {
-    return Obx(() {
-      return ListView.builder(
-          itemCount: logic.conversationList.length,
-          itemBuilder: (context, index) {
-            var conversation = logic.conversationList[index];
-            var conversationId = conversation.agentId;
-            var title = conversation.agent?.name ?? "";
-            return InkWell(
-              onTap: () => logic.switchChatView(conversationId, true),
-              child: Container(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-                  child: Row(
-                    children: [
-                      buildAssetImage("icon_dashboard.png", 16, null),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(title, style: const TextStyle(fontSize: 14, color: Color.fromRGBO(71, 71, 71, 1)))),
-                      Offstage(
-                          offstage: !(conversation.isCloud),
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            child: buildAssetImage("icon_cloud.png", 16, Colors.grey),
-                          ))
-                    ],
-                  )),
-            );
-          });
-    });
+    return Obx(() => ListView.builder(
+        itemCount: logic.conversationList.length,
+        itemBuilder: (context, index) {
+          var conversation = logic.conversationList[index];
+          var conversationId = conversation.agentId;
+          var title = conversation.agent?.name ?? "";
+          var isSelected = conversationId == logic.currentConversation.value?.agentId;
+          var textColor = isSelected ? const Color(0xff474747) : const Color(0xff7b7b7b);
+          return MouseRegion(
+              onEnter: (event) => logic.conversationItemHoverId.value = index.toString(),
+              onExit: (event) => logic.conversationItemHoverId.value = "",
+              child: InkWell(
+                onTap: () => logic.switchChatView(conversationId, true),
+                child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                    child: Row(
+                      children: [
+                        buildAssetImage("icon_dashboard.png", 16, null),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 14, color: textColor, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                          ),
+                        ),
+                        Obx(() => Offstage(
+                              offstage: logic.conversationItemHoverId.value != index.toString(),
+                              child: DropdownButtonHideUnderline(
+                                  child: DropdownButton2(
+                                      customButton: Container(
+                                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: buildAssetImage("icon_ellipsis.png", 18, textColor),
+                                      ),
+                                      dropdownStyleData: const DropdownStyleData(
+                                          width: 60,
+                                          offset: Offset(-10, 0),
+                                          padding: EdgeInsets.symmetric(vertical: 0),
+                                          decoration: BoxDecoration(color: Colors.white)),
+                                      menuItemStyleData: const MenuItemStyleData(height: 30),
+                                      items: const [
+                                        DropdownMenuItem<String>(
+                                          value: "delete",
+                                          child: Center(child: Text("删除", style: TextStyle(fontSize: 12))),
+                                        )
+                                      ],
+                                      onChanged: (value) {
+                                        if (value == "delete") {
+                                          logic.deleteConversation(conversationId);
+                                        }
+                                      })),
+                            )),
+                        Offstage(
+                            offstage: !(conversation.isCloud),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              child: buildAssetImage("icon_cloud.png", 16, textColor),
+                            ))
+                      ],
+                    )),
+              ));
+        }));
   }
 
   Expanded _buildChatView() {
@@ -103,22 +136,32 @@ class ChatPage extends StatelessWidget {
           child: Stack(children: [
         GestureDetector(
             onTap: () => logic.closeAgentInfo(),
-            child: Column(children: [
-              Expanded(
-                child: Container(
-                    padding: const EdgeInsets.fromLTRB(0, 30, 0, 0),
-                    child: ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(Get.context!).copyWith(scrollbars: true),
-                        child: ListView.builder(
-                            controller: logic.chatScrollController,
-                            itemCount: conversation?.chatMessageList.length ?? 0,
-                            itemBuilder: (context, index) {
-                              var chatMessage = conversation?.chatMessageList[index];
-                              return chatMessage != null ? _buildMessageItem(index, chatMessage) : Container();
-                            }))),
-              ),
-              _buildInputView()
-            ])),
+            child: Row(
+              children: [
+                Expanded(
+                    child: Column(
+                  children: [
+                    Expanded(
+                      child: Container(
+                          margin: const EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: ChatMessageListView(
+                            controller: logic.listViewController,
+                            chatMessageList: conversation?.chatMessageList ?? [],
+                          )),
+                    ),
+                    Obx(() => Container(
+                          padding: EdgeInsets.symmetric(horizontal: (logic.showThoughtProcessDetail.value) ? 0 : 40),
+                          child: InputBoxContainer(controller: logic.inputBoxController),
+                        ))
+                  ],
+                )),
+                Obx(() => Offstage(
+                      offstage: !logic.showThoughtProcessDetail.value,
+                      child: buildThoughtDetailRow(),
+                    ))
+              ],
+            )),
         Offstage(
           offstage: !logic.isShowDrawer.value,
           child: _buildAgentInfoRow(agent),
@@ -175,240 +218,40 @@ class ChatPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageItem(int index, ChatMessage chatMessage) {
-    if (chatMessage.sendRole == ChatRole.User) {
-      var iconPath = logic.account?.avatar ?? "";
-      return MouseRegion(
-          onEnter: (event) => logic.messageHoverItemId.value = index.toString(),
-          onExit: (event) => logic.messageHoverItemId.value = "",
-          child: Container(
-            margin: const EdgeInsets.only(top: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(8))),
-                        child: MarkdownBody(
-                            data: chatMessage.message,
-                            onTapLink: (text, url, title) async {
-                              if (url != null) {
-                                WebUtil.openUrl(url);
-                              }
-                            }),
-                      ),
-                      Obx(() => Visibility(
-                          visible: logic.messageHoverItemId.value == index.toString(),
-                          maintainSize: true,
-                          maintainAnimation: true,
-                          maintainState: true,
-                          child: InkWell(
-                              onTap: () => logic.copyToClipboard(chatMessage.message),
-                              child: Container(
-                                  margin: const EdgeInsets.symmetric(vertical: 10),
-                                  child: buildAssetImage("icon_copy.png", 16, const Color(0xff999999))))))
-                    ],
-                  ),
-                ),
-                Container(width: 25, height: 25, margin: const EdgeInsets.only(left: 10, top: 4), child: buildUserProfileImage(iconPath))
-              ],
-            ),
-          ));
-    } else if (chatMessage.sendRole == ChatRole.Agent) {
-      var agent = logic.currentConversation.value?.agent;
-      String iconPath = agent?.iconPath ?? "";
-      String message = chatMessage.isLoading ? "正在生成..." : chatMessage.message;
-      return MouseRegion(
-          onEnter: (event) => logic.messageHoverItemId.value = index.toString(),
-          onExit: (event) => logic.messageHoverItemId.value = "",
-          child: Container(
-            margin: const EdgeInsets.only(top: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(width: 25, height: 25, margin: const EdgeInsets.only(right: 10, top: 4), child: buildAgentProfileImage(iconPath)),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if ((chatMessage.thoughtList?.length ?? 0) > 0) buildThoughtProcessColumn(chatMessage),
-                      Container(
-                        padding: const EdgeInsets.only(top: 10),
-                        //decoration: const BoxDecoration(color: Color(0xfff5f5f5), borderRadius: BorderRadius.all(Radius.circular(8))),
-                        child: MarkdownBody(
-                            data: message,
-                            onTapLink: (text, url, title) async {
-                              if (url != null) {
-                                WebUtil.openUrl(url);
-                              }
-                            }),
-                      ),
-                      if ((chatMessage.childAgentMessageList?.length ?? 0) > 0)
-                        ...List.generate(
-                          chatMessage.childAgentMessageList?.length ?? 0,
-                          (index) => Container(
-                              margin: const EdgeInsets.only(top: 5),
-                              child: Text(chatMessage.childAgentMessageList![index],
-                                  style: const TextStyle(fontSize: 12, color: Color(0xff999999)))),
-                        ),
-                      Obx(() => Visibility(
-                          visible: logic.messageHoverItemId.value == index.toString(),
-                          maintainSize: true,
-                          maintainAnimation: true,
-                          maintainState: true,
-                          child: InkWell(
-                              onTap: () => logic.copyToClipboard(chatMessage.message),
-                              child: Container(
-                                  margin: const EdgeInsets.symmetric(vertical: 10),
-                                  child: buildAssetImage("icon_copy.png", 16, const Color(0xff999999))))))
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ));
-    } else {
-      return Container();
-    }
-  }
-
-  Widget _buildInputView() {
-    return Container(
-        width: 600,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        margin: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          border: Border.all(color: chatBorderColor),
-          borderRadius: BorderRadius.circular(7.0),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Obx(() {
-              var isShow = logic.selectImagePath.value.isNotEmpty;
-              return isShow
-                  ? Container(
-                      width: 80,
-                      height: 80,
-                      margin: const EdgeInsets.fromLTRB(15, 10, 0, 10),
-                      color: Colors.grey,
-                      child: Stack(fit: StackFit.loose, children: [
-                        SizedBox(
-                          width: 80,
-                          height: 80,
-                          child: Image(image: FileImage(File(logic.selectImagePath.value)), fit: BoxFit.cover),
-                        ),
-                        InkWell(
-                          onTap: () {
-                            logic.selectImagePath.value = "";
-                          },
-                          child: const Row(children: [Spacer(), Icon(Icons.close, size: 16, color: Colors.white)]),
-                        )
-                      ]))
-                  : Container();
-            }),
-            SizedBox(
-              height: 40,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  /*InkWell(
-                      hoverColor: Colors.transparent,
-                      splashColor: Colors.transparent,
-                      onTap: () {
-                        logic.selectImageFile();
-                      },
-                      child: Icon(Icons.add, size: 24)),*/
-                  Expanded(
-                      child: TextField(
-                          enabled: logic.enableInput.value,
-                          focusNode: logic.chatFocusNode,
-                          autofocus: true,
-                          onSubmitted: (string) {
-                            logic.onChatButtonPress();
-                          },
-                          controller: logic.chatController,
-                          decoration: InputDecoration(
-                              hintText: logic.enableInput.value ? '请输入聊天内容' : '反思Agent不能进行聊天对话',
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 4)),
-                          style: const TextStyle(fontSize: 14))),
-                  InkWell(
-                      hoverColor: Colors.transparent,
-                      splashColor: Colors.transparent,
-                      onTap: () {
-                        logic.onChatButtonPress();
-                      },
-                      child: Container(
-                          margin: const EdgeInsets.only(right: 4),
-                          padding: const EdgeInsets.all(4),
-                          child: buildAssetImage("icon_send.png", 20, const Color(0xffb3b3b3))))
-                ],
-              ),
-            )
-          ],
-        ));
-  }
-
-  Column buildThoughtProcessColumn(ChatMessage chatMessage) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Row buildThoughtDetailRow() {
+    return Row(
       children: [
-        Container(
-            padding: const EdgeInsets.only(top: 10),
-            child: Row(
-              children: [
-                InkWell(
-                    onTap: () {
-                      chatMessage.isThoughtExpanded = !chatMessage.isThoughtExpanded;
-                      logic.currentConversation.refresh();
-                    },
-                    child: Row(children: [
-                      const Text("思考过程", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
-                      Container(
-                          margin: const EdgeInsets.only(left: 5),
-                          child:
-                              buildAssetImage(chatMessage.isThoughtExpanded ? "icon_up.png" : "icon_down.png", 12, const Color(0xff333333)))
-                    ])),
-                const Spacer()
-              ],
-            )),
-        Offstage(
-          offstage: !chatMessage.isThoughtExpanded,
+        verticalLine(),
+        SizedBox(
+          width: 300,
           child: Column(
             children: [
-              ...List.generate(
-                chatMessage.thoughtList?.length ?? 0,
-                (index) => Container(margin: const EdgeInsets.only(top: 5), child: buildThoughtItem(chatMessage.thoughtList![index])),
-              )
+              Container(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  children: [
+                    const Text("过程详情", style: TextStyle(fontSize: 16, color: Color(0xff333333))),
+                    const Spacer(),
+                    InkWell(
+                      onTap: () => logic.showThoughtProcessDetail.value = false,
+                      child: buildAssetImage("icon_close.png", 16, null),
+                    )
+                  ],
+                ),
+              ),
+              horizontalLine(),
+              Expanded(
+                child: Obx(() => ListView.builder(
+                    itemCount: logic.currentSubMessageList.length,
+                    itemBuilder: (context, index) => Container(
+                          margin: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: buildSubMessageItem(logic.currentSubMessageList[index], () => logic.currentSubMessageList.refresh()),
+                        ))),
+              ),
             ],
           ),
         )
-      ],
-    );
-  }
-
-  Widget buildThoughtItem(Thought thought) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("工具调用", style: TextStyle(fontSize: 14, color: Color(0xff999999))),
-        const Text("接收信息:", style: TextStyle(fontSize: 12, color: Color(0xff999999))),
-        Container(
-            margin: const EdgeInsets.only(left: 20),
-            child: Text(thought.sentMessage, style: const TextStyle(fontSize: 12, color: Color(0xff999999)))),
-        Text("${thought.roleName}:", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-        Container(
-            margin: const EdgeInsets.only(left: 20),
-            child: Text(thought.receivedMessage, style: const TextStyle(fontSize: 12, color: Color(0xff999999)))),
       ],
     );
   }

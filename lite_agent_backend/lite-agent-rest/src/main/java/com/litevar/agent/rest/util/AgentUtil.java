@@ -78,6 +78,10 @@ public class AgentUtil {
 
     private static final Pattern jsonPattern = Pattern.compile("```json\\n([\\s\\S]*?)\\n```");
 
+    private String PROMPT_AUTO_AGENT;
+    private String PROMPT_PLANNING;
+    private String PROMPT_SUMMARY;
+
     /**
      * 获取反思的response-format
      */
@@ -138,6 +142,8 @@ public class AgentUtil {
             if (count == 0) {
                 throw new ServiceException(ServiceExceptionEnum.AUTO_AGENT_WITHOUT_MODEL_TO_USE);
             }
+            //auto-multi-agent内置提示词
+            agent.setPrompt(getAutoAgentPrompt());
         }
 
         if (ObjectUtil.isNotEmpty(agent.getFunctionList())) {
@@ -156,7 +162,7 @@ public class AgentUtil {
         request.setMaxCompletionTokens(agent.getMaxTokens());
         request.setContextId(contextId);
 
-        MultiAgent agentInstance = new MultiAgent(agent.getId(), sessionId, request);
+        MultiAgent agentInstance = new MultiAgent(agent.getId(), request);
         List<String> sequence = ObjectUtil.isNotEmpty(agent.getSequence()) ? agent.getSequence() : Collections.emptyList();
         agentInstance.setSequence(sequence);
         agentInstance.setDatasetIds(datasetIds);
@@ -246,26 +252,27 @@ public class AgentUtil {
         }
     }
 
-    public List<AgentPlanningDTO> planning(MultiAgent currentAgent, String taskId, boolean stream, String taskContent) {
-        log.info("开始规划agent,sessionId={},任务:{}", currentAgent.getSessionId(), taskContent);
+    public List<AgentPlanningDTO> planning(MultiAgent currentAgent, boolean stream, String taskContent) {
+        log.info("开始规划agent,sessionId={},任务:{}", CurrentAgentRequest.getSessionId(), taskContent);
         //planning
         ChatModelRequest request = BeanUtil.copyProperties(currentAgent.getRequest(), ChatModelRequest.class, "tools");
         AgentPlanningDTO dto = new AgentPlanningDTO();
         dto.setName("planningAgent");
         AgentPlanningDTO.PlanDescription description = new AgentPlanningDTO.PlanDescription();
-        description.setDuty("# 1.角色:任务拆解专家\n # 2.职责:根据用户指令拆解成1到多个子任务");
+        description.setDuty("# 1.角色:任务拆解agent\n # 2.技能:擅长将用户任务拆解为具体、独立的任务列表");
 
-        String planningPrompt = String.format(ResourceUtil.readUtf8Str("classpath:prompt/planning.txt"),
+        String planningPrompt = String.format(getPlanningPrompt(),
                 listCandidateModels(currentAgent.getAgentId()),
                 listCandidateTools(currentAgent.getAgentId()));
 
         description.setConstraint(planningPrompt);
         dto.setDescription(description);
 
-        MultiAgent planAgent = autoCreateAgent("tmp-" + IdUtil.getSnowflakeNextIdStr(), currentAgent.getSessionId(), request, dto);
+        MultiAgent planAgent = autoCreateAgent("tmp-" + IdUtil.getSnowflakeNextIdStr(), request, dto);
 
+        String taskId = IdUtil.getSnowflakeNextIdStr();
         AgentManager.handleMsg(AgentMsgType.SWITCH_AGENT_MSG,
-                new AgentSwitchMessage(planAgent.getSessionId(), taskId, planAgent.getAgentId(), planAgent.getAgentName()));
+                new AgentSwitchMessage(planAgent.getAgentId(), planAgent.getAgentName(), taskId));
 
         List<Message> submitMsg = List.of(UserMessage.of(taskContent));
         CompletionResponse planResult = AgentManager.chat(planAgent, taskId, submitMsg, stream).get(planAgent.getAgentId());
@@ -275,25 +282,26 @@ public class AgentUtil {
         return null;
     }
 
-    public List<MultiAgent> createAgent(List<AgentPlanningDTO> taskList, MultiAgent currentAgent) {
+    public List<MultiAgent> createAgent(List<AgentPlanningDTO> taskList) {
         List<MultiAgent> executeAgentList = new ArrayList<>();
         taskList.forEach(task -> {
             String id = "tmp-" + IdUtil.getSnowflakeNextIdStr();
             ChatModelRequest r = new ChatModelRequest();
-            MultiAgent subAgent = autoCreateAgent(id, currentAgent.getSessionId(), r, task);
+            MultiAgent subAgent = autoCreateAgent(id, r, task);
             executeAgentList.add(subAgent);
         });
         return executeAgentList;
     }
 
-    public String executeAgent(List<MultiAgent> executeAgentList, String taskId, boolean stream) {
+    public String executeAgent(List<MultiAgent> executeAgentList, boolean stream) {
         //execute agent
         //<agentId,result>
         Map<String, CompletionResponse> result = new HashMap<>();
         executeAgentList.forEach(agent -> {
+            String taskId = IdUtil.getSnowflakeNextIdStr();
             //切换到子agent
             AgentManager.handleMsg(AgentMsgType.SWITCH_AGENT_MSG,
-                    new AgentSwitchMessage(agent.getSessionId(), taskId, agent.getAgentId(), agent.getAgentName()));
+                    new AgentSwitchMessage(agent.getAgentId(), agent.getAgentName(), taskId));
 
             List<Message> msg = List.of(UserMessage.of(agent.getAgentName()));
 
@@ -305,20 +313,21 @@ public class AgentUtil {
         return JSONUtil.toJsonStr(arr);
     }
 
-    public void summary(String taskAndResult, MultiAgent currentAgent, String taskId, boolean stream) {
+    public void summary(String taskAndResult, MultiAgent currentAgent, boolean stream) {
         AgentPlanningDTO.PlanDescription description = new AgentPlanningDTO.PlanDescription();
         description.setDuty("#1.角色:任务总结专家\n #2.职责:对任务进行总结");
-        description.setConstraint(ResourceUtil.readUtf8Str("classpath:prompt/summary.txt"));
+        description.setConstraint(getSummaryPrompt());
 
         AgentPlanningDTO dto = new AgentPlanningDTO();
         dto.setName("summaryAgent");
         dto.setDescription(description);
         ChatModelRequest request = BeanUtil.copyProperties(currentAgent.getRequest(), ChatModelRequest.class, "tools");
-        //pAgentId设为0,执行完可以断开sse连接
-        MultiAgent summaryAgent = autoCreateAgent("tmp-" + IdUtil.getSnowflakeNextIdStr(), currentAgent.getSessionId(), request, dto);
 
+        MultiAgent summaryAgent = autoCreateAgent("tmp-" + IdUtil.getSnowflakeNextIdStr(), request, dto);
+
+        String taskId = IdUtil.getSnowflakeNextIdStr();
         AgentManager.handleMsg(AgentMsgType.SWITCH_AGENT_MSG,
-                new AgentSwitchMessage(summaryAgent.getSessionId(), taskId, summaryAgent.getAgentId(), summaryAgent.getAgentName()));
+                new AgentSwitchMessage(summaryAgent.getAgentId(), summaryAgent.getAgentName(), taskId));
 
         Map<String, CompletionResponse> map = AgentManager.chat(summaryAgent, taskId, List.of(UserMessage.of(taskAndResult)), stream);
         if (ObjectUtil.isNotEmpty(map)) {
@@ -368,7 +377,7 @@ public class AgentUtil {
         return Collections.emptyList();
     }
 
-    private MultiAgent autoCreateAgent(String agentId, String sessionId, ChatModelRequest request, AgentPlanningDTO dto) {
+    private MultiAgent autoCreateAgent(String agentId, ChatModelRequest request, AgentPlanningDTO dto) {
         //model
         if (ObjectUtil.isNotEmpty(dto.getModel())) {
             LlmModel model = modelService.getById(dto.getModel().getId());
@@ -392,7 +401,7 @@ public class AgentUtil {
             }
         }
 
-        MultiAgent agent = new MultiAgent(agentId, sessionId, request);
+        MultiAgent agent = new MultiAgent(agentId, request);
         agent.setSequence(Collections.emptyList());
         agent.setAgentName(dto.getName());
         agent.setAgentType(AgentType.DISTRIBUTE.getType());
@@ -407,7 +416,7 @@ public class AgentUtil {
             dto.getChildren().forEach(child -> {
                 String id = "tmp-" + IdUtil.getSnowflakeNextId();
                 ChatModelRequest r = new ChatModelRequest();
-                MultiAgent subAgent = autoCreateAgent(id, sessionId, r, child);
+                MultiAgent subAgent = autoCreateAgent(id, r, child);
                 subAgentMap.put(id, subAgent);
             });
             agent.setGeneralAgentMap(subAgentMap);
@@ -460,6 +469,27 @@ public class AgentUtil {
                         .eq(ToolProvider::getWorkspaceId, agent.getWorkspaceId()))
                 .stream().map(i -> Dict.create().set("id", i.getId()).set("name", i.getName()).set("desc", i.getDescription())).toList();
         return JSONUtil.toJsonStr(list);
+    }
+
+    private String getAutoAgentPrompt() {
+        if (StrUtil.isEmpty(PROMPT_AUTO_AGENT)) {
+            PROMPT_AUTO_AGENT = ResourceUtil.readUtf8Str("classpath:prompt/auto-agent.txt");
+        }
+        return PROMPT_AUTO_AGENT;
+    }
+
+    private String getPlanningPrompt() {
+        if (StrUtil.isEmpty(PROMPT_PLANNING)) {
+            PROMPT_PLANNING = ResourceUtil.readUtf8Str("classpath:prompt/planning.txt");
+        }
+        return PROMPT_PLANNING;
+    }
+
+    private String getSummaryPrompt() {
+        if (StrUtil.isEmpty(PROMPT_SUMMARY)) {
+            PROMPT_SUMMARY = ResourceUtil.readUtf8Str("classpath:prompt/summary.txt");
+        }
+        return PROMPT_SUMMARY;
     }
 
 }

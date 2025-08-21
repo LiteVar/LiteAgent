@@ -75,6 +75,14 @@ public class RedisUtil {
         return boundValueOps.setIfAbsent(value);
     }
 
+    public static Boolean setNx(String key, Object value, long ttl, TimeUnit unit) {
+        if (StrUtil.isEmpty(key)) {
+            return Boolean.FALSE;
+        }
+        BoundValueOperations<String, Object> boundValueOps = redisTemplate.boundValueOps(key);
+        return boundValueOps.setIfAbsent(value, ttl, unit);
+    }
+
     public static void setHashValue(String key, String hashKey, Object value) {
         redisTemplate.opsForHash().put(key, hashKey, value);
     }

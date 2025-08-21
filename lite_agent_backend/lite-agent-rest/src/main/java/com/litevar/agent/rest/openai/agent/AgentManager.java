@@ -8,6 +8,7 @@ import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.dto.ReflectMessageInfo;
 import com.litevar.agent.base.entity.Agent;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
+import com.litevar.agent.base.enums.TaskStatus;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.openai.completion.CompletionResponse;
@@ -21,9 +22,11 @@ import com.litevar.agent.rest.openai.handler.ResponseMessageHandler;
 import com.litevar.agent.rest.openai.handler.StoreMessageHandler;
 import com.litevar.agent.rest.openai.message.AgentMessage;
 import com.litevar.agent.rest.util.AgentUtil;
+import com.litevar.agent.rest.util.CurrentAgentRequest;
 import com.litevar.agent.rest.util.SpringUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
@@ -34,6 +37,7 @@ import java.util.concurrent.*;
  * @since 2025/3/5 14:34
  */
 @Slf4j
+@Component
 public class AgentManager {
     private static final Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
@@ -57,17 +61,24 @@ public class AgentManager {
     }
 
     public static Map<String, CompletionResponse> chat(MultiAgent agent, String taskId, List<Message> submitMsg, boolean stream) {
+        CurrentAgentRequest.AgentRequest context = CurrentAgentRequest.capture();
+        context.setParentTaskId(context.getTaskId());
+        context.setTaskId(taskId);
+        context.setAgentId(agent.getAgentId());
+
+        TaskStatusManager.update(taskId, TaskStatus.PENDING);
+
         Callable<Object> task = () -> {
             if (ObjectUtil.isNotEmpty(agent.getReflectAgentMap())) {
                 //有反思agent,保存本次会话数据
                 ReflectMessageInfo reflect = new ReflectMessageInfo();
                 reflect.setInput(((UserMessage) submitMsg.get(0)).getContent().toString());
-                RedisUtil.setValue(String.format(CacheKey.REFLECT_INFO, taskId), reflect, 10, TimeUnit.MINUTES);
+                RedisUtil.setValue(String.format(CacheKey.REFLECT_INFO, context.getTaskId()), reflect, 10, TimeUnit.MINUTES);
             }
-            ResponseMessageHandler handler = new ResponseMessageHandler(agent.getAgentId(), taskId);
-            List<AgentMessageHandler> handlerList = getHandler(agent.getSessionId());
+            ResponseMessageHandler handler = new ResponseMessageHandler(context.getAgentId(), context.getRequestId(), context.getTaskId());
+            List<AgentMessageHandler> handlerList = getHandler(context.getSessionId());
             handlerList.add(handler);
-            agent.generate(taskId, submitMsg, stream);
+            agent.generate(context, submitMsg, stream);
             while (!StrUtil.equals(handler.getStatus(), ResponseMessageHandler.STATE_COMPLETED)) {
                 //阻塞,不要让任务结束
                 Thread.sleep(500);
@@ -83,7 +94,7 @@ public class AgentManager {
             return (Map<String, CompletionResponse>) future.join();
         } catch (Exception e) {
             //reject模式:不能执行时直接以error返回
-            agent.getCallback().onError(taskId, e);
+            agent.handleError(context, e);
             return null;
         }
     }
@@ -110,15 +121,16 @@ public class AgentManager {
     public void init() {
         Runnable task = () -> sessionMap.forEach((sessionId, value) -> {
             boolean flag = RedisUtil.exists(String.format(CacheKey.SESSION_INFO, sessionId));
-            if (flag) {
+            if (!flag) {
                 clearSession(sessionId);
             }
         });
-        Executors.newScheduledThreadPool(5)
+        Executors.newScheduledThreadPool(1)
                 .scheduleWithFixedDelay(task, 3, 2, TimeUnit.MINUTES);
     }
 
     public static void clearSession(String sessionId) {
+        log.info(">>>>>>>>>clear session,sessionId:{}", sessionId);
         AgentSession session = sessionMap.get(sessionId);
         if (session == null) return;
 

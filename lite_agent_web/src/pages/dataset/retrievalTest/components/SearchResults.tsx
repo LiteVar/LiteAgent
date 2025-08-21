@@ -35,7 +35,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
                     <Typography.Paragraph
                       ellipsis={{
                         rows: 3,
-                        expandable: true,
+                        expandable: 'collapsible',
                       }}
                     >
                       {result.content}
