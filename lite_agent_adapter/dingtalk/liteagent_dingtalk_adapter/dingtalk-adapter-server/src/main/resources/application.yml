@@ -1,0 +1,65 @@
+server:
+  port: 9080
+spring:
+  application:
+    name: liteagent-dingtalk-adapter
+  profiles:
+    active: dev
+logging:
+  file:
+    path: ./logs
+    name: ${spring.application.name}.log
+  level:
+    com.litevar.dingtalk: debug
+    root: info
+mongo-plus:
+  spring:
+    transaction: true
+  configuration:
+    field:
+      camel-to-underline: true
+      ignoring-null: false
+    auto-create-index: true
+    logic:
+      open: true
+    banner: false
+    auto-convert-object-id: false
+  log: true
+  pretty: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'liteagent-dingtalk-adapter'
+      paths-to-match: '/**'
+      packages-to-scan: com.litevar.dingtalk.adapter
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+  is-log: true
+  jwt-secret-key: liteagent-dingtalk-adapter
+
+dingtalk-adapter:
+  #项目版本
+  project:
+    version: @project.version@
+  # 管理员登陆账号
+  admin:
+    username: admin
+    password: 123456
+  # 跨域配置
+  cors:
+    allowed-origins:

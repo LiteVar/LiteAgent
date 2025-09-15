@@ -1,0 +1,15 @@
+version: '3.3'
+
+services:
+  wechat-adapter-server:
+    image: azul/zulu-openjdk:17-latest
+    container_name: wechat-adapter-server
+    working_dir: /home/wechat-adapter
+    volumes:
+      - ./:/home/wechat-adapter
+      - ./logs:/home/wechat-adapter/logs
+    command: ["java", "-jar", "/home/wechat-adapter/wechat-adapter-server.jar","--spring.profiles.active=dev"]
+    ports:
+      - "9082:9082"
+    environment:
+      - TZ=Asia/Shanghai

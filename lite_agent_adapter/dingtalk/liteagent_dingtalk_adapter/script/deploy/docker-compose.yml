@@ -1,0 +1,15 @@
+version: '3.3'
+
+services:
+  dingtalk-adapter-server:
+    image: azul/zulu-openjdk:17-latest
+    container_name: dingtalk-adapter-server
+    working_dir: /home/dingtalk-adapter
+    volumes:
+      - ./:/home/dingtalk-adapter
+      - ./logs:/home/dingtalk-adapter/logs
+    command: ["java", "-jar", "/home/dingtalk-adapter/dingtalk-adapter-server.jar","--spring.profiles.active=dev"]
+    ports:
+      - "9080:9080"
+    environment:
+      - TZ=Asia/Shanghai

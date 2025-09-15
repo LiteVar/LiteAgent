@@ -1,0 +1,18 @@
+spring:
+  data:
+    redis:
+      host: 192.168.2.205
+      port: 6379
+      password: tester@123
+      database: 3
+
+mongo-plus:
+  data:
+    mongodb:
+      host: 192.168.2.205
+      port: 28017
+      database: liteagent-dingtalk-adapter
+      username: tester
+      password: tester.123
+      authentication-database: admin
+      connect-timeout-m-s: 50000

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <packaging>pom</packaging>
+    <groupId>com.litevar</groupId>
+    <artifactId>wechat-adapter-common-bom</artifactId>
+    <version>${revision}</version>
+
+
+    <properties>
+        <revision>0.1.0</revision>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 核心模块 -->
+            <dependency>
+                <groupId>com.litevar</groupId>
+                <artifactId>wechat-adapter-common-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <!--mongo-plus-->
+            <dependency>
+                <groupId>com.litevar</groupId>
+                <artifactId>wechat-adapter-common-mongoplus</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <!--sa-token-->
+            <dependency>
+                <groupId>com.litevar</groupId>
+                <artifactId>wechat-adapter-common-auth</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+
+            <!--web-->
+            <dependency>
+                <groupId>com.litevar</groupId>
+                <artifactId>wechat-adapter-common-web</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+
+        </dependencies>
+
+    </dependencyManagement>
+
+</project>
