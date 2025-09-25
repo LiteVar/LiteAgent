@@ -7,7 +7,7 @@ interface RobotTableProps {
   updating: boolean;
   deleting: boolean;
   onEdit: (robot: AgentRobotRefDto) => void;
-  onDelete: (id: string) => void;
+  onDelete: (robot: string) => void;
   onViewPermissions: (robotPermissionsDTO: RobotPermissionsDto) => void;
   onManagePermissions: (robotCode: string) => void;
 }
@@ -148,7 +148,7 @@ export default function RobotTable({
                       权限管理
                     </button>
                     <button 
-                      onClick={() => onDelete(robot.id!)}
+                      onClick={() => onDelete(robot.robotCode)}
                       disabled={deleting}
                       className="text-red-500 hover:text-danger disabled:opacity-50 text-sm px-2 py-1"
                     >

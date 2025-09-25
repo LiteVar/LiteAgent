@@ -55,8 +55,8 @@ export default function RobotManagement() {
     fetchRobots({ search: searchValue, pageNum: 1 });
   };
 
-  const handleDelete = async (id: string) => {
-    const result = await deleteRobot(id);
+  const handleDelete = async (robotCode: string) => {
+    const result = await deleteRobot(robotCode);
     if (result.success) {
       message.success(result.message);
       setShowDeleteConfirm(null);

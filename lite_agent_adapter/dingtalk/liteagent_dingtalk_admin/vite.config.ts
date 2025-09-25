@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     server: {
+      host: true, // This will expose the server to your local network
       proxy: {
         '/api': {
           target: apiTarget,

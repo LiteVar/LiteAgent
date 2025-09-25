@@ -19,6 +19,7 @@ import me.chanjar.weixin.mp.bean.kefu.WxMpKefuMessage;
 import me.chanjar.weixin.mp.bean.message.WxMpXmlMessage;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import static com.litevar.wechat.adapter.common.core.constant.LiteAgentConstants.LITE_AGENT_EXCEPTION_FLAG;
 import static com.litevar.wechat.adapter.common.core.constant.WechatConstants.WX_CONTENT_SIZE_OUT_OF_LIMIT;
@@ -40,7 +41,7 @@ public class LiteAgentMessageTask extends Thread {
 
     private WxMpService wxMpService;
 
-    private final Object lock;
+    private final CountDownLatch latch;
 
     // 思考内容
     private StringBuilder reasoningFullContent = new StringBuilder();
@@ -66,11 +67,11 @@ public class LiteAgentMessageTask extends Thread {
     private final static List<String> horizontalList = List.of("---", "***", "___");
 
 
-    public LiteAgentMessageTask(WxMpXmlMessage wxMpXmlMessage, LiteAgentManager liteAgentManager, WxMpService wxMpService, Object lock) {
+    public LiteAgentMessageTask(WxMpXmlMessage wxMpXmlMessage, LiteAgentManager liteAgentManager, WxMpService wxMpService, CountDownLatch latch) {
         this.wxMpXmlMessage = wxMpXmlMessage;
         this.liteAgentManager = liteAgentManager;
         this.wxMpService = wxMpService;
-        this.lock = lock;
+        this.latch = latch;
     }
 
 
@@ -121,9 +122,7 @@ public class LiteAgentMessageTask extends Thread {
                                     // 如果父线程已回复过消息，此时使用微信客服消息回复用户 否则唤醒父线程进行第一次回复
                                     if (BooleanUtil.isFalse(isWxReply)) {
                                         // 唤醒父线程回复
-                                        synchronized (lock) {
-                                            lock.notifyAll();
-                                        }
+                                        latch.countDown();
                                     } else {
                                         shouldSendMessage = true;
                                     }
@@ -162,9 +161,7 @@ public class LiteAgentMessageTask extends Thread {
                     if (sendCount.equals(0) && BooleanUtil.isFalse(isWxReply)) {
                         // 第一个分块唤醒父线程回复
                         replyContent = chunkContent.toString();
-                        synchronized (lock) {
-                            lock.notifyAll();
-                        }
+                        latch.countDown();
                     } else {
                         sendWxKefuMessage(chunkContent.toString());
                     }

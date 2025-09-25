@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   listStarredAgents,
-  createRobotPermission,
-  updateAgentPermission,
-  deleteAgentPermission
+  createAgentRobotRef,
+  updateAgentRobotRef,
+  deleteAgentRobotRef
 } from '../api';
 import { AgentRobotRefDto } from '../api/types.gen';
 import { useApi } from './useApi';
@@ -55,7 +55,7 @@ export function useRobots() {
 
   const createRobot = useCallback(async (robotData: AgentRobotRefDto): Promise<ApiResult> => {
     try {
-      const res = await createApi.execute(() => createRobotPermission({ body: robotData }))
+      const res = await createApi.execute(() => createAgentRobotRef({ body: robotData }))
       
       // 检查响应中是否包含错误信息
       if (res?.error) {
@@ -74,7 +74,7 @@ export function useRobots() {
 
   const updateRobot = useCallback(async (robotData: AgentRobotRefDto): Promise<ApiResult> => {
     try {
-      const res = await updateApi.execute(() => updateAgentPermission({ body: robotData }))
+      const res = await updateApi.execute(() => updateAgentRobotRef({ body: robotData }))
       
       // 检查响应中是否包含错误信息
       if (res?.error) {
@@ -91,9 +91,9 @@ export function useRobots() {
     }
   }, [updateApi, fetchRobots]);
 
-  const deleteRobot = useCallback(async (id: string): Promise<ApiResult> => {
+  const deleteRobot = useCallback(async (robotCode: string): Promise<ApiResult> => {
     try {
-      const res = await deleteApi.execute(() => deleteAgentPermission({ path: { id: id } }))
+      const res = await deleteApi.execute(() => deleteAgentRobotRef({ query: { robotCode: robotCode } }))
       
       // 检查响应中是否包含错误信息
       if (res?.error) {

@@ -18,6 +18,8 @@ import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static com.litevar.wechat.adapter.common.core.constant.CacheConstants.LITE_AGENT_CHAT_SESSION_KEY;
 
@@ -46,22 +48,21 @@ public class WxMpTextMessageHandlerImpl implements WxMpMessageHandler {
         AgentWxRefDTO agentWxRefDTO = agentWxService.getAgentWxRefByAppId(wxMpService.getWxMpConfigStorage().getAppId());
         RMapCache<String, String> mapCache = redissonClient.getMapCache(StrUtil.format(LITE_AGENT_CHAT_SESSION_KEY, agentWxRefDTO.getAppId()));
         LiteAgentManager liteAgentManager = new LiteAgentManager(mapCache, agentWxRefDTO.getAgentBaseUrl(), agentWxRefDTO.getAgentApiKey());
-        Object lock = new Object();
-        Boolean isError;
-        synchronized (lock) {
-            LiteAgentMessageTask liteAgentMessageTask = new LiteAgentMessageTask(wxMpXmlMessage, liteAgentManager, wxMpService, lock);
-            liteAgentMessageTask.start();
-            // 微信规定5秒内需回复内容，否则微信会进行重试，加上请求的耗时，这里取4秒
-            lock.wait(4000);
-            String replyContent = liteAgentMessageTask.getReplyContent();
-            if (StrUtil.isNotBlank(replyContent)) {
-                return createReply(wxMpXmlMessage, replyContent);
-            }
-            // liteagent 4.5秒内是否有输出内容
-            liteAgentMessageTask.setIsWxReply(true);
-            isError = liteAgentMessageTask.getIsError();
-        }
-
+        Boolean isError = false;
+        CountDownLatch latch = new CountDownLatch(1);
+        LiteAgentMessageTask liteAgentMessageTask = new LiteAgentMessageTask(wxMpXmlMessage, liteAgentManager, wxMpService, latch);
+        liteAgentMessageTask.start();
+        // 微信规定5秒内需回复内容，否则微信会进行重试，加上请求的耗时，这里取4秒
+       if(latch.await(4, TimeUnit.SECONDS)){
+           String replyContent = liteAgentMessageTask.getReplyContent();
+           if (StrUtil.isNotBlank(replyContent)) {
+               return createReply(wxMpXmlMessage, replyContent);
+           }
+       }else {
+           // liteagent 4.5秒内是否有输出内容
+           liteAgentMessageTask.setIsWxReply(true);
+           isError = liteAgentMessageTask.getIsError();
+       }
         return isError ? null : createReply(wxMpXmlMessage, "思考中...");
     }
 
