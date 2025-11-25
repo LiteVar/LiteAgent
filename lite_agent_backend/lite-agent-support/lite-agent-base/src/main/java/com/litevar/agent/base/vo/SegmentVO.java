@@ -73,4 +73,8 @@ public class SegmentVO {
      * 相似度分数
      */
     private double score;
+    /**
+     * 文件id
+     */
+    private String fileId;
 }

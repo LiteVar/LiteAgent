@@ -6,6 +6,7 @@ import com.litevar.agent.base.dto.ToolDTO;
 import com.litevar.agent.base.entity.ToolProvider;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.enums.ToolSchemaType;
+import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.valid.AddAction;
 import com.litevar.agent.base.valid.UpdateAction;
@@ -13,6 +14,9 @@ import com.litevar.agent.base.vo.ToolVO;
 import com.litevar.agent.core.module.tool.ToolHandleFactory;
 import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.core.module.tool.parser.ToolParser;
+import com.litevar.agent.rest.util.FileDownloadUtil;
+import com.litevar.opentool.client.OpenToolClient;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -127,5 +131,41 @@ public class ToolController {
         ToolParser parser = ToolHandleFactory.getParseInstance(ToolSchemaType.of(vo.getSchemaType()));
         parser.parse(vo.getSchemaStr());
         return ResponseData.success();
+    }
+
+    /**
+     * 获取openTool schema
+     *
+     * @param host   openTool server host
+     * @param apiKey openTool api key
+     * @return
+     */
+    @GetMapping("/loadOpenToolSchema")
+    public ResponseData<String> loadOpenToolSchema(@RequestParam("host") String host,
+                                                   @RequestParam(value = "apiKey", required = false) String apiKey) {
+        OpenToolClient client = new OpenToolClient(host, apiKey);
+        String schema;
+        try {
+            schema = client.load().toJsonString();
+        } catch (Exception ex) {
+            throw new ServiceException(10001, "OpenTool服务异常:" + ex.getMessage());
+        }
+
+        return ResponseData.success(schema);
+    }
+
+    /**
+     * 导出工具配置
+     *
+     * @param id        工具ID
+     * @param plainText 是否明文,默认为false
+     */
+    @GetMapping("/export/{id}")
+    public void exportTool(HttpServletResponse response,
+                           @PathVariable("id") String id,
+                           @RequestParam(value = "plainText", defaultValue = "false") boolean plainText) {
+        ToolProvider tool = toolService.findById(id);
+        byte[] bytes = toolService.exportTool(tool, plainText);
+        FileDownloadUtil.download(response, tool.getName() + ".json", bytes);
     }
 }

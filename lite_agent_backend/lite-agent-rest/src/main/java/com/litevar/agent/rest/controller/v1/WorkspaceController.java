@@ -87,7 +87,7 @@ public class WorkspaceController {
     public ResponseData<PageModel<WorkspaceMemberVO>> memberList(@RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId,
                                                                  @RequestParam(value = "username", required = false) String username,
                                                                  @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
-                                                                 @RequestParam(value = "pageNo", defaultValue = "0") Integer pageNo) {
+                                                                 @RequestParam(value = "pageNo", defaultValue = "1") Integer pageNo) {
         PageModel<WorkspaceMemberVO> page = workspaceMemberService.memberList(workspaceId, username, pageNo, pageSize);
         return ResponseData.success(page);
     }

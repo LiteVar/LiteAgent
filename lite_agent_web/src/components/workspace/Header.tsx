@@ -10,6 +10,7 @@ interface HeaderProps {
   showCreateButton?: boolean;
   showSearch?: boolean;
   createButtonText?: string;
+  createButton?: React.ReactNode;
   onCreateClick?: (e: MouseEvent) => void;
 }
 
@@ -22,8 +23,10 @@ const Header: React.FC<HeaderProps> = ({
   showCreateButton = true,
   showSearch = true,
   createButtonText = '新建',
+  createButton,
   onCreateClick
 }) => {
+
   return (
     <div className="flex items-center py-4 px-8" style={{ borderBottom: '1px solid #e0e0e0' }}>
       <h2 className="text-xl font-bold">{title}</h2>
@@ -43,6 +46,9 @@ const Header: React.FC<HeaderProps> = ({
           {createButtonText}
         </Button>
       )}
+
+      {!!createButton && createButton}
+
     </div>
   );
 };

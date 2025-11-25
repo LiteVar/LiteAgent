@@ -43,7 +43,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
+import reactor.core.scheduler.Scheduler;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -62,6 +62,7 @@ import java.util.concurrent.TimeoutException;
 @RestController
 @RequestMapping("/v1/chat")
 public class ChatController {
+
     @Autowired
     private AgentService agentService;
     @Autowired
@@ -74,6 +75,8 @@ public class ChatController {
     private AgentDatasetRelaService agentDatasetRelaService;
     @Autowired
     private SpeechService speechService;
+    @Autowired
+    private Scheduler customScheduler;
 
     /**
      * 初始化会话
@@ -187,6 +190,7 @@ public class ChatController {
 
                                 if (!taskList.isEmpty()) {
                                     List<MultiAgent> taskAgentList;
+                                    currentContext.setTaskId(taskId);
                                     try {
                                         taskAgentList = agentUtil.createAgent(taskList);
                                     } catch (Exception e) {
@@ -206,7 +210,7 @@ public class ChatController {
                                     AgentManager.chat(agent, taskId, submitMsg, stream);
                                 }
                                 afterChat(sessionId, requestId);
-                            }).subscribeOn(Schedulers.boundedElastic())
+                            }).subscribeOn(customScheduler)
                             .subscribe(null, sink::error, () -> afterChat(sessionId, requestId));
                 })
                 .timeout(Duration.ofMinutes(10))
@@ -294,7 +298,7 @@ public class ChatController {
     @GetMapping("/agentChat")
     public ResponseData<PageModel<MessageDTO>> agentChat(@RequestParam("agentId") String agentId,
                                                          @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
-                                                         @RequestParam(value = "pageNo", defaultValue = "0") Integer pageNo,
+                                                         @RequestParam(value = "pageNo", defaultValue = "1") Integer pageNo,
                                                          @RequestParam(value = "sessionId", required = false) String sessionId) {
         PageModel<MessageDTO> res = chatService.agentChat(agentId, pageNo, pageSize, sessionId);
         return ResponseData.success(res);

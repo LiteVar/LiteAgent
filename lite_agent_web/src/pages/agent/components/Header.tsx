@@ -1,12 +1,13 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Button, Space, Typography, Image, Dropdown, Tooltip, Modal } from 'antd';
 import { LeftOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { AgentDetailVO } from '@/client';
+import { Agent, AgentDetailVO } from '@/client';
 import ExclamationCircleOutlined from '@ant-design/icons/ExclamationCircleOutlined';
 import { buildImageUrl } from '@/utils/buildImageUrl';
 import placeholderIcon from '@/assets/login/logo_black.png';
 import { useNavigate } from 'react-router-dom';
+import FileExportModal from '@/components/workspace/FileExportModal';
 
 const { Title } = Typography;
 
@@ -16,12 +17,14 @@ interface HeaderProps {
   onSave: () => void;
   handlePublish: () => void;
   handleDelete: () => void;
+  showExportModal: (agent: Agent) => void;
   hasUnsavedChanges: boolean;
   showMaxTokenWarning: boolean;
 }
 
 const Header: React.FC<HeaderProps> = (props) => {
   const navigate = useNavigate();
+  
   const {
     className, 
     agentInfo, 
@@ -29,10 +32,16 @@ const Header: React.FC<HeaderProps> = (props) => {
     handlePublish, 
     handleDelete, 
     hasUnsavedChanges,
+    showExportModal,
     showMaxTokenWarning
   } = props;
   const agentName = useMemo(() => agentInfo?.agent?.name, [agentInfo]);
   const items: MenuProps['items'] = [
+    {
+      key: 'export',
+      label: '导出',
+      danger: false,
+    },
     {
       key: 'delete',
       label: '删除',
@@ -106,6 +115,7 @@ const Header: React.FC<HeaderProps> = (props) => {
               items,
               onClick: (e) => {
                 if (e.key === 'delete') handleDelete();
+                if (e.key === 'export') showExportModal(agentInfo?.agent!);
               },
             }}
           >

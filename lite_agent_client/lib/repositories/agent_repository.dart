@@ -1,75 +1,50 @@
 import 'dart:convert';
 
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
 import 'package:lite_agent_client/models/dto/agent.dart';
 import 'package:lite_agent_client/models/dto/agent_detail.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/server/api_server/agent_server.dart';
+import 'package:lite_agent_client/utils/extension/agent_extension.dart';
 
-import '../models/dto/chat.dart';
-import '../models/local_data_model.dart';
 import '../utils/log_util.dart';
+import 'base_hive_repository.dart';
 import 'model_repository.dart';
 
 final agentRepository = AgentRepository();
 
-class AgentRepository {
+class AgentRepository extends BaseHiveRepository<AgentModel> {
   static final AgentRepository _instance = AgentRepository._internal();
 
   factory AgentRepository() => _instance;
 
-  AgentRepository._internal();
+  AgentRepository._internal() : super("agent_box_key");
 
-  static const String agentBoxKey = "agent_box_key";
-  Box<AgentBean>? _box;
-
-  Future<Box<AgentBean>> get _agentBox async {
-    if (_box == null) {
-      _box = await Hive.openBox<AgentBean>(agentBoxKey);
-      //remove old auto multi agent
-      await _box?.delete("0");
-    }
-    return _box!;
-  }
-
-  Future<Iterable<AgentBean>> getAgentListFromBox() async {
-    return (await _agentBox).values;
-  }
-
-  Future<List<AgentDTO>> getAgentDTOListFromBox() async {
-    List<AgentBean> list = [];
-    list.assignAll((await _agentBox).values);
-    list.sort((a, b) => (b.createTime ?? 0) - (a.createTime ?? 0));
-    List<AgentDTO> dtoList = [];
-    for (var agent in list) {
-      var dto = agent.translateToDTO();
-      dtoList.add(dto);
-    }
-    return dtoList;
-  }
+  Future<Iterable<AgentModel>> getAgentListFromBox() async => getAll();
 
   Future<void> removeAgent(String key) async {
-    await (await _agentBox).delete(key);
+    await delete(key);
     if (await accountRepository.isLogin()) {
       await AgentServer.removeAgent(key);
     }
   }
 
-  Future<void> updateAgent(String key, AgentBean agent) async {
-    await (await _agentBox).put(key, agent);
+  Future<void> updateAgent(String key, AgentModel agent) async {
+    await save(key, agent);
     if (await accountRepository.isLogin()) {
       await uploadToServer([agent]);
     }
   }
 
-  Future<AgentBean?> getAgentFromBox(String key) async {
-    return (await _agentBox).get(key);
+  Future<void> updateAgents(Map<String, AgentModel> agents) async {
+    await saveAll(agents);
+    if (await accountRepository.isLogin()) {
+      await uploadToServer(agents.values.toList());
+    }
   }
 
-  Future<void> clear() async {
-    await (await _agentBox).clear();
-  }
+  Future<AgentModel?> getAgentFromBox(String key) async => getData(key);
 
   Future<List<AgentDTO>> getCloudAgentList(int tab) async {
     List<AgentDTO> list = [];
@@ -82,27 +57,28 @@ class AgentRepository {
     return list;
   }
 
+  Future<List<AgentModel>> getCloudAgentListAndTranslate(int tab) async {
+    var list = await agentRepository.getCloudAgentList(tab);
+    var agentList = <AgentModel>[];
+    for (var item in list) {
+      var agent = item.toModel();
+      agentList.add(agent);
+    }
+    return agentList;
+  }
+
   Future<AgentDetailDTO?> getCloudAgentDetail(String agentId) async {
     var response = await AgentServer.getAgentDetail(agentId);
     return response.data;
   }
 
-  Future<List<ChatDTO>> getCloudAgentConversationList() async {
-    List<ChatDTO> list = [];
-    var response = await AgentServer.getAgentConversationList();
-    if (response.data != null) {
-      list.addAll(response.data!);
-    }
-    return list;
-  }
-
-  Future<void> uploadToServer(List<AgentBean> agents) async {
+  Future<void> uploadToServer(List<AgentModel> agents) async {
     var list = <AgentDTO>[];
     for (var agent in agents) {
       if (!agent.id.isNumericOnly) {
         continue;
       }
-      var dto = agent.translateToDTO();
+      var dto = agent.toDTO();
       dto.icon = "";
       var model = await modelRepository.getModelFromBox(agent.modelId);
       if (model == null) {
@@ -112,7 +88,6 @@ class AgentRepository {
     }
     String jsonString = json.encode(list);
     List<dynamic> jsonArray = json.decode(jsonString);
-    print("jsonString:$jsonString");
     var response = await AgentServer.agentSync(jsonArray);
     if (response.code == 200) {
       Log.i("agentUploadServer:${list.length}");
@@ -120,8 +95,8 @@ class AgentRepository {
   }
 
   Future<void> uploadAllToServer() async {
-    var agents = <AgentBean>[];
-    agents.addAll(((await _agentBox).values));
+    var agents = <AgentModel>[];
+    agents.addAll(await getAll());
     uploadToServer(agents);
   }
 }

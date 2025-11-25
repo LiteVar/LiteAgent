@@ -1,6 +1,7 @@
 package com.litevar.agent.core.module.tool.parser;
 
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.entity.ToolFunction;
@@ -29,10 +30,21 @@ public class ToolMcpParser implements ToolParser, InitializingBean {
     @Override
     public List<ToolFunction> parse(String rawStr) {
         JSONObject mcp = JSONUtil.parseObj(rawStr);
+        String name = mcp.getStr("name");
+        String baseUrl = mcp.getStr("baseUrl");
+        String sseEndpoint = mcp.getStr("sseEndpoint");
+        if (StrUtil.hasEmpty(name, baseUrl, sseEndpoint)) {
+            throw new ServiceException(1000, "schema参数name,baseUrl,sseEndpoint都不能为空");
+        }
 
-        McpSyncClient mcpClient = McpUtil.getSyncClient(mcp.getStr("name"), mcp.getStr("baseUrl"), mcp.getStr("sseEndpoint"));
-        McpSchema.ListToolsResult toolsResult = mcpClient.listTools();
-        List<McpSchema.Tool> tools = toolsResult.tools();
+        List<McpSchema.Tool> tools;
+        try {
+            McpSyncClient mcpClient = McpUtil.getSyncClient(name, baseUrl, sseEndpoint);
+            McpSchema.ListToolsResult toolsResult = mcpClient.listTools();
+            tools = toolsResult.tools();
+        } catch (Exception ex) {
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "Mcp server不可用");
+        }
 
         if (tools == null || tools.isEmpty()) {
             throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "Mcp server returns no tools.");

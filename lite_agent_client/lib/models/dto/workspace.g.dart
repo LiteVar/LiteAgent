@@ -7,9 +7,9 @@ part of 'workspace.dart';
 // **************************************************************************
 
 WorkSpaceDTO _$WorkSpaceDTOFromJson(Map<String, dynamic> json) => WorkSpaceDTO(
-      json['id'] as String,
-      json['name'] as String,
-      (json['role'] as num).toInt(),
+      json['id'] as String? ?? '',
+      json['name'] as String? ?? '',
+      (json['role'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$WorkSpaceDTOToJson(WorkSpaceDTO instance) =>

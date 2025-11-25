@@ -5,26 +5,29 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart' as server;
-import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/agent_detail.dart';
 import 'package:lite_agent_client/models/dto/function.dart';
 import 'package:lite_agent_client/models/dto/tool.dart';
-import 'package:lite_agent_client/models/local_data_model.dart';
+import 'package:lite_agent_client/models/local/function.dart';
+import 'package:lite_agent_client/models/local/model.dart';
 import 'package:lite_agent_client/repositories/agent_repository.dart';
-import 'package:lite_agent_client/utils/extension/string_extension.dart';
+import 'package:lite_agent_client/server/local_server/parser.dart';
+import 'package:lite_agent_client/utils/tool/tool_function_parser.dart';
+import 'package:lite_agent_client/utils/tool/tool_validator.dart';
+import 'package:lite_agent_client/utils/agent/agent_validator.dart';
 import 'package:lite_agent_core_dart/lite_agent_core.dart';
 import 'package:lite_agent_core_dart/lite_agent_service.dart';
-import 'package:lite_agent_core_dart_server/lite_agent_core_dart_server.dart';
-import 'package:opentool_dart/opentool_dart.dart' as opentool;
+import 'package:lite_agent_core_dart_server/lite_agent_core_dart_server.dart' hide Log;
+import 'package:opentool_dart/opentool_dart.dart';
 import 'package:yaml/yaml.dart';
-import 'package:lite_agent_client/server/local_server/parser.dart';
 
+import '../../config/constants.dart';
+import '../../models/dto/open_tool_schema.dart';
+import '../../models/local/agent.dart';
 import '../../repositories/account_repository.dart';
 import '../../repositories/model_repository.dart';
 import '../../repositories/tool_repository.dart';
-import '../../utils/log_util.dart' as client_log;
-import '../../widgets/dialog/dialog_tool_edit.dart';
-import 'listener.dart';
+import '../../utils/log_util.dart';
 import 'mcp_service.dart';
 
 String baseUrl = "http://127.0.0.1:${config.server.port}${config.server.apiPathPrefix}";
@@ -43,14 +46,14 @@ class AgentLocalServer {
       _session = await initSession(capabilityDto);
       _httpClient = HttpClient();
       if (_session != null) {
-        client_log.Log.i("[initChat->RES] " + _session!.toJson().toString());
+        Log.i("[initChat->RES] " + _session!.toJson().toString());
       }
     } catch (e) {
-      client_log.Log.e("初始化聊天失败: $e");
+      Log.e("初始化聊天失败: $e");
       if (e is DioException) {
-        client_log.Log.e("请求URL: ${e.requestOptions.uri}");
-        client_log.Log.e("状态码: ${e.response?.statusCode}");
-        client_log.Log.e("响应数据: ${e.response?.data}");
+        Log.e("请求URL: ${e.requestOptions.uri}");
+        Log.e("状态码: ${e.response?.statusCode}");
+        Log.e("响应数据: ${e.response?.data}");
       }
     }
   }
@@ -61,11 +64,11 @@ class AgentLocalServer {
       SessionDto session = SessionDto.fromJson(response.data);
       return session;
     } catch (e) {
-      client_log.Log.e("初始化聊天失败: $e");
+      Log.e("初始化聊天失败: $e");
       if (e is DioException) {
-        client_log.Log.e("请求URL: ${e.requestOptions.uri}");
-        client_log.Log.e("状态码: ${e.response?.statusCode}");
-        client_log.Log.e("响应数据: ${e.response?.data}");
+        Log.e("请求URL: ${e.requestOptions.uri}");
+        Log.e("状态码: ${e.response?.statusCode}");
+        Log.e("响应数据: ${e.response?.data}");
       }
     }
     return null;
@@ -74,7 +77,7 @@ class AgentLocalServer {
   Future<void> sendUserMessage(String prompt) async {
     String sessionId = _session?.sessionId ?? "";
     if (sessionId.isEmpty) {
-      client_log.Log.e("Error: Session not created");
+      Log.e("Error: Session not created");
       return;
     }
 
@@ -89,7 +92,7 @@ class AgentLocalServer {
     request.headers.add(HttpHeaders.contentTypeHeader, 'application/json');
 
     ContentDto contentDto = ContentDto(type: ContentType.TEXT, message: prompt);
-    UserTaskDto userTaskDto = UserTaskDto(content: [contentDto]);
+    UserTaskDto userTaskDto = UserTaskDto(content: [contentDto], isChunk: true);
 
     request.add(utf8.encode(jsonEncode(userTaskDto.toJson())));
 
@@ -100,11 +103,11 @@ class AgentLocalServer {
     _streamSubscriptions[messageId] = stream.listen((data) {
       _onData(sessionId, messageId, data);
     }, onDone: () {
-      client_log.Log.i('SSE connection closed for message $messageId');
+      Log.i('SSE connection closed for message $messageId');
       _streamSubscriptions.remove(messageId);
       _messageHandler?.removeMessage(messageId);
     }, onError: (error) {
-      client_log.Log.e('SSE error for message $messageId: $error');
+      Log.e('SSE error for message $messageId: $error');
       _streamSubscriptions.remove(messageId);
     });
   }
@@ -120,13 +123,14 @@ class AgentLocalServer {
 
       if (eventName == SSEEventType.MESSAGE) {
         AgentMessageDto agentMessageDto = AgentMessageDto.fromJson(jsonDecode(eventData!));
-        listen(sessionId, agentMessageDto);
+        //listen(sessionId, agentMessageDto);
         _messageHandler?.handle(sessionId, messageId, agentMessageDto);
       } else if (eventName == SSEEventType.CHUNK) {
         AgentMessageChunkDto agentMessageChunkDto = AgentMessageChunkDto.fromJson(jsonDecode(eventData!));
-        listenChunk(sessionId, agentMessageChunkDto);
+        //listenChunk(sessionId, agentMessageChunkDto);
+        _messageHandler?.handle(sessionId, messageId, agentMessageChunkDto);
       } else if (eventName == SSEEventType.FUNCTION_CALL) {
-        client_log.Log.d("Received client functionCall: ${eventData}");
+        Log.d("Received client functionCall: ${eventData}");
       }
     }
   }
@@ -143,7 +147,7 @@ class AgentLocalServer {
     try {
       await dio.get('/stop', queryParameters: {"sessionId": sessionId});
     } catch (e) {
-      client_log.Log.e(e);
+      Log.e(e);
     }
   }
 
@@ -174,6 +178,10 @@ class AgentLocalServer {
     var model = agentDetail.model;
     var agent = agentDetail.agent;
     if (model != null && agent != null) {
+      if (!model.baseUrl.startsWith("http")) {
+        return null;
+      }
+
       int maxToken = min(model.maxTokens ?? 4096, agent.maxTokens ?? 4096);
       LLMConfigDto llmConfig = LLMConfigDto(
         baseUrl: model.baseUrl,
@@ -305,7 +313,7 @@ class AgentLocalServer {
           var subAgent = await agentRepository.getCloudAgentDetail(agentId);
           var model = subAgent?.model;
           if (subAgent != null && model != null) {
-            if (subAgent.agent?.type == AgentType.REFLECTION) {
+            if (subAgent.agent?.type == AgentValidator.DTO_TYPE_REFLECTION) {
               ReflectPromptDto reflectPromptDto = ReflectPromptDto(
                   llmConfig: LLMConfigDto(baseUrl: model.baseUrl, apiKey: model.apiKey, model: model.name),
                   prompt: subAgent.agent?.prompt ?? "");
@@ -369,9 +377,13 @@ class AgentLocalServer {
     return null;
   }
 
-  Future<CapabilityDto?> buildLocalAgentCapabilityDto(AgentBean agent, {List<ModelBean>? autoModelList}) async {
+  Future<CapabilityDto?> buildLocalAgentCapabilityDto(AgentModel agent, {List<ModelData>? autoModelList}) async {
     var model = await modelRepository.getModelFromBox(agent.modelId);
     if (model != null) {
+      if (!model.url.startsWith("http")) {
+        return null;
+      }
+
       int maxToken = min(int.tryParse(model.maxToken ?? "4096") ?? 4096, agent.maxToken);
       try {
         LLMConfigDto llmConfig = LLMConfigDto(
@@ -432,7 +444,7 @@ class AgentLocalServer {
           for (var agentId in subAgents) {
             var agent = await agentRepository.getAgentFromBox(agentId);
             if (agent != null) {
-              if (agent.agentType == AgentType.REFLECTION) {
+              if (agent.agentType == AgentValidator.DTO_TYPE_REFLECTION) {
                 var model = await modelRepository.getModelFromBox(agent.modelId);
                 if (model != null) {
                   ReflectPromptDto reflectPromptDto = ReflectPromptDto(
@@ -508,7 +520,7 @@ class AgentLocalServer {
           enableThinking: enableThinking,
         );
       } catch (e) {
-        client_log.Log.e(e);
+        Log.e(e);
       }
     }
     return null;
@@ -516,20 +528,19 @@ class AgentLocalServer {
 
   Future<OpenSpecDto> buildLibraryTool(List<String> libraryIds) async {
     String jsonString = await server.rootBundle.loadString('assets/json/library_tool.json');
-    Map<String, dynamic> toolMap = jsonDecode(jsonString);
     String serverUrl = await accountRepository.getApiServerUrl();
-    List<Map<String, String>> serversArray = [];
-    for (var libraryId in libraryIds) {
-      serversArray.add({"url": "$serverUrl/v1/dataset/$libraryId"});
-    }
-    toolMap["servers"] = serversArray;
 
-    ApiKeyDto apiKey = ApiKeyDto(type: opentool.ApiKeyType.bearer, apiKey: await accountRepository.getOriginalToken(true));
+    jsonString = jsonString.replaceAll('{SERVER_URL}', serverUrl);
 
-    return OpenSpecDto(openSpec: jsonEncode(toolMap), protocol: Protocol.OPENAPI, apiKey: apiKey);
+    String datasetIdsString = libraryIds.join(', ');
+    jsonString = jsonString.replaceAll('{DATASET_IDS}', datasetIdsString);
+
+    ApiKeyDto apiKey = ApiKeyDto(type: ApiKeyType.bearer, apiKey: await accountRepository.getOriginalToken(true));
+
+    return OpenSpecDto(openSpec: jsonString, protocol: Protocol.OPENAPI, apiKey: apiKey);
   }
 
-  Future<List<OpenSpecDto>> buildOpenSpecDtoList(List<AgentToolFunction> functionList) async {
+  Future<List<OpenSpecDto>> buildOpenSpecDtoList(List<ToolFunctionModel> functionList) async {
     List<OpenSpecDto> openSpecList = [];
     var toolFunctionMap = <String, List<String>>{};
     var functionMethodMap = <String, List<String>>{};
@@ -561,8 +572,10 @@ class AgentLocalServer {
       if (tool != null) {
         String newSchemeText = "";
         String protocol = "";
+        String apiKey = tool.apiText;
+        String? openToolServerUrl;
 
-        if (tool.schemaType == Protocol.MCP_STDIO_TOOLS) {
+        if (tool.schemaType == Protocol.MCP_STDIO) {
           final mcpService = McpService();
           final results = await mcpService.checkServers(tool.schemaText);
           final invalidServerIds = results.where((item) => !item.isAvailable).map((item) => item.serverId).toList();
@@ -570,7 +583,7 @@ class AgentLocalServer {
           Map<String, dynamic> schemeMap = jsonDecode(tool.schemaText);
           schemeMap["mcpServers"].forEach((key, value) {
             if (!invalidServerIds.contains(key)) {
-              OpenSpecDto openSpec = OpenSpecDto(openSpec: jsonEncode({key: value}), protocol: Protocol.MCP_STDIO_TOOLS);
+              OpenSpecDto openSpec = OpenSpecDto(openSpec: jsonEncode({key: value}), protocol: Protocol.MCP_STDIO);
               openSpecList.add(openSpec);
             }
           });
@@ -578,10 +591,10 @@ class AgentLocalServer {
         }
 
         var scheme = tool.schemaText;
-        if (tool.schemaType == SchemaType.OPENAPI || tool.schemaType == Protocol.OPENAPI) {
+        if (tool.schemaType == Protocol.OPENAPI) {
           protocol = Protocol.OPENAPI;
-          if (await scheme.isOpenAIJson()) {
-          } else if (await scheme.isOpenAIYaml()) {
+          if (await ToolValidator.isValidOpenAIJson(scheme)) {
+          } else if (await ToolValidator.isValidOpenAIYaml(scheme)) {
             YamlMap yamlMap = loadYaml(scheme);
             scheme = jsonEncode(yamlMap);
           }
@@ -596,10 +609,10 @@ class AgentLocalServer {
             }
           });
           newSchemeText = jsonEncode(schemeMap);
-        } else if (tool.schemaType == SchemaType.JSONRPCHTTP || tool.schemaType == Protocol.JSONRPCHTTP) {
+        } else if (tool.schemaType == Protocol.JSONRPCHTTP) {
           protocol = Protocol.JSONRPCHTTP;
-          if (await scheme.isOpenAIJson()) {
-          } else if (await scheme.isOpenAIYaml()) {
+          if (await ToolValidator.isValidOpenAIJson(scheme)) {
+          } else if (await ToolValidator.isValidOpenAIYaml(scheme)) {
             YamlMap yamlMap = loadYaml(scheme);
             scheme = jsonEncode(yamlMap);
           }
@@ -608,34 +621,45 @@ class AgentLocalServer {
           schemeMap["methods"].retainWhere((method) => functionNameList.contains(method["name"]));
 
           newSchemeText = jsonEncode(schemeMap);
-        } else if (tool.schemaType == SchemaType.OPENMODBUS || tool.schemaType == Protocol.OPENMODBUS) {
-          protocol = Protocol.OPENMODBUS;
-          if (await scheme.isOpenAIJson()) {
-          } else if (await scheme.isOpenAIYaml()) {
-            YamlMap yamlMap = loadYaml(scheme);
-            scheme = jsonEncode(yamlMap);
+        } else if (tool.schemaType == ToolValidator.OPTION_OPENTOOL_SERVER) {
+          protocol = Protocol.OPENTOOL;
+          if (await ToolValidator.isValidOpenToolServerJson(scheme)) {
+            Map<String, dynamic> schemaMap = json.decode(scheme);
+            OpenToolSchemaDTO openToolSchema = OpenToolSchemaDTO.fromJson(schemaMap);
+            apiKey = openToolSchema.apiKey;
+
+            final openTool = await ToolParser.loadOpenToolFromConfig(schemaMap);
+            if (openTool != null && openTool.functions.isNotEmpty) {
+              newSchemeText = jsonEncode(openTool.toJson());
+              openToolServerUrl = openTool.server?.url;
+            }
+
+            if (openToolServerUrl == null || openToolServerUrl.isEmpty) {
+              if (openToolSchema.serverUrl.isNotEmpty) {
+                openToolServerUrl = openToolSchema.serverUrl;
+              }
+            }
+
+            if (newSchemeText.isEmpty) {
+              newSchemeText = openToolSchema.schema;
+            }
           }
-
-          Map<String, dynamic> schemeMap = jsonDecode(scheme);
-          schemeMap["functions"].retainWhere((method) => functionNameList.contains(method["name"]));
-
-          newSchemeText = jsonEncode(schemeMap);
         }
         if (protocol.isEmpty || newSchemeText.isEmpty) {
           continue;
         }
 
-        ApiKeyDto? apiKey;
-        if (tool.apiText.isNotEmpty) {
-          if (tool.apiType == "basic" || tool.apiType == "Basic") {
-            apiKey = ApiKeyDto(type: opentool.ApiKeyType.basic, apiKey: tool.apiText);
-          } else if (tool.apiType == "bearer" || tool.apiType == "Bearer") {
-            apiKey = ApiKeyDto(type: opentool.ApiKeyType.bearer, apiKey: tool.apiText);
+        ApiKeyDto? apiKeyDto;
+        if (apiKey.isNotEmpty) {
+          if (tool.apiType.toLowerCase() == "basic") {
+            apiKeyDto = ApiKeyDto(type: ApiKeyType.basic, apiKey: apiKey);
+          } else if (tool.apiType.toLowerCase() == "bearer") {
+            apiKeyDto = ApiKeyDto(type: ApiKeyType.bearer, apiKey: apiKey);
           } else {
-            apiKey = ApiKeyDto(type: opentool.ApiKeyType.original, apiKey: tool.apiText);
+            apiKeyDto = ApiKeyDto(type: ApiKeyType.original, apiKey: apiKey);
           }
         }
-        OpenSpecDto openSpec = OpenSpecDto(openSpec: newSchemeText, protocol: protocol, apiKey: apiKey);
+        OpenSpecDto openSpec = OpenSpecDto(openSpec: newSchemeText, protocol: protocol, apiKey: apiKeyDto, serverUrl: openToolServerUrl);
         openSpecList.add(openSpec);
       }
     }
@@ -650,7 +674,7 @@ class AgentLocalServer {
 
     for (var function in functionList) {
       var toolId = function.toolId;
-      if (toolId == null || toolId.isEmpty) {
+      if (toolId.isEmpty) {
         continue;
       }
       if (!toolFunctionMap.containsKey(toolId)) {
@@ -676,6 +700,9 @@ class AgentLocalServer {
       }
       String newSchemeText = "";
       String protocol = "";
+      String apiKey = tool?.apiKey ?? "";
+      String? openToolServerUrl;
+
       if (tool != null) {
         switch (tool.schemaType) {
           case 1: //openapi
@@ -684,9 +711,9 @@ class AgentLocalServer {
           case 2: //jsonrpc
             protocol = Protocol.JSONRPCHTTP;
             break;
-          case 3: //open_modbus
+          /* case 3: //open_modbus
             protocol = Protocol.OPENMODBUS;
-            break;
+            break;*/
           case 4: //open_tool
           case 5: //mcp(sse)
             continue;
@@ -694,8 +721,8 @@ class AgentLocalServer {
 
         var scheme = tool.schemaStr ?? "";
         if (protocol == Protocol.OPENAPI) {
-          if (await scheme.isOpenAIJson()) {
-          } else if (await scheme.isOpenAIYaml()) {
+          if (await ToolValidator.isValidOpenAIJson(scheme)) {
+          } else if (await ToolValidator.isValidOpenAIYaml(scheme)) {
             YamlMap yamlMap = loadYaml(scheme);
             scheme = jsonEncode(yamlMap);
           }
@@ -711,8 +738,8 @@ class AgentLocalServer {
           });
           newSchemeText = jsonEncode(schemeMap);
         } else if (protocol == Protocol.JSONRPCHTTP) {
-          if (await scheme.isOpenAIJson()) {
-          } else if (await scheme.isOpenAIYaml()) {
+          if (await ToolValidator.isValidOpenAIJson(scheme)) {
+          } else if (await ToolValidator.isValidOpenAIYaml(scheme)) {
             YamlMap yamlMap = loadYaml(scheme);
             scheme = jsonEncode(yamlMap);
           }
@@ -721,36 +748,47 @@ class AgentLocalServer {
           schemeMap["methods"].retainWhere((method) => functionNameList.contains(method["name"]));
 
           newSchemeText = jsonEncode(schemeMap);
-        } else if (protocol == Protocol.OPENMODBUS) {
-          if (await scheme.isOpenAIJson()) {
-          } else if (await scheme.isOpenAIYaml()) {
-            YamlMap yamlMap = loadYaml(scheme);
-            scheme = jsonEncode(yamlMap);
+        } else if (tool.schemaType == ToolValidator.OPTION_OPENTOOL_SERVER) {
+          protocol = Protocol.OPENTOOL;
+          if (await ToolValidator.isValidOpenToolServerJson(scheme)) {
+            Map<String, dynamic> schemaMap = json.decode(scheme);
+            OpenToolSchemaDTO openToolSchema = OpenToolSchemaDTO.fromJson(schemaMap);
+            apiKey = openToolSchema.apiKey;
+
+            final openTool = await ToolParser.loadOpenToolFromConfig(schemaMap);
+            if (openTool != null && openTool.functions.isNotEmpty) {
+              newSchemeText = jsonEncode(openTool.toJson());
+              openToolServerUrl = openTool.server?.url;
+            }
+
+            if (openToolServerUrl == null || openToolServerUrl.isEmpty) {
+              if (openToolSchema.serverUrl.isNotEmpty) {
+                openToolServerUrl = openToolSchema.serverUrl;
+              }
+            }
+
+            if (newSchemeText.isEmpty) {
+              newSchemeText = openToolSchema.schema;
+            }
           }
-
-          Map<String, dynamic> schemeMap = jsonDecode(scheme);
-          schemeMap["functions"].retainWhere((method) => functionNameList.contains(method["name"]));
-
-          newSchemeText = jsonEncode(schemeMap);
         }
 
         if (protocol.isEmpty || newSchemeText.isEmpty) {
           continue;
         }
 
-        ApiKeyDto? apiKey;
-        String apiKeyText = tool.apiKey ?? "";
-        if (apiKeyText.isNotEmpty) {
-          if (tool.apiKeyType == "basic" || tool.apiKeyType == "Basic") {
-            apiKey = ApiKeyDto(type: opentool.ApiKeyType.basic, apiKey: apiKeyText);
-          } else if (tool.apiKeyType == "bearer" || tool.apiKeyType == "Bearer") {
-            apiKey = ApiKeyDto(type: opentool.ApiKeyType.bearer, apiKey: apiKeyText);
+        ApiKeyDto? apiKeyDto;
+        if (apiKey.isNotEmpty) {
+          if (tool.apiKeyType.toLowerCase() == "basic") {
+            apiKeyDto = ApiKeyDto(type: ApiKeyType.basic, apiKey: apiKey);
+          } else if (tool.apiKeyType.toLowerCase() == "bearer") {
+            apiKeyDto = ApiKeyDto(type: ApiKeyType.bearer, apiKey: apiKey);
           } else {
-            apiKey = ApiKeyDto(type: opentool.ApiKeyType.original, apiKey: apiKeyText);
+            apiKeyDto = ApiKeyDto(type: ApiKeyType.original, apiKey: apiKey);
           }
         }
 
-        OpenSpecDto openSpec = OpenSpecDto(openSpec: newSchemeText, protocol: protocol, apiKey: apiKey);
+        OpenSpecDto openSpec = OpenSpecDto(openSpec: newSchemeText, protocol: protocol, apiKey: apiKeyDto, serverUrl: openToolServerUrl);
         openSpecList.add(openSpec);
       }
     }

@@ -18,7 +18,6 @@ target/
 *.iws
 *.iml
 *.ipr
-lite-agent-rest/src/main/java/com/litevar/agent/rest/Test.java
 
 ### NetBeans ###
 /nbproject/private/
@@ -32,9 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
-lite-agent-rest/src/main/java/com/litevar/agent/rest/controller/v1/TestController.java
 /logs/
-
 .DS_Store
 
 CLAUDE.md
+pdf/
+output/
+lite-agent-rest/logs/
+lite-agent-rest/src/main/java/com/litevar/agent/rest/controller/v1/TestController.java
+lite-agent-rest/src/main/java/com/litevar/agent/rest/Test.java

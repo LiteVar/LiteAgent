@@ -10,7 +10,7 @@ import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.core.module.tool.ToolHandleFactory;
 import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.core.module.tool.executor.FunctionExecutor;
-import com.litevar.agent.core.module.tool.executor.OpenToolExecutor;
+import com.litevar.agent.core.module.tool.executor.OpenToolThirdExecutor;
 import com.litevar.agent.openai.tool.*;
 import com.litevar.agent.rest.openai.agent.AgentManager;
 import com.litevar.agent.rest.openai.agent.AgentMsgType;
@@ -163,7 +163,7 @@ public class FunctionUtil {
                 defineHeader.put(HttpHeaders.AUTHORIZATION, apiKey);
             }
             String result;
-            if (executor instanceof OpenToolExecutor) {
+            if (executor instanceof OpenToolThirdExecutor) {
                 //推一条FunctionCall消息给第三方, 让第三方去调用工具
                 OpenToolMessage msg = new OpenToolMessage(context, callId, function.getResource(), argObj);
                 AgentManager.handleMsg(AgentMsgType.OPEN_TOOL_CALL_MSG, msg);

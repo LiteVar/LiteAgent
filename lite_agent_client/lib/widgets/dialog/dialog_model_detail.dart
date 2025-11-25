@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lite_agent_client/models/local_data_model.dart';
-import 'package:lite_agent_client/utils/extension/string_extension.dart';
+import 'package:lite_agent_client/models/local/model.dart';
+
 
 class ModelDetailDialog extends StatelessWidget {
-  final ModelBean model;
+  final ModelData model;
 
   ModelDetailDialog({required this.model});
 
@@ -28,7 +28,7 @@ class ModelDetailDialog extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.center, // 水平居中
                       children: [
                         buildInfoRow("模型名称:", model.name),
-                        buildInfoRow("连接别名:", model.nickName ?? "模型${model.id.lastSixChars}"),
+                        buildInfoRow("连接别名:", model.alias ?? ""),
                         buildInfoRow("BaseURL:", model.url),
                         buildInfoRow("API Key:", model.key),
                       ],

@@ -168,9 +168,11 @@ const DocumentList = () => {
   };
 
   // 处理详情页跳转
-  const handleViewDetails = (docId: string) => {
+  const handleViewDetails = (docId: string, isShowSummary: boolean, fileId?: string) => {
     const path = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-    navigate(`${path}/fragments?documentId=${docId}`);
+    const showSummaryParam = isShowSummary ? '&showSummary=1' : '';
+    const fileIdParam = fileId ? `&fileId=${fileId}` : '';
+    navigate(`${path}/fragments?documentId=${docId}${showSummaryParam}${fileIdParam}`);
   };
 
   const handleCreateDocument = () => {

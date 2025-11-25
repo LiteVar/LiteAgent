@@ -26,7 +26,7 @@ Widget buildAgentProfileImage(String iconPath) {
       errorBuilder: (context, exception, stackTrace) => defaultImageWidget,
     );
   } else {
-    var path = iconPath.fillPicLinkPrefixNoAsync();
+    var path = iconPath.fillPicLinkPrefix();
     if (path.isEmpty) {
       return defaultImageWidget;
     }
@@ -40,7 +40,7 @@ Widget buildAgentProfileImage(String iconPath) {
 }
 
 Widget buildUserProfileImage(String iconPath) {
-  var path = iconPath.fillPicLinkPrefixNoAsync();
+  var path = iconPath.fillPicLinkPrefix();
   var defaultImageWidget = Image.asset('assets/images/icon_default_user.png', fit: BoxFit.cover);
   if (path.isEmpty) {
     return defaultImageWidget;

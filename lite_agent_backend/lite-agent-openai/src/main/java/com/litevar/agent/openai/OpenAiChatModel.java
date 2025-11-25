@@ -2,6 +2,10 @@ package com.litevar.agent.openai;
 
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.litevar.agent.openai.completion.*;
 import com.litevar.agent.openai.completion.message.AssistantMessage;
 import com.litevar.agent.openai.completion.message.Message;
@@ -9,6 +13,7 @@ import com.litevar.agent.openai.util.JsonRepair;
 import com.litevar.agent.openai.util.SpringBeanUtil;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -111,13 +116,13 @@ public class OpenAiChatModel {
                     i.getFunction().setArguments("{}");
                 } else {
                     try {
-                        ObjectMapperSingleton.getObjectMapper().readTree(arguments);
+                        validateJson(arguments);
                     } catch (Exception e) {
                         log.error("function-calling json解析异常,将对字符串进行修复:{}", arguments);
                         try {
                             String repairStr = JsonRepair.jsonrepair(arguments);
                             log.info("修复完成:{}", repairStr);
-                            ObjectMapperSingleton.getObjectMapper().readTree(repairStr);
+                            validateJson(repairStr);
                             log.info("解析成功,将替换响应数据");
                             i.getFunction().setArguments(repairStr);
                         } catch (Exception ex) {
@@ -173,5 +178,23 @@ public class OpenAiChatModel {
             messageContext = SpringBeanUtil.getBean(ChatContext.class);
         }
         return messageContext;
+    }
+
+    private static void validateJson(String json) throws JsonProcessingException {
+        ObjectMapper mapper = ObjectMapperSingleton.getObjectMapper();
+        JsonFactory factory = mapper.getFactory();
+        try (JsonParser parser = factory.createParser(json)) {
+            parser.nextToken();
+            mapper.readTree(parser);
+
+            //检查是否还有多余的token
+            if (parser.nextToken() != null) {
+                throw new JsonProcessingException("JSON格式错误：包含多个根元素") {
+                };
+            }
+        } catch (IOException e) {
+            throw new JsonProcessingException("JSON格式错误：" + e.getMessage()) {
+            };
+        }
     }
 }

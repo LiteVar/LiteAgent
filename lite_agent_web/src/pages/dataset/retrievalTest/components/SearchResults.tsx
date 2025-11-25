@@ -1,12 +1,81 @@
-import React from 'react';
-import { Card, Typography } from 'antd';
-import { SegmentVO } from '@/client';
+import React, { useCallback, useState } from 'react';
+import { Card, message, Typography } from 'antd';
+import { getV1FileDatasetMarkdownPreview, SegmentVO } from '@/client';
 import documentIcon from '@/assets/dataset/doc_svg';
+import ResponseCode from '@/constants/ResponseCode';
+import PreviewSourceModal from './PreviewSourceModal';
 interface SearchResultsProps {
   results: SegmentVO[];
 }
 
 const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
+
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewMarkdown, setPreviewMarkdown] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
+
+  const handleReadSourceFile = async (result: SegmentVO) => {
+    const res = await getV1FileDatasetMarkdownPreview({
+      query: {
+        fileId: result.fileId!,
+      },
+    });
+    if (res.data?.code === ResponseCode.S_OK && res.data.data) {
+      setPreviewMarkdown(res.data.data);
+      setPreviewTitle(result.documentName || '链接文档');
+      setPreviewModalVisible(true);
+    } else {
+      message.error(res.data?.message || '获取文件预览失败');
+    }
+  };
+
+  const handleDownloadSourceFile = useCallback((fileId: string) => {
+    fetch(`/v1/file/dataset/file/download?fileId=${fileId}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/zip,application/octet-stream',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`下载失败: ${response.status}`);
+        }
+
+        // 获取并解析文件名
+        const disposition = response.headers.get('content-disposition');
+        let fileName = `${fileId}.zip`; // 默认文件名
+
+        if (disposition) {
+          // 处理 filename*=UTF-8''... 格式
+          const filenameMatch = disposition.match(/filename\*=UTF-8''(.+)$/i);
+          if (filenameMatch && filenameMatch[1]) {
+            fileName = decodeURIComponent(filenameMatch[1]);
+          } else {
+            // 处理普通 filename=... 格式
+            const normalMatch = disposition.match(/filename=["']?([^"']+)["']?/i);
+            if (normalMatch && normalMatch[1]) {
+              fileName = normalMatch[1];
+            }
+          }
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      })
+      .catch((error) => {
+        console.error('下载文件时出错:', error);
+        message.error('文件下载失败，请稍后重试');
+      });
+  }, []);
+
   if (!results.length) {
     return <div className="text-center text-gray-500 py-20">检索结果在此处显示</div>;
   }
@@ -45,10 +114,12 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
                       {result.tokenCount && (
                         <span>token: {result.tokenCount}</span>
                       )}
-                      <span className="ml-4 flex items-center customeSvg">
+                      {!!result.fileId && <span className="ml-4 flex items-center customeSvg">
                         <span className="mr-1 text-sm w-4 h-4">{documentIcon}</span>
                         {result.documentName || '链接文档'}
-                      </span>
+                      </span>}
+                      {!!result.fileId && <span className="ml-4 text-blue-400 cursor-pointer" onClick={() => handleReadSourceFile(result)}>查看原文</span>}
+                      {!!result.fileId && <span className="ml-4 text-blue-400 cursor-pointer" onClick={() => handleDownloadSourceFile(result.fileId!)}>下载源文件</span>}
                     </div>
                 </Card>
               );
@@ -56,6 +127,12 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
           })}
         </div>
       </div>
+      <PreviewSourceModal
+        open={previewModalVisible}
+        markdown={previewMarkdown}
+        onCancel={() => setPreviewModalVisible(false)}
+        title={previewTitle}
+      />
     </div>
   );
 };

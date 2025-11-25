@@ -1,16 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/library.dart';
-import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
 import 'package:lite_agent_client/repositories/library_repository.dart';
-import 'package:lite_agent_client/repositories/tool_repository.dart';
-import 'package:lite_agent_client/utils/event_bus.dart';
 
-import '../../models/local_data_model.dart';
 import '../common_widget.dart';
-import 'dialog_tool_edit.dart';
 
 class SelectLibraryDialog extends StatelessWidget {
   final void Function(LibraryDto library) onConfirm;

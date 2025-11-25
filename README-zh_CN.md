@@ -6,10 +6,10 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 
 ## 程序说明
 
-- [Web端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README_zh-CN.md)
-- [桌面端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README-zh_CN.md)
-- [后端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README-zh_CN.md)
-- [SDK](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk)
+- [Web端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README_zh-CN.md): 用于管理和配置agent、工具、大模型、知识库以及用户等。
+- [桌面端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README-zh_CN.md): 用于管理agent、工具、大模型等。
+- [后端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README-zh_CN.md)：web、desktop和sdk的后端服务。
+- [SDK](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk): C#/LabVIEW/TypeScript/Dart/Java sdk，帮助开发者快速集成LiteAgent。
 
 ## 特性
 
@@ -23,6 +23,7 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
   - 反思Agent(Web, Desktop)
 - Agent模式支持：并行、串行、拒绝
 - Auto Multi Agent(Web, Desktop)
+- 支持导出/导入配置
 
 ### 2. 工具支持
 
@@ -33,7 +34,11 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - 协议：MCP
   - Server支持MCP的SSE
   - Desktop支持MCP的stdio
-	
+- 协议：OpenTool
+  - 支持OpenTool格式的描述文档
+  - 支持OpenTool Server的调用
+- 支持工具的导出
+
 ### 3. 功能
 
 - 模型管理(Web, Desktop)
@@ -50,6 +55,14 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - 仅支持OpenAI风格API，其他模型(如Zhipu-AI、QianFan、ChatGLM、Kimi、Ollama、qwen等)，请使用例如OpenAPI等工具转换为OpenAI风格。
 - 音转文（ASR模型）
 - 文转音（TTS模型）
+- LLM支持导出/导入JSON格式的配置
+
+### 5.知识库支持
+
+- 文档转markdown，包含文字和图片(Web)
+- 增加文档内容摘要(Web)
+- 知识库检索，可“查看原文”和“下载原文档”(web, Desktop)
+- 知识库列表，可“下载markdown格式”文档(web, Desktop)
 
 ## 快速开始
 

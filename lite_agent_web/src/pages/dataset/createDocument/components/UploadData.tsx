@@ -8,9 +8,10 @@ import { postV1DatasetByDatasetIdDocuments } from '@/client';
 interface UploadDataProps {
   documentData: any;
   onPrev: () => void;
+  onComplete?: () => void;
 }
 
-const UploadData: React.FC<UploadDataProps> = ({ documentData, onPrev }) => {
+const UploadData: React.FC<UploadDataProps> = ({ documentData, onPrev, onComplete }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
 
@@ -18,7 +19,7 @@ const UploadData: React.FC<UploadDataProps> = ({ documentData, onPrev }) => {
     if (documentData.dataSourceType === DocumentSourceType.INPUT) {
       return documentData.name;
     } else if (documentData.dataSourceType === DocumentSourceType.FILE) {
-      return documentData.filePath.split('/').pop();
+      return documentData?.fileName?.replace(/\.[^.]+$/, '.md') ||  '未知文件名.md';
     } else if (documentData.dataSourceType === DocumentSourceType.HTML) {
       return '链接文档';
     } else {
@@ -42,22 +43,31 @@ const UploadData: React.FC<UploadDataProps> = ({ documentData, onPrev }) => {
     }, 100); // 每100毫秒更新一次进度
 
     try {
+      let name = '';
+
+      if (documentData.dataSourceType === DocumentSourceType.FILE) {
+        name = documentData?.fileName?.replace(/\.[^.]+$/, '.md') ||  '未知文件名.md';
+      } else if (documentData.dataSourceType === DocumentSourceType.INPUT) {
+        name = documentData.name;
+      }
+
       const res = await postV1DatasetByDatasetIdDocuments({
         headers: {
           'Workspace-id': documentData.workspaceId,
         },
         body: {
+          name,
           workspaceId: documentData.workspaceId,
           dataSourceType: documentData.dataSourceType,
           chunkSize: documentData.chunkSize || 500,
           separator: documentData.separator || '',
           metadata: documentData.metadata || '',
-          name: documentData.dataSourceType === DocumentSourceType.INPUT ?
-            documentData.name : '',
           content: documentData.dataSourceType === DocumentSourceType.INPUT ?
             documentData.content : '',
           htmlUrl: documentData.dataSourceType === DocumentSourceType.HTML
             ? documentData.htmlUrl?.split('\n')?.filter((v: string) => !!v): [],
+          fileId: documentData.dataSourceType === DocumentSourceType.FILE ?
+            documentData.fileId : '',
         },
         path: {
           datasetId: documentData.datasetId,
@@ -68,6 +78,10 @@ const UploadData: React.FC<UploadDataProps> = ({ documentData, onPrev }) => {
         clearInterval(interval); // 上传完成后清除进度条
         setUploadStatus('success');
         setUploadProgress(100);
+        // 上传成功后清空 fileId
+        if (onComplete) {
+          onComplete();
+        }
       } else {
         setUploadStatus('error');
       }

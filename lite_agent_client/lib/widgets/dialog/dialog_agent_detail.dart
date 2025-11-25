@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/config/routes.dart';
-import 'package:lite_agent_client/models/local_data_model.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
 import 'package:lite_agent_client/repositories/model_repository.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
+import 'package:lite_agent_client/utils/extension/agent_extension.dart';
 import 'package:lite_agent_client/utils/extension/function_extension.dart';
 import 'package:lite_agent_client/utils/web_util.dart';
 import 'package:lite_agent_client/widgets/common_widget.dart';
 
+import '../../config/constants.dart';
+import '../../utils/agent/agent_validator.dart';
 import '../../repositories/agent_repository.dart';
 import '../../utils/event_bus.dart';
 
 class AgentDetailDialog extends StatelessWidget {
-  final AgentBean agent;
+  final AgentModel agent;
   bool needMoreButton = false;
   final logic = Get.put(AgentDetailDialogController());
 
@@ -94,19 +97,19 @@ class AgentDetailDialog extends StatelessWidget {
               )),
           onPressed: () async {
             var isCloudAgent = agent.isCloud ?? false;
-            AgentBean? targetAgent;
+            AgentModel? targetAgent;
             if (isCloudAgent) {
               var agentDetail = await agentRepository.getCloudAgentDetail(agent.id);
               if (agentDetail?.model == null) {
                 AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
                 return;
               }
-              if (agentDetail?.agent?.type == AgentType.REFLECTION) {
+              if (agentDetail?.agent?.type == AgentValidator.DTO_TYPE_REFLECTION) {
                 AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
                 return;
               }
               if (agentDetail?.agent != null) {
-                targetAgent = AgentBean()..translateFromDTO(agentDetail!.agent!);
+                targetAgent = agentDetail!.agent!.toModel();
               }
             } else {
               String modelId = agent.modelId;
@@ -115,7 +118,7 @@ class AgentDetailDialog extends StatelessWidget {
                 AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
                 return;
               }
-              if (agent.agentType == AgentType.REFLECTION) {
+              if (agent.agentType == AgentValidator.DTO_TYPE_REFLECTION) {
                 AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
                 return;
               }

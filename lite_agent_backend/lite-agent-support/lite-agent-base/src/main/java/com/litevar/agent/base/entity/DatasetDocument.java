@@ -42,9 +42,9 @@ public class DatasetDocument {
      */
     private String dataSourceType;
     /**
-     * 文件路径
+     * 文件id
      */
-    private String filePath;
+    private String fileId;
     /**
      * input content
      */
@@ -85,6 +85,11 @@ public class DatasetDocument {
      * 文档向量化状态: PENDING, SUCCESS, FAIL
      */
     private String embedStatus = "PENDING";
+
+    /**
+     * 是否需要做摘要
+     */
+    private Boolean needSummary = Boolean.TRUE;
 
     /**
      * 创建时间

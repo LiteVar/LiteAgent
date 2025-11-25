@@ -55,12 +55,6 @@ public class ToolProvider {
     private String schemaStr;
 
     /**
-     * open tool schema
-     */
-    @Deprecated
-    private String openSchemaStr;
-
-    /**
      * 调用工具的apiKey
      */
     private String apiKey;

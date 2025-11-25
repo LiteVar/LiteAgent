@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Tabs, Card, Tag, message, Image, TabsProps, Empty } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Tabs, Card, Tag, message, Image, TabsProps, Empty, Dropdown, Button } from 'antd';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import CreateAgentModal from './components/CreateAgentModal';
+import ImportAgentPage from './ImportAgentPage';
 import { AgentCreateForm, AgentDTO, postV1AgentAdd } from '@/client';
 import { getV1AgentAdminListOptions } from '@/client/@tanstack/query.gen';
 import { useQuery } from '@tanstack/react-query';
@@ -10,13 +11,24 @@ import { useWorkspace } from '@/contexts/workspaceContext';
 import { UserType } from '@/types/User';
 import { buildImageUrl } from '@/utils/buildImageUrl';
 import Header from '@/components/workspace/Header';
+import type { MenuProps } from 'antd';
+import { DownOutlined } from '@ant-design/icons';
+
+enum CreateAgentType {
+  CREATE = 'create',
+  IMPORT = 'import',
+}
 
 export default function Agents() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [tab, setTab] = useState<number>(0);
   const workspace = useWorkspace();
+
+  // 检查是否显示导入页面
+  const showImportPage = searchParams.get('action') === 'import';
 
   const { data: agentListResult, refetch } = useQuery({
     ...getV1AgentAdminListOptions({
@@ -62,6 +74,15 @@ export default function Agents() {
     setIsModalVisible(true);
   };
 
+  const handleBackFromImport = useCallback(() => {
+    setSearchParams({});
+  }, [setSearchParams]);
+
+  const handleImportSuccess = useCallback(() => {
+    refetch();
+    setSearchParams({});
+  }, [refetch, setSearchParams]);
+
   const handleCancel = () => {
     setIsModalVisible(false);
   };
@@ -86,6 +107,64 @@ export default function Agents() {
     navigate(`/agent/${agentId}`);
   };
 
+  const showFormModal = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsModalVisible(true);
+  }, []);
+
+  const onImportFiles = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSearchParams({ action: 'import' });
+  }, [setSearchParams]);
+
+  const createButton = useMemo(() => {
+    if (!workspace?.role ||Number(workspace?.role) === UserType.Normal) return null;
+
+    const items: MenuProps['items'] = [
+    {
+      label: (
+        <div onClick={(e) => showFormModal(e)} className="text-[14px]">
+          新建Agent
+        </div>
+      ),
+      key: CreateAgentType.CREATE,
+    },
+    {
+      label: (
+        <div onClick={(e) => onImportFiles(e)} className="text-[14px]">
+          导入
+        </div>
+      ),
+      key: CreateAgentType.IMPORT,
+    },
+  ];
+
+    return (
+      <Dropdown menu={{ items }}>
+        <a onClick={(e) => e.preventDefault()}>
+          <Button
+            icon={<DownOutlined />}
+            iconPosition='end'
+            type="primary"
+            size='large'
+          >
+            新建Agent
+          </Button> 
+        </a>
+      </Dropdown>
+    )
+  }, [workspace, onImportFiles, showFormModal]);
+
+  // 如果显示导入页面，直接渲染导入页面
+  if (showImportPage) {
+    return (
+      <ImportAgentPage
+        onBack={handleBackFromImport}
+        onSuccess={handleImportSuccess}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Header
@@ -93,9 +172,9 @@ export default function Agents() {
         placeholder="搜索你的Agent"
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        showCreateButton={Number(workspace?.role) !== UserType.Normal}
-        createButtonText="新建Agent"
+        showCreateButton={false}
         onCreateClick={showModal}
+        createButton={createButton}
       />
 
       <div className="flex justify-between items-center px-8">

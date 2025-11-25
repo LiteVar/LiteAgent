@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/modules/agent/view.dart';
+import 'package:lite_agent_client/modules/agent_import/view.dart';
 import 'package:lite_agent_client/modules/chat/view.dart';
 import 'package:lite_agent_client/modules/library/view.dart';
 import 'package:lite_agent_client/modules/model/view.dart';
@@ -53,7 +54,7 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
                       children: [
                         _createFuncItem('聊天', "icon_message.png", logic.currentPage.value == HomePageLogic.PAGE_CHAT,
                             () => logic.switchPage(HomePageLogic.PAGE_CHAT)),
-                        _createFuncItem('Agents', "icon_robot.png", logic.currentPage.value == HomePageLogic.PAGE_AGENT,
+                        _createFuncItem('Agents', "icon_robot.png", logic.currentPage.value == HomePageLogic.PAGE_AGENT || logic.currentPage.value == HomePageLogic.PAGE_AGENT_IMPORT,
                             () => logic.switchPage(HomePageLogic.PAGE_AGENT)),
                         _createFuncItem('工具', "icon_printer.png", logic.currentPage.value == HomePageLogic.PAGE_TOOL,
                             () => logic.switchPage(HomePageLogic.PAGE_TOOL)),
@@ -74,6 +75,8 @@ class HomePage extends GetResponsiveView<HomePageLogic> {
                 return ChatPage();
               case HomePageLogic.PAGE_AGENT:
                 return AgentPage();
+              case HomePageLogic.PAGE_AGENT_IMPORT:
+                return AgentImportPage();
               case HomePageLogic.PAGE_TOOL:
                 return ToolPage();
               case HomePageLogic.PAGE_MODEL:

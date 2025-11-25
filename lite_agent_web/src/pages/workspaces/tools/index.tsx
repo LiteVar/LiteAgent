@@ -1,22 +1,25 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import { Tabs, Card, Tag, message, Empty, Skeleton } from 'antd';
+import { Tabs, Card, message, Empty, Skeleton } from 'antd';
 import type { TabsProps } from 'antd';
 import CreateToolModal from "./components/CreateToolModal";
 import ToolInfoModal from "./components/ToolInfoModal";
 import {useQuery} from '@tanstack/react-query'
 import {getV1ToolListOptions} from "@/client/@tanstack/query.gen";
-import {postV1ToolAdd, ToolDTO, deleteV1ToolById, ToolProvider, putV1ToolUpdate} from '@/client';
+import {postV1ToolAdd, ToolDTO, deleteV1ToolById, ToolProvider, putV1ToolUpdate, getV1ToolExportById} from '@/client';
 import {useWorkspace} from "@/contexts/workspaceContext";
 import {UserType} from "@/types/User";
 import ResponseCode from "@/constants/ResponseCode";
 import ToolIcon from './components/tool-icon';
 import Header from '@/components/workspace/Header';
+import FileExportModal from '@/components/workspace/FileExportModal';
 
 export default function Tools() {
   const [searchValue, setSearchValue] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
+  const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [editingTool, setEditingTool] = useState<ToolDTO | ToolProvider | undefined>(undefined);
+  const [exportTool, setExportTool] = useState<ToolDTO | ToolProvider | undefined>(undefined);
   const [toolInfo, setToolInfo] = useState<ToolDTO | undefined>(undefined);
   const [tab, setTab] = useState('0');
   const workspace = useWorkspace()
@@ -56,6 +59,17 @@ export default function Tools() {
     setEditingTool(undefined);
   };
 
+  const showExportModal = (event: any, model: ToolDTO | ToolProvider) => {
+    event.stopPropagation();
+    setIsExportModalVisible(true);
+    setExportTool(model);
+  };
+
+  const closeExportModal = () => {
+    setIsExportModalVisible(false);
+    setExportTool(undefined);
+  };
+
   const showInfoModal = (tool: ToolDTO) => {
     setToolInfo(tool);
     setIsInfoModalVisible(true);
@@ -74,7 +88,7 @@ export default function Tools() {
     setToolInfo(undefined);
   }
 
-  const handleOk = useCallback(async (id:string, values: any) => {
+  const handleOk = useCallback(async (id: string, values: any) => {
     let res;
     if (id) {
       res = await putV1ToolUpdate({body: {id, ...values}, headers: {'Workspace-id': workspace?.id || ''}});
@@ -98,6 +112,37 @@ export default function Tools() {
     setIsModalVisible(false);
     setEditingTool(undefined);
   }, [deleteTool]);
+
+  const onExportFile = useCallback(async (id: string, checked: boolean) => {
+    try {
+      const res = await getV1ToolExportById({ 
+        path: { id: id },
+        query: {
+          plainText: checked,
+        },
+      });
+
+      if (!res.data) {
+        message.error('导出工具失败');
+        return;
+      }
+      
+      message.success('导出工具成功');
+      closeExportModal();
+
+      const text = JSON.stringify(res.data, null, 2);
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${res.data.name}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('导出工具失败:', error);
+      message.error('导出工具失败，请稍后重试');
+    }
+  }, []);
 
   const items: TabsProps['items'] = [
     {
@@ -172,6 +217,7 @@ export default function Tools() {
         onCancel={handleCancel}
         onOk={handleOk}
         onDelete={handleDelete}
+        showExportModal={showExportModal}
         initialData={editingTool}
       />
 
@@ -181,7 +227,10 @@ export default function Tools() {
         toolInfo={toolInfo}
         deleteTool={deleteTool}
         showEditingToolModal={showEditingToolModal}
+        showExportModal={showExportModal}
       />
+
+    <FileExportModal title="工具" visible={isExportModalVisible && !!exportTool?.id} id={exportTool?.id} onClose={closeExportModal} onOk={onExportFile} />
 
     </div>
   );

@@ -2,11 +2,13 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:lite_agent_client/config/constants.dart';
-import 'package:lite_agent_client/models/base_response.dart';
+import 'package:lite_agent_client/models/dto/base/base_response.dart';
 import 'package:lite_agent_client/models/dto/tool.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/server/network/net_util.dart';
 import 'package:lite_agent_client/utils/log_util.dart';
+
+import '../../models/dto/open_tool_schema.dart';
 
 class ToolServer {
   static Future<BaseResponse<List<ToolDTO>?>> getTooList(int tab) async {
@@ -23,9 +25,7 @@ class ToolServer {
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token, 'Workspace-id': workspaceId}),
     );
     Log.d("response:${jsonEncode(response)}");
-    return BaseResponse.fromJsonForList(response, (list) {
-      return (list).map((json) => ToolDTO.fromJson(json)).toList();
-    });
+    return BaseResponse.fromJsonForList(response, (list) => (list).map((json) => ToolDTO.fromJson(json)).toList());
   }
 
   static Future<BaseResponse<ToolDTO?>> getToolDetail(String id) async {
@@ -88,8 +88,22 @@ class ToolServer {
       options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token, 'Workspace-id': workspaceId}),
     );
     Log.d("response:${jsonEncode(response)}");
-    return BaseResponse.fromJsonForList(response, (list) {
-      return (list).map((json) => ToolDTO.fromJson(json)).toList();
-    });
+    return BaseResponse.fromJsonForList(response, (list) => (list).map((json) => ToolDTO.fromJson(json)).toList());
+  }
+
+  static Future<BaseResponse<OpenToolSchemaDTO?>> loadOpenToolSchema(String host, String apiKey) async {
+    const String path = '/v1/tool/loadOpenToolSchema';
+    String serverUrl = await accountRepository.getApiServerUrl();
+    String token = await accountRepository.getApiToken();
+    if (serverUrl.isEmpty || token.isEmpty) {
+      return BaseResponse(data: null, code: 400, message: "参数缺失");
+    }
+    Map<String, dynamic>? response = await NetUtil.instance.get(
+      "$serverUrl${Constants.apiServerPath}$path",
+      queryParameters: {"host": host, "apiKey": apiKey},
+      options: Options(headers: {'Content-Type': 'application/json', 'Authorization': token}),
+    );
+    Log.d("response:${jsonEncode(response)}");
+    return BaseResponse.fromJson(response, (json) => OpenToolSchemaDTO.fromJson(json));
   }
 }

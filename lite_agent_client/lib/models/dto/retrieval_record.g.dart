@@ -8,12 +8,12 @@ part of 'retrieval_record.dart';
 
 RetrievalRecordDto _$RetrievalRecordDtoFromJson(Map<String, dynamic> json) =>
     RetrievalRecordDto(
-      json['id'] as String,
-      json['datasetId'] as String,
-      json['agentId'] as String,
-      json['content'] as String,
-      json['retrieveType'] as String,
-      json['createTime'] as String,
+      json['id'] as String? ?? '',
+      json['datasetId'] as String? ?? '',
+      json['agentId'] as String? ?? '',
+      json['content'] as String? ?? '',
+      json['retrieveType'] as String? ?? '',
+      json['createTime'] as String? ?? '',
     );
 
 Map<String, dynamic> _$RetrievalRecordDtoToJson(RetrievalRecordDto instance) =>

@@ -60,11 +60,15 @@ public class Dataset {
      */
     private String vectorCollectionName;
     /**
-     * 关联的大模型id
+     * 摘要向量库集合名称
+     */
+    private String summaryCollectionName;
+    /**
+     * 文本模型id
      */
     private String llmModelId;
     /**
-     * embedding 模型
+     * embedding模型id
      */
     private String embeddingModel;
     /**

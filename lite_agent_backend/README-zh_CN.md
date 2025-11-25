@@ -4,10 +4,10 @@
 
 ##### 技术选型
 * JDK 17
-* Springboot 3.3.1
+* Springboot 3.5.4
 * hutool 5.8.29
 * MongoPlus 2.1.6
-* Milvus 2.5.6
+* Milvus 2.6.3
 
 ##### 准备环境
 * JDK17
@@ -15,7 +15,7 @@
 * MongoDB(至少4.0以上版本)
 * Redis
 * 开启了SMTP服务的邮箱(账号、密码、服务IP, port)
-* Milvus 2.5.6
+* Milvus
 
 ##### Milvus 安装部署
 1.  按照 Milvus 官方教程安装和部署 Milvus: [Milvus 官方教程](https://milvus.io/docs/install_standalone-docker-compose.md).

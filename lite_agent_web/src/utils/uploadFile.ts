@@ -19,13 +19,24 @@ const onUploadAction = async (file: RcFile) => {
     maxHeight: 1024,
     quality: 0.8,
   });
-  const response = await postV1FileUpload({
-      body: {
-          file: compressedFile,
-      },
+  const formData = new FormData();
+  formData.append('file', compressedFile);
+
+  const response = await fetch('/v1/file/upload', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+    },
   });
-  if (response.data?.code === ResponseCode.S_OK) {
-      return '/v1/file/download?filename=' + response.data.data;
+  if (!response.ok) {
+    throw new Error('上传失败');
+  }
+
+  const result = await response.json();
+  console.log('result', result);
+  if (result.code === ResponseCode.S_OK) {
+      return '/v1/file/download?filename=' + result.data;
   } else {
       message.error('上传失败');
       return '';

@@ -1,26 +1,23 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
-import 'package:lite_agent_client/models/local_data_model.dart';
-import 'package:lite_agent_client/utils/extension/string_extension.dart';
+import 'package:lite_agent_client/models/local/message.dart';
 
-import '../models/dto/retrieval_result.dart';
 import '../utils/alarm_util.dart';
 import '../utils/web_util.dart';
+import 'chat_message_items.dart';
 import 'common_widget.dart';
 
 class ChatMessageListViewController extends GetxController {
   final ScrollController scrollController = ScrollController();
-  final chatMessageList = <ChatMessage>[].obs;
+  final chatMessageList = <ChatMessageModel>[].obs;
   String? userAvatarPath;
   String? agentAvatarPath;
   var messageHoverItemId = "".obs;
   var showAudioButton = false;
   var activeAudioMessageId = "";
-  Function(ChatMessage chatMessage)? onMessageThoughButtonClick;
+  Function(ChatMessageModel chatMessage)? onMessageThoughButtonClick;
   Function(int index, String message)? onMessageAudioButtonClick;
 
   ChatMessageListViewController();
@@ -62,7 +59,7 @@ class ChatMessageListViewController extends GetxController {
 class ChatMessageListView extends StatelessWidget {
   final ChatMessageListViewController controller;
 
-  ChatMessageListView({super.key, required this.controller, required List<ChatMessage> chatMessageList}) {
+  ChatMessageListView({super.key, required this.controller, required List<ChatMessageModel> chatMessageList}) {
     controller.chatMessageList.value = chatMessageList;
   }
 
@@ -74,7 +71,7 @@ class ChatMessageListView extends StatelessWidget {
         itemBuilder: (context, index) => buildMessageItem(index, controller.chatMessageList[index])));
   }
 
-  Widget buildMessageItem(int index, ChatMessage chatMessage) {
+  Widget buildMessageItem(int index, ChatMessageModel chatMessage) {
     if (chatMessage.sendRole == ChatRoleType.User) {
       return MouseRegion(
         onEnter: (event) => controller.messageHoverItemId.value = index.toString(),
@@ -92,7 +89,7 @@ class ChatMessageListView extends StatelessWidget {
     }
   }
 
-  Widget buildUserMessageItem(ChatMessage chatMessage, int index) {
+  Widget buildUserMessageItem(ChatMessageModel chatMessage, int index) {
     return Container(
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -139,10 +136,23 @@ class ChatMessageListView extends StatelessWidget {
     );
   }
 
-  Widget buildAgentMessageItem(ChatMessage chatMessage, int index) {
-    String message = chatMessage.isLoading ? "正在生成..." : chatMessage.message;
-    if (message.isEmpty) {
-      message = "无返回结果";
+  bool hasThought(ChatMessageModel chatMessage) {
+    var messageList = chatMessage.subMessages ?? [];
+    for (var message in messageList) {
+      //chunk mode reasoning could be empty
+      if (message.sendRole == ChatRoleType.Reasoning && message.message.trim().isEmpty) {
+        continue;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Widget buildAgentMessageItem(ChatMessageModel chatMessage, int index) {
+    String message = chatMessage.message;
+    if (message.trim().isEmpty) {
+      message = chatMessage.isLoading ? "正在生成..." : "无返回结果";
     }
 
     return Container(
@@ -160,7 +170,7 @@ class ChatMessageListView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if ((chatMessage.subMessages?.length ?? 0) > 0) buildThoughtButton(chatMessage),
+                if (hasThought(chatMessage)) buildThoughtButton(chatMessage),
                 Container(
                   padding: const EdgeInsets.only(top: 10),
                   child: MarkdownBody(
@@ -204,7 +214,7 @@ class ChatMessageListView extends StatelessWidget {
     );
   }
 
-  Widget buildThoughtButton(ChatMessage chatMessage) {
+  Widget buildThoughtButton(ChatMessageModel chatMessage) {
     return InkWell(
         onTap: () => controller.onMessageThoughButtonClick?.call(chatMessage),
         child: Container(
@@ -224,111 +234,5 @@ class ChatMessageListView extends StatelessWidget {
                   ),
               ],
             )));
-  }
-}
-
-Widget buildSubMessageItem(ChatMessage chatMessage, Function refresh) {
-  if (chatMessage.sendRole == ChatRoleType.Tool) {
-    var receivedMessage = chatMessage.receivedMessage ?? "";
-    receivedMessage = receivedMessage.isEmpty && chatMessage.isLoading ? "正在响应中..." : receivedMessage;
-    if (receivedMessage.isEmpty) {
-      receivedMessage = "无返回结果";
-    }
-    var isLibraryTool = chatMessage.roleName == "GET-retrieve";
-    if (isLibraryTool) {
-      String retrieveContent = "";
-      try {
-        Map<String, dynamic> retrieveJson = jsonDecode(chatMessage.message);
-        retrieveContent = retrieveJson["query"];
-      } catch (e) {
-        retrieveContent = chatMessage.message;
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("检索知识库", style: TextStyle(fontSize: 14, color: Color(0xff666666))),
-          const SizedBox(height: 10),
-          Text("检索内容:$retrieveContent", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-          const SizedBox(height: 10),
-          Text("检索结果:$receivedMessage", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text("调用${chatMessage.roleName}工具", style: const TextStyle(fontSize: 14, color: Color(0xff666666))),
-        const SizedBox(height: 10),
-        Text("接收信息:${chatMessage.message}", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-        const SizedBox(height: 10),
-        Text("工具结果:$receivedMessage", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-      ],
-    );
-  } else if (chatMessage.sendRole == ChatRoleType.SubAgent) {
-    var receivedMessage = chatMessage.receivedMessage ?? "";
-    receivedMessage = receivedMessage.isEmpty && chatMessage.isLoading ? "正在生成..." : receivedMessage;
-    if (receivedMessage.isEmpty) {
-      receivedMessage = "无返回结果";
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text("调用Agent:${chatMessage.roleName}", style: const TextStyle(fontSize: 14, color: Color(0xff666666))),
-            InkWell(
-                onTap: () {
-                  chatMessage.isMessageExpanded = !chatMessage.isMessageExpanded;
-                  refresh();
-                },
-                child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: buildAssetImage(chatMessage.isMessageExpanded ? "icon_up.png" : "icon_down.png", 12, Colors.black))),
-          ],
-        ),
-        Offstage(
-          offstage: !chatMessage.isMessageExpanded,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SizedBox(height: 10),
-            Text("输入指令:${chatMessage.message}", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-            const SizedBox(height: 10),
-            Text("输出内容:$receivedMessage", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-            if (chatMessage.subMessages != null)
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const SizedBox(height: 10),
-                ...List.generate(
-                  chatMessage.subMessages!.length,
-                  (index) => buildSubMessageItem(chatMessage.subMessages![index], refresh),
-                )
-              ])
-          ]),
-        ),
-      ],
-    );
-  } else if (chatMessage.sendRole == ChatRoleType.Reflection) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("反思阶段", style: TextStyle(fontSize: 14, color: Color(0xff666666))),
-        const SizedBox(height: 10),
-        Text("反思内容:${chatMessage.message}", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-        const SizedBox(height: 10),
-        Text("反思结果:${chatMessage.receivedMessage ?? ""}", style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-      ],
-    );
-  } else if (chatMessage.sendRole == ChatRoleType.Reasoning) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("思考过程", style: TextStyle(fontSize: 14, color: Color(0xff666666))),
-        const SizedBox(height: 10),
-        Text(chatMessage.message, style: const TextStyle(fontSize: 12, color: Color(0xff999999))),
-      ],
-    );
-  } else {
-    return Container(); // Handle unexpected type
   }
 }

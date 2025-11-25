@@ -6,7 +6,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
-import 'package:lite_agent_client/utils/shared_preferences_uitl.dart';
+import 'package:lite_agent_client/utils/shared_preferences_util.dart';
 import 'package:lite_agent_client/utils/web_util.dart';
 
 import '../common_widget.dart';

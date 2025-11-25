@@ -7,8 +7,15 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:hive_flutter/adapters.dart';
-import 'package:lite_agent_client/models/local_data_model.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
+import 'package:lite_agent_client/models/local/conversation.dart';
+import 'package:lite_agent_client/models/local/function.dart';
+import 'package:lite_agent_client/models/local/message.dart';
+import 'package:lite_agent_client/models/local/model.dart';
+import 'package:lite_agent_client/models/local/thought.dart';
+import 'package:lite_agent_client/models/local/tool.dart';
 import 'package:lite_agent_client/utils/log_util.dart';
+import 'package:lite_agent_client/utils/hive_migration_util.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -34,14 +41,19 @@ Future<void> main() async {
 }
 
 Future<void> initHive() async {
-  await Hive.initFlutter();
-  Hive.registerAdapter(AgentBeanAdapter());
-  Hive.registerAdapter(ToolBeanAdapter());
-  Hive.registerAdapter(ModelBeanAdapter());
-  Hive.registerAdapter(ChatMessageAdapter());
-  Hive.registerAdapter(AgentConversationBeanAdapter());
-  Hive.registerAdapter(AgentToolFunctionAdapter());
-  Hive.registerAdapter(ThoughtAdapter());
+  // 在Hive初始化前先进行目录迁移检查
+  final hivePath = await HiveMigrationUtil.migrateHiveData();
+  
+  // 使用迁移后的路径初始化Hive
+  await Hive.initFlutter(hivePath);
+  
+  Hive.registerAdapter(AgentModelAdapter());
+  Hive.registerAdapter(ToolModelAdapter());
+  Hive.registerAdapter(ModelDataAdapter());
+  Hive.registerAdapter(ChatMessageModelAdapter());
+  Hive.registerAdapter(ConversationModelAdapter());
+  Hive.registerAdapter(ToolFunctionModelAdapter());
+  Hive.registerAdapter(ThoughtModelAdapter());
 }
 
 Future<void> copyConfigFile() async {

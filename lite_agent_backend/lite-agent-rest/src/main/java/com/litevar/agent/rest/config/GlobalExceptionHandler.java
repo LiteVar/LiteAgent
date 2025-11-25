@@ -3,10 +3,14 @@ package com.litevar.agent.rest.config;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.exception.StreamException;
 import com.litevar.agent.base.response.ResponseData;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,6 +27,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
@@ -78,35 +83,53 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseData<String> httpMessageNotReadable(HttpMessageNotReadableException ex) {
         ex.printStackTrace();
-        return renderJson(400, "参数格式不正确");
+        return renderJson(400, buildHttpMessageNotReadableMessage(ex));
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseData<String> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
-        String message = e.getBindingResult().getAllErrors().get(0).getDefaultMessage();
+        String message = e.getBindingResult().getFieldErrors().stream().findFirst()
+                .map(error -> {
+                    String defaultMessage = error.getDefaultMessage();
+                    String rejectedValue = formatValue(error.getRejectedValue());
+                    if (defaultMessage == null || defaultMessage.isBlank()) {
+                        defaultMessage = "不符合要求";
+                    }
+                    return "参数`" + error.getField() + "`" + defaultMessage + "，实际值`" + rejectedValue + "`";
+                })
+                .orElse("参数校验失败");
         e.printStackTrace();
-        return renderJson(400, "参数错误:" + message);
+        return renderJson(400, message);
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseData<String> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
         e.printStackTrace();
-        return renderJson(400, e.getMessage());
+        String parameterName = e.getName();
+        String requiredType = e.getRequiredType() == null ? "未知类型" : e.getRequiredType().getSimpleName();
+        String value = formatValue(e.getValue());
+        return renderJson(400, "参数`" + parameterName + "`类型错误，值`" + value + "`无法转换为`" + requiredType + "`");
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseData<String> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
-        String message = e.getMessage();
-        return renderJson(400, "参数缺失：" + message);
+        String parameterName = e.getParameterName();
+        String parameterType = e.getParameterType();
+        if (parameterType == null || parameterType.isBlank()) {
+            parameterType = "未指定";
+        }
+        return renderJson(400, "缺少必需参数`" + parameterName + "`，期望类型`" + parameterType + "`");
     }
 
     @ResponseStatus(HttpStatus.OK)
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseData<String> handleConstraintViolationException(ConstraintViolationException e) {
-        String message = e.getMessage();
+        String message = e.getConstraintViolations().stream().findFirst()
+                .map(violation -> buildConstraintViolationMessage(violation))
+                .orElse("参数校验失败");
         return renderJson(400, message);
     }
 
@@ -168,5 +191,83 @@ public class GlobalExceptionHandler {
         } else {
             return ResponseData.error(code, message);
         }
+    }
+
+    private String buildConstraintViolationMessage(ConstraintViolation<?> violation) {
+        String path = violation.getPropertyPath() == null ? "" : violation.getPropertyPath().toString();
+        String parameterName = path.contains(".") ? path.substring(path.lastIndexOf('.') + 1) : path;
+        if (parameterName.isBlank()) {
+            parameterName = "参数";
+        }
+        String violationMessage = violation.getMessage();
+        if (violationMessage == null || violationMessage.isBlank()) {
+            violationMessage = "不满足约束";
+        }
+        String invalidValueStr = formatValue(violation.getInvalidValue());
+        return "参数`" + parameterName + "`" + violationMessage + "，实际值`" + invalidValueStr + "`";
+    }
+
+    private String buildHttpMessageNotReadableMessage(HttpMessageNotReadableException ex) {
+        Throwable cause = ex.getMostSpecificCause();
+        if (cause instanceof InvalidFormatException invalidFormatException) {
+            String path = buildJsonPath(invalidFormatException.getPath());
+            String targetType = invalidFormatException.getTargetType() == null ? "未知类型" : invalidFormatException.getTargetType().getSimpleName();
+            String value = formatValue(invalidFormatException.getValue());
+            return "请求体字段`" + path + "`类型错误，值`" + value + "`无法转换为`" + targetType + "`";
+        }
+        if (cause instanceof MismatchedInputException mismatchedInputException) {
+            String path = buildJsonPath(mismatchedInputException.getPath());
+            String targetType = mismatchedInputException.getTargetType() == null ? "未知类型" : mismatchedInputException.getTargetType().getSimpleName();
+            if (path.isBlank() || "未知字段".equals(path)) {
+                return "请求体结构不正确，无法解析为`" + targetType + "`";
+            }
+            return "请求体字段`" + path + "`结构不正确，无法解析为`" + targetType + "`";
+        }
+        if (cause instanceof JsonMappingException jsonMappingException) {
+            String path = buildJsonPath(jsonMappingException.getPath());
+            String originalMessage = jsonMappingException.getOriginalMessage();
+            if (originalMessage == null || originalMessage.isBlank()) {
+                originalMessage = "解析失败";
+            }
+            if (path.isBlank() || "未知字段".equals(path)) {
+                return "请求体解析失败：" + originalMessage;
+            }
+            return "请求体字段`" + path + "`解析失败：" + originalMessage;
+        }
+        if (cause.getMessage() != null && !cause.getMessage().isBlank()) {
+            return "请求体解析失败：" + cause.getMessage();
+        }
+        return "请求体格式不正确";
+    }
+
+    private String buildJsonPath(List<JsonMappingException.Reference> path) {
+        if (path == null || path.isEmpty()) {
+            return "未知字段";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (JsonMappingException.Reference reference : path) {
+            String fieldName = reference.getFieldName();
+            if (fieldName != null) {
+                if (builder.length() > 0) {
+                    builder.append('.');
+                }
+                builder.append(fieldName);
+            }
+            if (reference.getIndex() >= 0) {
+                builder.append('[').append(reference.getIndex()).append(']');
+            }
+        }
+        return builder.length() == 0 ? "未知字段" : builder.toString();
+    }
+
+    private String formatValue(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        String valueStr = String.valueOf(value);
+        if (valueStr.length() > 100) {
+            return valueStr.substring(0, 100) + "...";
+        }
+        return valueStr;
     }
 }

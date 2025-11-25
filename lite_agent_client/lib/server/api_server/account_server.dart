@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:lite_agent_client/config/constants.dart';
-import 'package:lite_agent_client/models/base_response.dart';
+import 'package:lite_agent_client/models/dto/base/base_response.dart';
 import 'package:lite_agent_client/models/dto/account.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/server/network/net_util.dart';

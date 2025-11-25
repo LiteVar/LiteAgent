@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.litevar.agent</groupId>
         <artifactId>lite-agent-support</artifactId>
-        <version>0.2.0</version>
+        <version>2.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -25,6 +25,11 @@
         </dependency>
 
         <dependency>
+            <groupId>com.litevar.opentool</groupId>
+            <artifactId>opentool-core</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-core</artifactId>
         </dependency>
@@ -40,15 +45,6 @@
         <dependency>
             <groupId>io.swagger.parser.v3</groupId>
             <artifactId>swagger-parser</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.infiniteautomation</groupId>
-            <artifactId>modbus4j</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.scream3r</groupId>
-            <artifactId>jssc</artifactId>
         </dependency>
 
         <dependency>

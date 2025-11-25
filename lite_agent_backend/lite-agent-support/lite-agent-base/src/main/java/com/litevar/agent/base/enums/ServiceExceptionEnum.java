@@ -24,14 +24,16 @@ public enum ServiceExceptionEnum {
     REFERER_NOT_NULL(10009, "http header referer不能为空"),
     INVALID_APIKEY(10010, "无效的apikey"),
     CAPTCHA_EXPIRED(10011, "验证码错误或已过期"),
-//    RESET_PWD_EXPIRED(10012, "重置密码链接已过期"),
+    HAS_BIND_MOBILE(10012, "该账号已绑定手机号,请勿重复绑定"),
 
     ARGUMENT_NOT_VALID(20000, "参数错误"),
     INVITE_EXPIRE(20001, "邀请已过期"),
     ACCOUNT_EXIST(20002, "账号已被注册过了"),
     DUPLICATE_WORKSPACE_NAME(20003, "工作空间名字重复"),
     DUPLICATE_EMAIL(20004, "存在已经加入过工作空间的邮箱"),
-    NAME_DUPLICATE(20005, "名字不能重复"),
+    NAME_DUPLICATE(20005, "工具名称不能重复，建议重新输入"),
+    AGENT_NAME_DUPLICATE(20005, "agent名称不能重复，建议重新输入"),
+    DATASET_NAME_DUPLICATE(20005, "知识库名称不能重复，建议重新输入"),
     NOT_FOUND_RECORD(20006, "不存在该记录"),
     NO_PERMISSION_OPERATE(20007, "没权限修改该数据"),
 
@@ -46,8 +48,9 @@ public enum ServiceExceptionEnum {
     REFLECT_AGENT_OVERSIZE(30008, "反思agent个数不能超过5个"),
     FUNCTION_NOT_CHOOSE(30010, "方法序列中有方法未选中"),
     TOOL_NO_FUNCTION(30011, "工具schema中未解析到function"),
-    MODEL_ALIAS_DUPLICATE(30012, "该别名已存在,请重新输入"),
+    MODEL_ALIAS_DUPLICATE(30012, "该模型别名已存在，请重新输入"),
     AUTO_AGENT_WITHOUT_MODEL_TO_USE(30013, "auto agent无可用模型,请到<模型管理>处选择模型并打开支持auto agent开关"),
+    DUPLICATE_FILE(30014, "存在重复文件"),
 
     OPERATE_FAILURE(40001, "操作失败"),
 

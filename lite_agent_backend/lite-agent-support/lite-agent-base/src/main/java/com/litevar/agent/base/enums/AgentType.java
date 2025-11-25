@@ -26,4 +26,13 @@ public enum AgentType {
     REFLECTION(2);
 
     public final Integer type;
+
+    public static AgentType of(Integer type) {
+        for (AgentType value : values()) {
+            if (value.getType().equals(type)) {
+                return value;
+            }
+        }
+        return null;
+    }
 }

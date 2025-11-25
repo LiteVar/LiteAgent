@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Radio, Input, Upload, Button, Form, Space, Card, Typography, message } from 'antd';
-import { UploadOutlined, LinkOutlined, EditOutlined } from '@ant-design/icons';
-import type { UploadProps } from 'antd';
+import { UploadOutlined, LinkOutlined, EditOutlined, FileTextOutlined } from '@ant-design/icons';
+import { deleteV1FileById } from '@/client';
+import type { UploadProps, UploadFile } from 'antd';
 import { DocumentSourceType } from '@/types/dataset';
 const { Text } = Typography;
 
@@ -9,45 +10,155 @@ interface SelectSourceProps {
   documentData: any;
   setDocumentData: (data: any) => void;
   onNext: () => void;
+  onFileUpload?: (file: File) => Promise<{ fileId: string; fileName: string }>;
 }
 
-const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentData, onNext }) => {
+const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentData, onNext, onFileUpload }) => {
   const [form] = Form.useForm();
 
-  const handleSourceChange = (dataSourceType: DocumentSourceType) => {
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleSourceChange = useCallback((dataSourceType: DocumentSourceType) => {
     form.setFieldValue('dataSourceType', dataSourceType);
+    
     setDocumentData({
       ...documentData,
       dataSourceType,
     });
-  };
+  }, [documentData, form]);
 
   const handleSubmit = async () => {
-    const values = await form.validateFields();
-    setDocumentData({
-      ...documentData,
-      ...values,
-    });
-    onNext();
+    try {
+      const values = await form.validateFields();
+      
+      let fileData = {};
+      
+      // 如果是文件类型且有选择的文件，先上传文件
+      if (documentData.dataSourceType === DocumentSourceType.FILE && selectedFile && onFileUpload) {
+        setUploading(true);
+        try {
+          const uploadResult = await onFileUpload(selectedFile);
+          fileData = uploadResult;
+          setUploading(false);
+        } catch (uploadError) {
+          // 上传失败，清空文件列表和选中的文件
+          setUploading(false);
+          setFileList([]);
+          setSelectedFile(null);
+          form.setFieldsValue({
+            file: undefined,
+          });
+          // 错误信息已在 handleFileUpload 中显示
+          return; // 不继续执行
+        }
+      }
+      
+      setDocumentData({
+        ...documentData,
+        ...values,
+        ...fileData,
+      });
+      onNext();
+    } catch (error) {
+      console.error('表单验证失败:', error);
+    }
   };
 
   const uploadProps: UploadProps = {
-    accept: '.doc,.docx,.ppt,.pptx,.pdf,.txt,.md',
-    maxCount: 10,
+    accept: '.doc,.docx,.pdf,.txt,.md',
+    maxCount: 1,
+    fileList,
     beforeUpload: (file) => {
+      // 验证文件格式
+      const allowedExt = ['.doc', '.docx', '.pdf', '.txt', '.md'];
+      const fileName = file.name;
+      const ext = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
+      
+      if (!allowedExt.includes(ext)) {
+        message.error(`不支持 ${ext} 格式，仅支持 doc/docx/pdf/txt/md 格式`);
+        return Upload.LIST_IGNORE; // 不支持的格式不显示在列表中
+      }
+      
+      // 验证文件大小
       const isLt15M = file.size / 1024 / 1024 < 15;
       if (!isLt15M) {
-        message.error('文件大小不能超过15MB!');
+        message.error('文件大小不能超过 15MB');
+        return Upload.LIST_IGNORE; // 超大文件不显示在列表中
       }
-      return false;
+      
+      return true;
+    },
+    onChange: info => {
+      const newList = info.fileList.filter(f => {
+        // 过滤 error 状态的文件
+        if (f.status === 'error') return false;
+        return true;
+      });
+      setFileList(newList);
+
+      // 如果列表为空，确保表单中相关字段被清空
+      if (newList.length === 0) {
+        form.setFieldsValue({
+          file: undefined,
+        });
+        setSelectedFile(null);
+      }
+    },
+     onRemove: async (file) => {
+      // 用户移除时，清理表单和组件状态
+      setFileList([]);
+      setSelectedFile(null);
+      form.setFieldsValue({
+        file: undefined,
+      });
+      return true;
+    },
+    customRequest: (options) => {
+      const { file, onSuccess } = options;
+      // 只保存文件对象，不立即上传
+      const rawFile = file as File;
+      setSelectedFile(rawFile);
+      
+      // 更新文件列表显示
+      setFileList([{
+        uid: (file as any).uid || Date.now().toString(),
+        name: rawFile.name,
+        status: 'done',
+      } as UploadFile]);
+      
+      form.setFieldsValue({
+        file: rawFile,
+      });
+      
+      onSuccess?.('ok');
     },
   };
 
   return (
-    <Form form={form} layout="vertical" initialValues={documentData} className="py-6">
+    <Form 
+      form={form} 
+      layout="vertical" 
+      initialValues={documentData}
+      className="py-6"
+    >
       <Form.Item name="dataSourceType" label="选择数据源" rules={[{ required: true, message: '请选择数据源' }]}>
         <Radio.Group className="w-full">
           <Space direction="horizontal" className="w-full" size="middle">
+             <Card
+              hoverable
+              className={`w-full cursor-pointer ${documentData.dataSourceType === DocumentSourceType.FILE ? 'border-primary' : ''}`}
+              onClick={() => handleSourceChange(DocumentSourceType.FILE)}
+            >
+              <Radio value={DocumentSourceType.FILE}>
+                <Space>
+                  <FileTextOutlined />
+                  <span className="font-medium">导入文档</span>
+                </Space>
+              </Radio>
+            </Card>
+
             <Card
               hoverable
               className={`w-full cursor-pointer ${documentData.dataSourceType === DocumentSourceType.INPUT ? 'border-primary' : ''}`}
@@ -60,20 +171,6 @@ const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentDa
                 </Space>
               </Radio>
             </Card>
-
-            {/* 接口还不支持上传文件 */}
-            {/* <Card
-              hoverable
-              className={`w-full cursor-pointer ${documentData.dataSourceType === DocumentSourceType.FILE ? 'border-primary' : ''}`}
-              onClick={() => handleSourceChange(DocumentSourceType.FILE)}
-            >
-              <Radio value={DocumentSourceType.FILE}>
-                <Space>
-                  <FileTextOutlined />
-                  <span className="font-medium">上传文件</span>
-                </Space>
-              </Radio>
-            </Card> */}
 
             <Card
               hoverable
@@ -103,21 +200,21 @@ const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentDa
       )}
 
       {documentData.dataSourceType === DocumentSourceType.FILE && (
-        <Form.Item
-          name="file"
-          label="上传文件"
-          rules={[{ required: true, message: '请上传文件' }]}
-          extra={
-            <Text type="secondary">支持格式：doc/docx、ppt、pptx、pdf、txt、md，单个文件大小不超过15MB</Text>
-          }
-        >
-          <Upload.Dragger {...uploadProps}>
-            <p className="ant-upload-drag-icon">
-              <UploadOutlined />
-            </p>
-            <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-          </Upload.Dragger>
-        </Form.Item>
+        <>
+          <Form.Item
+            name="file"
+            label="上传文件"
+            rules={[{ required: true, message: '请上传文件' }]}
+          >
+            <Upload.Dragger {...uploadProps} disabled={uploading}>
+              <p className="ant-upload-drag-icon">
+                <UploadOutlined />
+              </p>
+              <p className="text-[#1890ff]">拖拽文件或者点击此区域进行上传</p>
+              <p className="text-base text-gray-500">支持上传文档格式：doc/docx, pdf, txt, md</p>
+            </Upload.Dragger>
+          </Form.Item>
+        </>
       )}
 
       {documentData.dataSourceType === DocumentSourceType.HTML && (
@@ -159,7 +256,7 @@ const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentDa
       )}
 
       <div className="mt-8 text-right">
-        <Button type="primary" size="large" onClick={handleSubmit}>
+        <Button type="primary" size="large" onClick={handleSubmit} loading={uploading}>
           下一步
         </Button>
       </div>

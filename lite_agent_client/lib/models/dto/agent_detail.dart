@@ -1,7 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:lite_agent_client/models/dto/function.dart';
 import 'package:lite_agent_client/models/dto/library.dart';
-import 'package:lite_agent_client/models/dto/tool.dart';
 
 import 'agent.dart';
 import 'model.dart';
@@ -28,12 +27,7 @@ class AgentDetailDTO extends Object {
   @JsonKey(name: 'datasetList')
   List<LibraryDto>? datasetList;
 
-  AgentDetailDTO(
-    this.agent,
-    this.model,
-    this.functionList,
-    this.datasetList,
-  );
+  AgentDetailDTO(this.agent, this.model, this.functionList, this.datasetList);
 
   factory AgentDetailDTO.fromJson(Map<String, dynamic> srcJson) => _$AgentDetailDTOFromJson(srcJson);
 

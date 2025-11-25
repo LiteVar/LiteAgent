@@ -2,6 +2,7 @@ package com.litevar.agent.rest.service;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.litevar.agent.base.entity.DatasetDocument;
 import com.litevar.agent.base.entity.DatasetRetrieveHistory;
 import com.litevar.agent.base.entity.DocumentSegment;
@@ -34,20 +35,14 @@ public class DatasetRetrieveHistoryService extends ServiceImpl<DatasetRetrieveHi
     @Autowired
     private DocumentService documentService;
 
-    public List<DatasetRetrieveHistory> createHistory(List<String> datasets, String agentId, String content, String retrieveType) {
-        List<DatasetRetrieveHistory> list = new ArrayList<>(datasets.size());
-        datasets.forEach(datasetId -> {
-            DatasetRetrieveHistory history = new DatasetRetrieveHistory();
-            history.setId(IdWorker.getIdStr());
-            history.setDatasetId(datasetId);
-            history.setAgentId(agentId);
-            history.setContent(content);
-            history.setRetrieveType(retrieveType);
-
-            list.add(history);
-        });
-
-        return list;
+    public DatasetRetrieveHistory createHistory(String datasetId, String agentId, String content) {
+        DatasetRetrieveHistory history = new DatasetRetrieveHistory();
+        history.setId(IdWorker.getIdStr());
+        history.setDatasetId(datasetId);
+        history.setAgentId(agentId);
+        history.setContent(content);
+        history.setRetrieveType(StrUtil.isBlank(agentId) ? "TEST" : "AGENT");
+        return history;
     }
 
     public PageModel<DatasetRetrieveHistory> getHistoryByDatasetId(String datasetId, Integer pageNo, Integer pageSize) {
@@ -69,7 +64,7 @@ public class DatasetRetrieveHistoryService extends ServiceImpl<DatasetRetrieveHi
 
             List<DocumentSegment> segmentList = segmentService.lambdaQuery()
                     .projectDisplay(DocumentSegment::getId, DocumentSegment::getContent, DocumentSegment::getTokenCount,
-                            DocumentSegment::getWordCount)
+                            DocumentSegment::getFileId, DocumentSegment::getWordCount)
                     .in(DocumentSegment::getId, segmentMap.keySet()).list();
 
             List<String> documentIds = segments.parallelStream().map(DatasetRetrieveHistory.RetrieveSegment::getDocumentId).toList();

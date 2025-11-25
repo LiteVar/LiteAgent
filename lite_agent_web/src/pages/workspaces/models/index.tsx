@@ -1,6 +1,6 @@
-import { Table, Button, message, Popconfirm, Modal } from 'antd';
+import { Table, Button, message, Popconfirm, Modal, Dropdown } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import ModelInfoModal from './components/ModelInfoModal';
 import ModelFormModal from './components/ModelFormModal';
 import { useQuery } from '@tanstack/react-query';
@@ -12,16 +12,28 @@ import {
   deleteV1ModelById,
   ModelVOUpdateAction,
   ModelDTO,
+  getV1ModelExportById,
+  postV1ModelImport,
 } from '@/client';
 import { useWorkspace } from '@/contexts/workspaceContext';
 import ResponseCode from '@/constants/ResponseCode';
 import { UserType } from '@/types/User';
 import Header from '@/components/workspace/Header';
+import type { MenuProps } from 'antd';
+import FileExportModal from '@/components/workspace/FileExportModal';
+import { DownOutlined } from '@ant-design/icons';
+
+enum CreateModelType {
+  CREATE = 'create',
+  IMPORT = 'import',
+}
 
 export default function Modals() {
   const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
+  const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [editingModel, setEditingModel] = useState<ModelVOAddAction | undefined>(undefined);
+  const [exportModel, setExportModel] = useState<ModelVOAddAction | undefined>(undefined);
   const [pageNo, setPageNo] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const workspace = useWorkspace();
@@ -43,13 +55,25 @@ export default function Modals() {
     setIsInfoModalVisible(true);
     setEditingModel(model);
   };
+
+  const showExportModal = (event: any, model: ModelVOAddAction) => {
+    event.stopPropagation();
+    setIsExportModalVisible(true);
+    setExportModel(model);
+  };
+
+  const closeExportModal = () => {
+    setIsExportModalVisible(false);
+    setExportModel(undefined);
+  };
+
   const closeInfoModal = () => {
     setIsInfoModalVisible(false);
     setEditingModel(undefined);
   };
 
   const showFormModal = (e: any, model: ModelVOAddAction | undefined) => {
-    e.stopPropagation();
+    e && e.stopPropagation();
     setEditingModel(model);
     setIsFormModalVisible(true);
   };
@@ -139,6 +163,33 @@ export default function Modals() {
     [refetch, workspace]
   );
 
+  const onExportFile = useCallback(async (id: string, checked: boolean) => {
+    try {
+      const res = await getV1ModelExportById({
+        path: { id: id },
+        query: {
+          plainText: checked,
+        },
+      });
+      
+      if (!res.data) throw new Error('导出模型失败');
+      message.success('导出模型成功');
+      closeExportModal();
+  
+      const text = JSON.stringify(res.data, null, 2);
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${res.data.name}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.log('error', error)
+      message.error('导出模型失败');
+    }
+  },[]);
+
   const columns: ColumnsType<ModelDTO> = [
     {
       title: '名称',
@@ -181,6 +232,9 @@ export default function Modals() {
           ) : (
             <span className="w-[60px] inline-block text-center">-</span>
           )}
+          <Button type="link" onClick={event => showExportModal(event, record as any)} key={`edit-${record.id}`}>
+              导出
+          </Button>
           {record?.canDelete && (
             <Popconfirm
               title="确认删除模型？"
@@ -203,15 +257,112 @@ export default function Modals() {
     },
   ];
 
+  const onImportFiles = useCallback(async (e: any) => {
+    e.stopPropagation();
+    try {
+      const file = document.createElement('input');
+      file.multiple = true;
+      file.type = 'file';
+      file.accept = '.json';
+      file.onchange = async (e: any) => {
+        const files = Array.from(e.target?.files) as File[];
+        if (!files.length) return;
+
+        // 校验文件
+        for (const file of files) {
+          const isJson = file.type === "application/json" || file.name.endsWith(".json");
+          if (!isJson) {
+            message.error(`${file.name} 不是 JSON 文件`);
+            return;
+          }
+          const isLt200KB = file.size / 1024 <= 200;
+          if (!isLt200KB) {
+            message.error(`${file.name} 超过 200KB 限制`);
+            return;
+          }
+        } 
+
+        const formData = new FormData();
+        for (const f of files) {
+          formData.append("files", f); // ⚡ 多文件上传的关键
+        }
+
+        const response = await fetch('/v1/model/import', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Workspace-id': workspace?.id || '',
+            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('导入模型失败');
+        }
+  
+        const res = await response.json();
+        console.log('res', res)
+        if (res?.code === ResponseCode.S_OK) {
+          message.success('导入模型成功');
+          refetch();
+        } else {
+          message.error(res?.message);
+        }
+      }
+      file.click();
+    } catch (error) {
+      console.log('error', error)
+      message.error('导入模型失败');
+    }
+  }, [workspace, refetch]);
+  
+
+  const createButton = useMemo(() => {
+    if (!workspace?.role ||Number(workspace?.role) === UserType.Normal) return null;
+
+    const items: MenuProps['items'] = [
+    {
+      label: (
+        <div onClick={(e) => showFormModal(e, undefined)} className="text-[14px]">
+          新建模型
+        </div>
+      ),
+      key: CreateModelType.CREATE,
+    },
+    {
+      label: (
+        <div onClick={(e) => onImportFiles(e)} className="text-[14px]">
+          导入模型
+        </div>
+      ),
+      key: CreateModelType.IMPORT,
+    },
+  ];
+
+    return (
+      <Dropdown menu={{ items }}>
+        <a onClick={(e) => e.preventDefault()}>
+        <Button
+          icon={<DownOutlined />}
+          iconPosition='end'
+          type="primary"
+          size='large'
+        >
+          新建模型
+        </Button>
+        </a>
+    </Dropdown>
+    )
+  }, [workspace, onImportFiles, showFormModal]);
+
   return (
     <div className="space-y-4">
       <Header
         title="模型管理"
         placeholder="搜索你的模型"
+        showCreateButton={false}
         showSearch={false}
-        showCreateButton={Number(workspace?.role) !== UserType.Normal}
-        createButtonText="新建模型"
-        onCreateClick={(e) => showFormModal(e, undefined)}
+        createButton={createButton}
       />
 
       <Table
@@ -240,14 +391,18 @@ export default function Modals() {
       />
 
       <ModelInfoModal visible={isInfoModalVisible} onClose={closeInfoModal} modelInfo={editingModel} />
-
+      
       <ModelFormModal
         visible={isFormModalVisible}
         onCancel={closeFormModal}
+        showExportModal={showExportModal}
         onOk={(values) => handleFormSubmit(values as ModelVOUpdateAction)}
         onDelete={handleDelete}
         initialData={editingModel}
       />
+
+      <FileExportModal title="大模型" disabled={!exportModel?.canDelete} visible={isExportModalVisible && !!exportModel?.id} id={exportModel?.id} onClose={closeExportModal} onOk={onExportFile} />
+
     </div>
   );
 }

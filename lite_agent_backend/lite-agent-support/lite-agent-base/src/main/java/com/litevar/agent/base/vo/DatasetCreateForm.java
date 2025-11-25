@@ -29,7 +29,6 @@ public class DatasetCreateForm {
     /**
      * LlmModel id
      */
-    @NotBlank(message = "LlmModel id is required")
     private String llmModelId;
     /**
      * Embedding model name: text-embedding-3-small,text-embedding-3-large,text-embedding-ada-002

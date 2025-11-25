@@ -2,6 +2,7 @@ package com.litevar.agent.rest.springai.document;
 
 
 import com.litevar.agent.rest.springai.document.splitter.CustomSeparatorDocumentSplitter;
+import com.litevar.agent.rest.springai.document.splitter.DelimiterMergingDocumentSplitter;
 import com.litevar.agent.rest.springai.document.splitter.RecursiveDocumentSplitter;
 
 /**
@@ -13,9 +14,10 @@ public class DocumentSplitterFactory {
 
     /**
      * 创建文档分隔器
-     * @param chunkSize 最大块大小
+     *
+     * @param chunkSize   最大块大小
      * @param overlapSize 重叠大小
-     * @param separators 自定义分隔符（可选）
+     * @param separators  自定义分隔符（可选）
      * @return 文档分隔器实例
      */
     public static DocumentSplitter create(int chunkSize, int overlapSize, String... separators) {
@@ -45,5 +47,9 @@ public class DocumentSplitterFactory {
      */
     public static DocumentSplitter createRegex(int chunkSize, int overlapSize, String... separators) {
         return new CustomSeparatorDocumentSplitter(chunkSize, overlapSize, true, separators);
+    }
+
+    public static DocumentSplitter createDelimiterMerging(int chunkSize, int overlapSize, String delimiter) {
+        return new DelimiterMergingDocumentSplitter(chunkSize, overlapSize, delimiter);
     }
 }

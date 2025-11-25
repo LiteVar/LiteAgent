@@ -4,13 +4,13 @@ import './globals.css';
 import './antd.global.css'
 import '@/assets/styles/markdown.css';
 import reportWebVitals from './reportWebVitals';
-import {BrowserRouter} from "react-router-dom";
+import {createBrowserRouter, RouterProvider} from "react-router-dom";
 import {QueryClientProvider, QueryClient } from '@tanstack/react-query'
-import App from "@/App";
 import {ConfigProvider} from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import 'dayjs/locale/zh-cn';
 import themeConfig from './antdTheme';
+import { routerConfig } from './router.tsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,18 +21,21 @@ const queryClient = new QueryClient({
   },
 });
 
+const router = createBrowserRouter(routerConfig, {
+  future: {
+    v7_relativeSplatPath: true,
+  },
+});
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-        <ConfigProvider locale={zhCN}
-        theme={themeConfig}>
-          <App />
-        </ConfigProvider>
-      </BrowserRouter>
+      <ConfigProvider locale={zhCN} theme={themeConfig}>
+        <RouterProvider router={router} />
+      </ConfigProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );

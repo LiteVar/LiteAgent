@@ -6,14 +6,14 @@ import 'package:lite_agent_core_dart/lite_agent_core.dart';
 import 'package:lite_agent_core_dart/lite_agent_service.dart';
 import 'package:opentool_dart/opentool_dart.dart';
 
-import '../../models/local_data_model.dart';
+import '../../models/local/message.dart';
 import '../../utils/log_util.dart';
 
 class MessageHandler {
-  final List<ChatMessage> chatMessageList;
-  final Map<String, ChatMessage> messageMap = {};
-  Function(ChatMessage message)? onThoughtUpdate;
-  Function(ChatMessage message)? onAgentReply;
+  final List<ChatMessageModel> chatMessageList;
+  final Map<String, ChatMessageModel> messageMap = {};
+  Function(ChatMessageModel message)? onThoughtUpdate;
+  Function(ChatMessageModel message)? onAgentReply;
   Function() onHandlerFinished;
   Map<String, String>? subAgentNameMap;
 
@@ -25,36 +25,52 @@ class MessageHandler {
     this.subAgentNameMap,
   });
 
-  ChatMessage newReceivedMessage(String messageId) {
-    var receivedMessage = ChatMessage()
+  ChatMessageModel newReceivedMessage(String messageId) {
+    var receivedMessage = ChatMessageModel()
       ..sendRole = ChatRoleType.Agent
       ..isLoading = true;
     messageMap[messageId] = receivedMessage;
     return receivedMessage;
   }
 
-  void handle(String mainAgentSessionId, String messageId, AgentMessageDto agentMessage) {
+  void handle(String mainAgentSessionId, String messageId, dynamic agentMessage) {
+    if (agentMessage is! AgentMessageChunkDto && agentMessage is! AgentMessageDto) {
+      return;
+    }
     var chatMessage = messageMap[messageId];
     chatMessage ??= newReceivedMessage(messageId);
     try {
-      if (_isUserToAgent(agentMessage)) {
-        _handleUserToAgent(chatMessage, mainAgentSessionId, agentMessage);
-      } else if (_isReasoning(agentMessage)) {
-        _handleReasoning(chatMessage, messageId, agentMessage);
-      } else if (_isAgentCallSubAgentForTool(agentMessage)) {
-        _handleAgentCallSubAgentForTool(chatMessage, messageId, agentMessage);
-      } else if (_isClientTaskStatus(agentMessage)) {
-        _handleTaskStatus(chatMessage, messageId, agentMessage);
-      } else if (_isAgentUseTool(agentMessage)) {
-        _handleAgentUseTool(chatMessage, agentMessage);
-      } else if (_isToolCallBackToAgent(agentMessage)) {
-        _handleToolCallBackToAgent(chatMessage, agentMessage);
-      } else if (_isSubAgentCallBackToAgent(agentMessage)) {
-        _handleSubAgentCallBackToAgent(chatMessage, agentMessage);
-      } else if (_isAgentReflection(agentMessage)) {
-        _handleAgentReflection(chatMessage, agentMessage);
-      } else if (_isAgentToUser(agentMessage)) {
-        _handleAgentToUser(chatMessage, mainAgentSessionId, agentMessage);
+      // 处理 AgentMessageDto 类型的消息
+      if (agentMessage is AgentMessageDto) {
+        if (_isUserToAgent(agentMessage)) {
+          _handleUserToAgent(chatMessage, mainAgentSessionId, agentMessage);
+        } else if (_isReasoning(agentMessage)) {
+          _handleReasoning(chatMessage, messageId, agentMessage);
+        } else if (_isAgentCallSubAgentForTool(agentMessage)) {
+          _handleAgentCallSubAgentForTool(chatMessage, messageId, agentMessage);
+        } else if (_isClientTaskStatus(agentMessage)) {
+          _handleTaskStatus(chatMessage, messageId, agentMessage);
+        } else if (_isAgentUseTool(agentMessage)) {
+          _handleAgentUseTool(chatMessage, agentMessage);
+        } else if (_isToolCallBackToAgent(agentMessage)) {
+          _handleToolCallBackToAgent(chatMessage, agentMessage);
+        } else if (_isSubAgentCallBackToAgent(agentMessage)) {
+          _handleSubAgentCallBackToAgent(chatMessage, agentMessage);
+        } else if (_isAgentReflection(agentMessage)) {
+          _handleAgentReflection(chatMessage, agentMessage);
+        } else if (_isAgentToUser(agentMessage)) {
+          _handleAgentToUser(chatMessage, mainAgentSessionId, agentMessage);
+        }
+      }
+      // 处理 AgentMessageChunkDto 类型的消息
+      else if (agentMessage is AgentMessageChunkDto) {
+        if (_isAgentToUser(agentMessage)) {
+          if (agentMessage.type == ReasoningMessageType.REASONING) {
+            _handleReasoning(chatMessage, messageId, agentMessage);
+          } else {
+            _handleAgentToUser(chatMessage, mainAgentSessionId, agentMessage);
+          }
+        }
       }
       onHandlerFinished();
     } catch (e) {
@@ -79,16 +95,16 @@ class MessageHandler {
   bool _isToolCallBackToAgent(AgentMessageDto msg) =>
       msg.role == ToolRoleType.TOOL && msg.to == ToolRoleType.AGENT && msg.type == ToolMessageType.TOOL_RETURN;
 
-  bool _isAgentToUser(AgentMessageDto msg) => msg.role == ToolRoleType.AGENT && msg.to == ToolRoleType.USER;
+  bool _isAgentToUser(dynamic msg) => msg.role == ToolRoleType.AGENT && msg.to == ToolRoleType.USER;
 
   bool _isAgentReflection(AgentMessageDto msg) => msg.role == ToolRoleType.REFLECTION && msg.to == ToolRoleType.AGENT;
 
-  bool _isReasoning(AgentMessageDto msg) => msg.reasoningContent != null && msg.reasoningContent!.trimmed().isNotEmpty;
+  bool _isReasoning(dynamic msg) => msg.reasoningContent != null && msg.reasoningContent!.trimmed().isNotEmpty;
 
-  void _handleUserToAgent(ChatMessage chatMessage, mainAgentSessionId, AgentMessageDto msg) {
+  void _handleUserToAgent(ChatMessageModel chatMessage, mainAgentSessionId, AgentMessageDto msg) {
     //when one message has two sessionIds, it means that the message is from a subagent.
     if (mainAgentSessionId != msg.sessionId) {
-      final childMessage = ChatMessage()
+      final childMessage = ChatMessageModel()
         ..sendRole = ChatRoleType.SubAgent
         ..roleName = subAgentNameMap?[msg.sessionId] ?? ""
         ..taskId = msg.taskId
@@ -118,24 +134,42 @@ class MessageHandler {
     }
   }
 
-  void _handleReasoning(ChatMessage chatMessage, String messageId, AgentMessageDto agentMessage) {
+  void _handleReasoning(ChatMessageModel chatMessage, String messageId, dynamic agentMessage) {
     var message = getTargetMessage(chatMessage, agentMessage.taskId);
 
-    if (message != null) {
-      final reasoningMessage = ChatMessage()
-        ..sendRole = ChatRoleType.Reasoning
-        ..message = (agentMessage.reasoningContent ?? "").trimmed()
-        ..taskId = agentMessage.taskId
-        ..isLoading = false;
+    if (agentMessage is AgentMessageDto) {
+      if (message != null) {
+        final reasoningMessage = ChatMessageModel()
+          ..sendRole = ChatRoleType.Reasoning
+          ..message = (agentMessage.reasoningContent ?? "").trimmed()
+          ..taskId = agentMessage.taskId
+          ..isLoading = false;
 
-      message.subMessages ??= [];
-      message.subMessages?.add(reasoningMessage);
+        message.subMessages ??= [];
+        message.subMessages?.add(reasoningMessage);
+      }
+    } else if (agentMessage is AgentMessageChunkDto) {
+      if (message != null) {
+        ChatMessageModel? reasoningMessage;
+        reasoningMessage = message.subMessages?.last;
+        var isReasoning = reasoningMessage?.sendRole == ChatRoleType.Reasoning;
+        if (!isReasoning) {
+          reasoningMessage = ChatMessageModel()
+            ..sendRole = ChatRoleType.Reasoning
+            ..taskId = agentMessage.taskId;
+
+          message.subMessages ??= [];
+          message.subMessages?.add(reasoningMessage);
+        }
+        String content = agentMessage.part as String;
+        reasoningMessage?.message += content;
+      }
     }
 
     onThoughtUpdate?.call(chatMessage);
   }
 
-  void _handleAgentCallSubAgentForTool(ChatMessage chatMessage, String messageId, AgentMessageDto agentMessage) {
+  void _handleAgentCallSubAgentForTool(ChatMessageModel chatMessage, String messageId, AgentMessageDto agentMessage) {
     List<dynamic> originalFunctionCallList = agentMessage.content as List<dynamic>;
     List<FunctionCall> functionCallList = originalFunctionCallList.map((dynamic json) => FunctionCall.fromJson(json)).toList();
     for (var functionCall in functionCallList) {
@@ -146,7 +180,7 @@ class MessageHandler {
     }
   }
 
-  void _handleTaskStatus(ChatMessage chatMessage, String messageId, AgentMessageDto msg) {
+  void _handleTaskStatus(ChatMessageModel chatMessage, String messageId, AgentMessageDto msg) {
     Map<String, dynamic> json = msg.content;
     bool isDone = false;
     String errorMessage = "";
@@ -160,7 +194,7 @@ class MessageHandler {
           String string = json["description"]["message"];
           errorMessage = string.isNotEmpty ? string : "服务暂停,请再试";
         }
-        final childMessage = ChatMessage()
+        final childMessage = ChatMessageModel()
           ..sendRole = ChatRoleType.Agent
           ..message = errorMessage
           ..taskId = msg.taskId
@@ -193,7 +227,7 @@ class MessageHandler {
       }
     }
     if (isDone) {
-      ChatMessage? targetMessage = getTargetMessage(chatMessage, msg.taskId);
+      ChatMessageModel? targetMessage = getTargetMessage(chatMessage, msg.taskId);
       if (targetMessage != null) {
         targetMessage.isLoading = false;
         if (errorMessage.isNotEmpty) {
@@ -208,13 +242,13 @@ class MessageHandler {
     }
   }
 
-  void _handleAgentUseTool(ChatMessage chatMessage, AgentMessageDto msg) {
+  void _handleAgentUseTool(ChatMessageModel chatMessage, AgentMessageDto msg) {
     List<dynamic> originalFunctionCallList = msg.content as List<dynamic>;
     List<FunctionCall> functionCallList = originalFunctionCallList.map((dynamic json) => FunctionCall.fromJson(json)).toList();
     for (var functionCall in functionCallList) {
       var message = getTargetMessage(chatMessage, msg.taskId);
       if (message != null) {
-        ChatMessage subMessage = ChatMessage()
+        ChatMessageModel subMessage = ChatMessageModel()
           ..sendRole = ChatRoleType.Tool
           ..taskId = functionCall.id
           ..roleName = functionCall.name
@@ -229,7 +263,7 @@ class MessageHandler {
     }
   }
 
-  void _handleToolCallBackToAgent(ChatMessage chatMessage, AgentMessageDto msg) {
+  void _handleToolCallBackToAgent(ChatMessageModel chatMessage, AgentMessageDto msg) {
     ToolReturn toolReturn = ToolReturn.fromJson(msg.content);
     var message = getTargetMessage(chatMessage, toolReturn.id);
     if (message != null) {
@@ -243,7 +277,7 @@ class MessageHandler {
     }
   }
 
-  void _handleSubAgentCallBackToAgent(ChatMessage chatMessage, AgentMessageDto agentMessage) {
+  void _handleSubAgentCallBackToAgent(ChatMessageModel chatMessage, AgentMessageDto agentMessage) {
     ToolReturn toolReturn = ToolReturn.fromJson(agentMessage.content);
     var message = getTargetMessage(chatMessage, agentMessage.taskId);
     if (message != null) {
@@ -257,24 +291,36 @@ class MessageHandler {
     }
   }
 
-  void _handleAgentToUser(ChatMessage chatMessage, String mainSessionId, AgentMessageDto msg) {
-    if (msg.type == ToolMessageType.TEXT) {
-      if (mainSessionId == msg.sessionId) {
-        chatMessage.message = msg.content as String;
-        if (chatMessage.message.isNotEmpty) {
-          onAgentReply?.call(chatMessage);
+  void _handleAgentToUser(ChatMessageModel mainMessage, String mainSessionId, dynamic agentMessage) {
+    if (agentMessage.type == ToolMessageType.TEXT) {
+      //mainMessage
+      if (mainSessionId == agentMessage.sessionId) {
+        if (agentMessage is AgentMessageDto) {
+          mainMessage.message = agentMessage.content as String;
+          if (mainMessage.message.isNotEmpty) {
+            onAgentReply?.call(mainMessage);
+          }
+        } else if (agentMessage is AgentMessageChunkDto) {
+          String content = agentMessage.part as String;
+          mainMessage.message += content;
         }
       } else {
-        var message = getTargetMessage(chatMessage, msg.taskId);
-        if (message != null) {
-          message.receivedMessage = msg.content as String;
-          onThoughtUpdate?.call(chatMessage);
+        //subMessage
+        var subMessage = getTargetMessage(mainMessage, agentMessage.taskId);
+        if (subMessage != null) {
+          if (agentMessage is AgentMessageDto) {
+            subMessage.receivedMessage = agentMessage.content as String;
+          } else if (agentMessage is AgentMessageChunkDto) {
+            String content = agentMessage.part as String;
+            subMessage.receivedMessage = (mainMessage.receivedMessage ?? "") + content;
+          }
+          onThoughtUpdate?.call(subMessage);
         }
       }
     }
   }
 
-  void _handleAgentReflection(ChatMessage chatMessage, AgentMessageDto msg) {
+  void _handleAgentReflection(ChatMessageModel chatMessage, AgentMessageDto msg) {
     ReflectionDto reflectionDto = ReflectionDto.fromJson(msg.content);
     // ignore tool calls
     // if (reflectionDto.messageScore.messageType == ToolMessageType.TOOL_CALLS) {
@@ -294,7 +340,7 @@ class MessageHandler {
 
     var message = getTargetMessage(chatMessage, msg.taskId);
     if (message != null) {
-      ChatMessage reflectionMessage = ChatMessage()
+      ChatMessageModel reflectionMessage = ChatMessageModel()
         ..sendRole = ChatRoleType.Reflection
         ..taskId = msg.taskId
         ..message = reflectionMessageContent
@@ -307,7 +353,7 @@ class MessageHandler {
     }
   }
 
-  ChatMessage? getTargetMessage(ChatMessage mainMessage, String taskId) {
+  ChatMessageModel? getTargetMessage(ChatMessageModel mainMessage, String taskId) {
     if (mainMessage.taskId == taskId) {
       return mainMessage;
     }

@@ -3,12 +3,9 @@ import { List, Empty, Modal, Pagination, message } from 'antd';
 import FragmentListHeader from './components/FragmentListHeader';
 import FragmentModal from './components/FragmentModal';
 import FragmentItem from './components/FragmentItem';
+import SummaryModal from './components/SummaryModal';
 import { useQuery } from '@tanstack/react-query';
 import { getV1DatasetDocumentsByDocumentIdSegmentsOptions } from '@/client/@tanstack/query.gen';
-import {
-  getV1DatasetDocumentsByDocumentIdSegmentsSearchByText,
-  deleteV1DatasetSegmentsBatchDelete,
-} from '@/client';
 import { useDatasetContext } from '@/contexts/datasetContext';
 import {
   deleteV1DatasetSegmentsBySegmentId,
@@ -16,15 +13,25 @@ import {
   postV1DatasetDocumentsByDocumentIdSegments,
   putV1DatasetSegmentsBySegmentId,
   putV1DatasetSegmentsBySegmentIdEnable,
+  deleteV1DatasetSegmentsBatchDelete,
+  getV1DatasetDocumentsByDocumentIdSummary,
+  putV1DatasetDocumentSummary,
+  getV1DatasetDocumentsInfoByDocumentId
 } from '@/client';
 import ResponseCode from '@/constants/ResponseCode';
 import { handlePaginationAfterDelete } from '@/utils/paginationUtils';
 
 const FragmentList = () => {
-  const documentId = useMemo(() => {
+  // 从路由获取初始值
+  const [documentId, initialShowSummary, fileId] = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    return searchParams.get('documentId');
+    return [
+      searchParams.get('documentId'),
+      searchParams.get('showSummary') === '1',
+      searchParams.get('fileId') || undefined
+    ];
   }, []);
+  
   const { workspaceId, datasetInfo } = useDatasetContext();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -37,6 +44,15 @@ const FragmentList = () => {
   const [createLoading, setCreateLoading] = useState(false);
   const canEdit = datasetInfo?.canEdit;
   const canDelete = datasetInfo?.canDelete;
+
+  // 新增：摘要弹窗相关状态
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  
+  // showSummary 改为动态状态，路由值作为默认值
+  const [showSummary, setShowSummary] = useState(initialShowSummary);
 
   const { data, isLoading, refetch } = useQuery({
     ...getV1DatasetDocumentsByDocumentIdSegmentsOptions({
@@ -56,6 +72,24 @@ const FragmentList = () => {
     return data?.data?.list || [];
   }, [data]);
 
+  // 封装的更新 showSummary 函数
+  const updateShowSummaryStatus = useCallback(async () => {
+    if (!documentId || !workspaceId) return;
+    
+    try {
+      const res = await getV1DatasetDocumentsInfoByDocumentId({
+        path: { documentId },
+        headers: { 'Workspace-id': workspaceId } as Record<string, string>
+      });
+      
+      if (res.data?.code === ResponseCode.S_OK && res.data?.data?.needSummary !== undefined) {
+        setShowSummary(res.data.data.needSummary);
+      }
+    } catch (error) {
+      console.error('更新 showSummary 状态失败:', error);
+    }
+  }, [documentId, workspaceId]);
+
   const handleSearch = useCallback((value: string) => {
     setPagination({
       current: 1,
@@ -64,7 +98,7 @@ const FragmentList = () => {
     setSearchTerm(value);
     setSelectAll(false);
     setSelectedFragments([]);
-  }, [searchTerm]);
+  }, []);
 
   const handleCreateFragment = async ({ content, metadata }: { content: string; metadata: string }) => {
     try {
@@ -88,6 +122,8 @@ const FragmentList = () => {
       if (res.data?.code === ResponseCode.S_OK) {
         refetch();
         message.success('操作成功');
+        // 操作成功后更新 showSummary 状态
+        updateShowSummaryStatus();
       } else {
         message.error(res.data?.message || '操作失败');
       }
@@ -128,6 +164,8 @@ const FragmentList = () => {
           message.success('删除片段成功');
           handlePaginationAfterDelete(data?.data?.total || 0, 1, pagination, setPagination);
           refetch();
+          // 操作成功后更新 showSummary 状态
+          updateShowSummaryStatus();
         } else {
           message.error(res.data?.message || '删除片段失败');
         }
@@ -158,6 +196,8 @@ const FragmentList = () => {
           setSelectAll(false);
           setSelectedFragments([]);
           refetch();
+          // 操作成功后更新 showSummary 状态
+          updateShowSummaryStatus();
         } else {
           message.error(res.data?.message || '批量删除片段失败');
         }
@@ -175,6 +215,8 @@ const FragmentList = () => {
       },
     });
     refetch();
+    // 操作成功后更新 showSummary 状态
+    updateShowSummaryStatus();
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -196,6 +238,61 @@ const FragmentList = () => {
     }
   }, [selectedFragments, fragments]);
 
+  const handleViewSummary = useCallback(async () => {
+    setSummaryVisible(true);
+    if (!documentId) {
+      setSummary('未提供 documentId，无法自动加载摘要。');
+      return;
+    }
+    setLoadingSummary(true);
+    try {
+      const res = await getV1DatasetDocumentsByDocumentIdSummary({ 
+        path: { documentId },
+       });
+
+       if (res.data?.code === 200) {
+        setSummary(res.data?.data?.trimStart() || '');
+       }
+    } catch (err) {
+      console.error(err);
+      message.error('获取摘要失败');
+      setSummary('');
+    } finally {
+      setLoadingSummary(false);
+    }
+  }, [documentId]);
+
+  const handleUpdateSummary = useCallback(async () => {
+    if (!documentId) {
+      message.warning('无法更新：未提供 documentId');
+      return;
+    }
+
+    setUpdating(true);
+
+    try {
+      const res = await putV1DatasetDocumentSummary({
+        query: { docIds: [documentId] },
+        headers: {
+          'Workspace-id': workspaceId!
+        }
+      });
+
+      if (res.data?.code === 200) {
+        message.success('更新成功');
+        // 操作成功后更新 showSummary 状态
+        updateShowSummaryStatus();
+      } else {
+        message.error(res.data?.message || '更新文档摘要失败');
+      }
+    } catch (err) {
+      console.error(err);
+      message.error('更新失败');
+    } finally {
+      setUpdating(false);
+    }
+  }, [documentId, workspaceId, updateShowSummaryStatus]);
+
   return (
     <div className="p-6">
       <FragmentListHeader
@@ -212,6 +309,11 @@ const FragmentList = () => {
         onBatchDelete={handleBatchDelete}
         onSelectAll={handleSelectAll}
         total={data?.data?.total || 0}
+        onViewSummary={handleViewSummary}
+        onUpdateSummary={handleUpdateSummary}
+        isUpdateingSummary={updating}
+        showSummary={showSummary}
+        fileId={fileId}
       />
 
       <div className="mt-6">
@@ -268,6 +370,13 @@ const FragmentList = () => {
         }}
         loading={createLoading}
         onSubmit={handleCreateFragment}
+      />
+
+      <SummaryModal
+        open={summaryVisible}
+        summary={summary}
+        loading={loadingSummary}
+        onClose={() => setSummaryVisible(false)}
       />
     </div>
   );

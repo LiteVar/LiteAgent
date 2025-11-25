@@ -35,6 +35,11 @@ public class Account {
     @MongoIndex
     private String email;
 
+    /**
+     * 手机号
+     */
+    private String mobile;
+
     @JsonIgnore
     private String password;
     @JsonIgnore

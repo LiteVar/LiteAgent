@@ -5,14 +5,15 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.entity.AgentChatMessage;
+import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.entity.LlmModel;
 import com.litevar.agent.base.entity.ToolProvider;
-import com.litevar.agent.base.enums.ToolSchemaType;
 import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.base.vo.OutMessage;
 import com.litevar.agent.base.vo.ToolVO;
 import com.litevar.agent.core.module.llm.ModelService;
 import com.litevar.agent.core.module.tool.ToolService;
+import com.litevar.agent.rest.service.DatasetService;
 import com.mongoplus.conditions.query.QueryWrapper;
 import com.mongoplus.conditions.update.UpdateWrapper;
 import com.mongoplus.mapper.BaseMapper;
@@ -40,6 +41,9 @@ public class RepairMongoRunner implements CommandLineRunner {
     @Autowired
     private BaseMapper baseMapper;
 
+    @Autowired
+    private DatasetService datasetService;
+
     @Override
     public void run(String... args) throws Exception {
 //		List<LlmModel> models = modelService.list().stream().filter(v -> v.getType().equalsIgnoreCase("TEXT")).toList();
@@ -50,26 +54,35 @@ public class RepairMongoRunner implements CommandLineRunner {
 //		models.parallelStream().forEach(v -> v.setType("LLM"));
 //		modelService.updateBatchByIds(models);
 
-        Boolean flag = RedisUtil.setNx("repair:tool", 1);
-        if (flag) {
-            repairToolData();
-        }
+//        Boolean flag = RedisUtil.setNx("repair:tool", 1);
+//        if (flag) {
+//            repairToolData();
+//        }
+//
+//        //反思input字段数据拆分
+//        Boolean reflectFlag = RedisUtil.setNx("repair:reflect", 1);
+//        if (reflectFlag) {
+//            repairReflectData();
+//        }
+//
+//        Boolean openToolSchemaFlag = RedisUtil.setNx("repair:openToolSchema", 1);
+//        if (openToolSchemaFlag) {
+//            repairOpenToolSchema();
+//        }
+//
+//        Boolean modelAliasFlag = RedisUtil.setNx("repair:modelAlias", 1);
+//        if (modelAliasFlag) {
+//            repairModelAliasData();
+//        }
 
-        //反思input字段数据拆分
-        Boolean reflectFlag = RedisUtil.setNx("repair:reflect", 1);
-        if (reflectFlag) {
-            repairReflectData();
+        Boolean datasetLlmModelIdFlag = RedisUtil.setNx("repair:datasetField", 1);
+        if (datasetLlmModelIdFlag) {
+            repairDatasetField();
         }
+    }
 
-        Boolean openToolSchemaFlag = RedisUtil.setNx("repair:openToolSchema", 1);
-        if (openToolSchemaFlag) {
-            repairOpenToolSchema();
-        }
-
-        Boolean modelAliasFlag = RedisUtil.setNx("repair:modelAlias", 1);
-        if (modelAliasFlag) {
-            repairModelAliasData();
-        }
+    private void repairDatasetField() {
+        datasetService.update(datasetService.lambdaUpdate().unset(Dataset::getLlmModelId,Dataset::getSummaryCollectionName));
     }
 
     private void repairModelAliasData() {
@@ -138,26 +151,26 @@ public class RepairMongoRunner implements CommandLineRunner {
     }
 
     private void repairOpenToolSchema() {
-        log.info("清洗open tool schema数据");
-        List<ToolProvider> list = toolService.list();
-        List<ToolProvider> data = list.parallelStream().filter(tool -> StrUtil.isNotBlank(tool.getOpenSchemaStr())).toList();
-        if (!data.isEmpty()) {
-            for (ToolProvider toolProvider : data) {
-                //如果有open tool schema,直接覆盖到schemaStr字段
-                toolProvider.setSchemaType(ToolSchemaType.OPEN_TOOL.getValue());
-                toolProvider.setSchemaStr(toolProvider.getOpenSchemaStr());
-                log.info("工具id:{}修改了openSchemaStr到schemaStr", toolProvider.getId());
-            }
-            toolService.updateBatchByIds(data);
-
-            data.forEach(tool -> {
-                try {
-                    ToolVO vo = BeanUtil.copyProperties(tool, ToolVO.class);
-                    toolService.updateTool(vo);
-                } catch (Exception ex) {
-                    log.error("工具openToolSchema:", ex);
-                }
-            });
-        }
+//        log.info("清洗open tool schema数据");
+//        List<ToolProvider> list = toolService.list();
+//        List<ToolProvider> data = list.parallelStream().filter(tool -> StrUtil.isNotBlank(tool.getOpenSchemaStr())).toList();
+//        if (!data.isEmpty()) {
+//            for (ToolProvider toolProvider : data) {
+//                //如果有open tool schema,直接覆盖到schemaStr字段
+//                toolProvider.setSchemaType(ToolSchemaType.OPEN_TOOL_Third.getValue());
+//                toolProvider.setSchemaStr(toolProvider.getOpenSchemaStr());
+//                log.info("工具id:{}修改了openSchemaStr到schemaStr", toolProvider.getId());
+//            }
+//            toolService.updateBatchByIds(data);
+//
+//            data.forEach(tool -> {
+//                try {
+//                    ToolVO vo = BeanUtil.copyProperties(tool, ToolVO.class);
+//                    toolService.updateTool(vo);
+//                } catch (Exception ex) {
+//                    log.error("工具openToolSchema:", ex);
+//                }
+//            });
+//        }
     }
 }

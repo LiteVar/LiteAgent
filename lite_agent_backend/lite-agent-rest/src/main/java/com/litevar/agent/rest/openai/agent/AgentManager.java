@@ -30,7 +30,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 /**
  * @author uncle
@@ -148,6 +150,16 @@ public class AgentManager {
         sessionMap.remove(sessionId);
         TaskExecutor.clear(sessionId);
         StoreMessageExecutor.clear(sessionId);
+    }
+
+    public static void clearSessionFromAgent(String agentId) {
+        Set<String> sessionIds = sessionMap.entrySet().stream()
+                .filter(e -> StrUtil.equals(agentId, e.getValue().getAgent().getAgentId()))
+                .map(Map.Entry::getKey).collect(Collectors.toSet());
+        if (!sessionIds.isEmpty()) {
+            log.info("agentId={},发布后,清除sessionId:{}", agentId, sessionIds);
+            sessionIds.forEach(AgentManager::clearSession);
+        }
     }
 
     public static void cacheSessionData(String sessionId, MultiAgent agentInstance, Integer debugFlag, String userId, Integer callType) {

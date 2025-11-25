@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/account.dart';
-import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
+import 'package:lite_agent_client/utils/snowflake_util.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/repositories/agent_repository.dart';
 import 'package:lite_agent_client/repositories/tool_repository.dart';
@@ -16,11 +16,13 @@ import '../../config/routes.dart';
 import '../../repositories/model_repository.dart';
 import '../../server/local_server/server.dart';
 import '../../widgets/dialog/dialog_user_setting.dart';
+import '../../widgets/dialog/dialog_common_confirm.dart';
 import '../library/logic.dart';
 
 class HomePageLogic extends GetxController with WindowListener {
   static const String PAGE_CHAT = "chat";
   static const String PAGE_AGENT = "agent";
+  static const String PAGE_AGENT_IMPORT = "agent_import";
   static const String PAGE_TOOL = "tool";
   static const String PAGE_MODEL = "model";
   static const String PAGE_LIBRARY = "library";
@@ -77,12 +79,40 @@ class HomePageLogic extends GetxController with WindowListener {
   }
 
   void switchPage(String page) {
+    if (currentPage.value == PAGE_AGENT_IMPORT) {
+      _showSwitchPageConfirmDialog(page);
+      return;
+    }
+
+    _doSwitchPage(page);
+  }
+
+  void _doSwitchPage(String page) {
     if (page == PAGE_LIBRARY && Get.isRegistered<LibraryLogic>()) {
       LibraryLogic libraryLogic = Get.find();
       libraryLogic.initData();
     }
     currentPage.value = page;
     //update();
+  }
+
+  void _showSwitchPageConfirmDialog(String targetPage) {
+    Get.dialog(
+      barrierDismissible: false,
+      CommonConfirmDialog(
+          title: '确认切换',
+          content: '当前正在导入智能体，切换页面将丢失当前进度，是否确认切换？',
+          confirmString: '确认',
+          onConfirmCallback: () async => _doSwitchPage(targetPage)),
+    );
+  }
+
+  void switchToAgentImportPage() {
+    currentPage.value = PAGE_AGENT_IMPORT;
+  }
+
+  void backToAgentPage() {
+    currentPage.value = PAGE_AGENT;
   }
 
   void showLoginDialog(bool afterLogout) async {
@@ -122,7 +152,7 @@ class HomePageLogic extends GetxController with WindowListener {
   void syncUserInfo() async {
     account.value = await accountRepository.updateUserInfoFromNet();
     if (account.value != null) {
-      accountAvatar = await account.value?.avatar?.fillPicLinkPrefix() ?? "";
+      accountAvatar = await account.value!.avatar.fillPicLinkPrefixAsync();
     }
     if (await accountRepository.isLogin()) {
       await toolRepository.uploadAllToServer();

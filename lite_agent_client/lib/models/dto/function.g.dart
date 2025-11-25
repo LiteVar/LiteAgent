@@ -7,11 +7,11 @@ part of 'function.dart';
 // **************************************************************************
 
 FunctionDto _$FunctionDtoFromJson(Map<String, dynamic> json) => FunctionDto(
-      json['toolId'] as String?,
-      json['functionName'] as String,
-      json['requestMethod'] as String?,
-      (json['mode'] as num?)?.toInt(),
-      json['protocol'] as String?,
+      json['toolId'] as String? ?? '',
+      json['functionName'] as String? ?? '',
+      json['requestMethod'] as String? ?? '',
+      (json['mode'] as num?)?.toInt() ?? 0,
+      json['protocol'] as String? ?? '',
     );
 
 Map<String, dynamic> _$FunctionDtoToJson(FunctionDto instance) =>

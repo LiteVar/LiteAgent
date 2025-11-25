@@ -19,9 +19,9 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 }) => {
 
   const isLastThinkMessage = useMemo(() => {
-    let msgs = JSON.parse(JSON.stringify(messages));
-    msgs = msgs.filter((item: AgentMessage) => item.role != MessageRole.SEPARATOR)
-    return msgs.length > 0 && msgs[msgs.length - 1]?.thoughtProcessMessages?.length > 0;
+    if (!messages) return false;
+    const newMsgs = messages.filter((item: AgentMessage) => item.role != MessageRole.SEPARATOR);
+    return newMsgs.length > 0 && !!newMsgs[newMsgs.length - 1]?.thoughtProcessMessages && newMsgs[newMsgs.length - 1]?.thoughtProcessMessages!.length >  0;
   }, [messages]);
 
   return (

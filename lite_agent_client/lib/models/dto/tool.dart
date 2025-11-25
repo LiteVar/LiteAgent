@@ -4,74 +4,46 @@ import 'function.dart';
 
 part 'tool.g.dart';
 
-List<ToolDTO> getToolDTOList(List<dynamic> list) {
-  List<ToolDTO> result = [];
-  for (var item in list) {
-    result.add(ToolDTO.fromJson(item));
-  }
-  return result;
-}
-
 @JsonSerializable()
 class ToolDTO extends Object {
-  @JsonKey(name: 'id')
+  @JsonKey(name: 'id', defaultValue: '')
   String id;
 
-  @JsonKey(name: 'userId')
-  String? userId;
+  @JsonKey(name: 'name', defaultValue: '')
+  String name;
 
-  @JsonKey(name: 'workspaceId')
-  String? workspaceId;
+  @JsonKey(name: 'description', defaultValue: '')
+  String description;
 
-  @JsonKey(name: 'name')
-  String? name;
+  @JsonKey(name: 'schemaType', defaultValue: 0)
+  int schemaType;
 
-  @JsonKey(name: 'description')
-  String? description;
+  @JsonKey(name: 'schemaStr', defaultValue: '')
+  String schemaStr;
 
-  @JsonKey(name: 'schemaType')
-  int? schemaType;
+  @JsonKey(name: 'apiKey', defaultValue: '')
+  String apiKey;
 
-  @JsonKey(name: 'schemaStr')
-  String? schemaStr;
+  @JsonKey(name: 'apiKeyType', defaultValue: '')
+  String apiKeyType;
 
-  @JsonKey(name: 'apiKey')
-  String? apiKey;
+  @JsonKey(name: 'shareFlag', defaultValue: false)
+  bool shareFlag;
 
-  @JsonKey(name: 'apiKeyType')
-  String? apiKeyType;
-
-  @JsonKey(name: 'shareFlag')
-  bool? shareFlag;
-
-  @JsonKey(name: 'createTime')
-  String? createTime;
-
-  @JsonKey(name: 'updateTime')
-  String? updateTime;
-
-  @JsonKey(name: 'autoAgent')
-  bool? autoAgent;
+  @JsonKey(name: 'autoAgent', defaultValue: false)
+  bool autoAgent;
 
   @JsonKey(name: 'functionList')
   List<FunctionDto>? functionList;
 
-  ToolDTO(
-    this.id,
-    this.userId,
-    this.workspaceId,
-    this.name,
-    this.description,
-    this.schemaType,
-    this.schemaStr,
-    this.apiKey,
-    this.apiKeyType,
-    this.shareFlag,
-    this.createTime,
-    this.updateTime,
-    this.autoAgent,
-    this.functionList,
-  );
+  ///导入时发现的重名模型id
+  String? similarId;
+
+  ///导入时对重名模型的操作
+  int? operate;
+
+  ToolDTO(this.id, this.name, this.description, this.schemaType, this.schemaStr, this.apiKey, this.apiKeyType, this.shareFlag,
+      this.autoAgent, this.functionList, this.similarId, this.operate);
 
   factory ToolDTO.fromJson(Map<String, dynamic> srcJson) => _$ToolDTOFromJson(srcJson);
 

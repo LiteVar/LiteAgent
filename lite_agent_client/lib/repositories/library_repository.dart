@@ -1,12 +1,13 @@
-import 'package:lite_agent_client/models/dto/document_page.dart';
+import 'package:lite_agent_client/models/dto/document.dart';
 import 'package:lite_agent_client/models/dto/library.dart';
-import 'package:lite_agent_client/models/dto/retrieval_record_page.dart';
+import 'package:lite_agent_client/models/local/library_upload_result.dart';
+import 'package:lite_agent_client/models/dto/base/page.dart';
+import 'package:lite_agent_client/models/dto/retrieval_record.dart';
+import 'package:lite_agent_client/models/dto/retrieval_result.dart';
 import 'package:lite_agent_client/models/dto/segment.dart';
-import 'package:lite_agent_client/models/dto/segment_page.dart';
 import 'package:lite_agent_client/server/api_server/library_server.dart';
 
-import '../models/dto/library_page.dart';
-import '../models/dto/retrieval_result.dart';
+import '../models/dto/base/base_response.dart';
 
 final libraryRepository = LibraryRepository();
 
@@ -40,17 +41,17 @@ class LibraryRepository {
     return false;
   }
 
-  Future<LibraryPageDto?> getLibraryList(int pageNo, String? keyWord) async {
+  Future<PageDTO<LibraryDto>?> getLibraryList(int pageNo, String? keyWord) async {
     var response = await LibraryServer.getLibraryList(pageNo, LibraryRepository.LIBRARY_PAGE_SIZE, keyWord);
     return response.data;
   }
 
-  Future<DocumentPageDto?> getDocumentListBy(String libraryId, int pageNo) async {
+  Future<PageDTO<DocumentDto>?> getDocumentListBy(String libraryId, int pageNo) async {
     var response = await LibraryServer.getDocumentListByLibraryId(libraryId, pageNo);
     return response.data;
   }
 
-  Future<SegmentPageDto?> getSegmentList(String documentId, int pageNo, String? keyWord) async {
+  Future<PageDTO<SegmentDto>?> getSegmentList(String documentId, int pageNo, String? keyWord) async {
     var response = await LibraryServer.getSegmentList(documentId, pageNo, keyWord);
     return response.data;
   }
@@ -73,8 +74,52 @@ class LibraryRepository {
     return list;
   }
 
-  Future<RetrievalRecordPageDto?> getRetrievalRecordList(String libraryId, int pageNo) async {
+  Future<PageDTO<RetrievalRecordDto>?> getRetrievalRecordList(String libraryId, int pageNo) async {
     var response = await LibraryServer.getRetrievalRecordList(libraryId, pageNo);
     return response.data;
+  }
+
+  Future<List<RetrievalResultDto>> getRetrieveHistory(String historyId) async {
+    List<RetrievalResultDto> list = [];
+    var response = await LibraryServer.getRetrievalRecordHistoryList(historyId);
+    if (response.data != null) {
+      list.addAll(response.data!);
+    }
+    return list;
+  }
+
+  Future<String?> getDocumentPreview(String fileId) async {
+    var response = await LibraryServer.getDocumentPreview(fileId);
+    return response?.data;
+  }
+
+  Future<LibraryUploadResult?> uploadLibraryZip(String filePath) async {
+    var response = await LibraryServer.uploadLibraryZip(filePath);
+    final data = response?.data;
+    if (data == null) {
+      return null;
+    }
+
+    final token = data['token'] as String?;
+    final modelMap = data['modelMap'] as Map<String, dynamic>?;
+    final knowledgeBaseMap = data['knowledgeBaseMap'] as Map<String, dynamic>?;
+
+    return LibraryUploadResult(token: token, modelMap: modelMap, knowledgeBaseMap: knowledgeBaseMap);
+  }
+
+  Future<BaseResponse<Map<String, String>?>?> saveImportData(LibraryUploadResult result) async {
+    if (result.token == null) {
+      return null;
+    }
+    final response = await LibraryServer.saveImportData(
+      token: result.token ?? '',
+      modelMap: result.modelMap ?? {},
+      knowledgeBaseMap: result.knowledgeBaseMap ?? {},
+    );
+    return response;
+  }
+
+  Future<bool> exportKnowledge({required List<String> datasetIds, required String savePath, bool plainText = false}) async {
+    return await LibraryServer.exportKnowledge(datasetIds: datasetIds, savePath: savePath, plainText: plainText);
   }
 }

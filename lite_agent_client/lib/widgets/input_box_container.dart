@@ -75,7 +75,7 @@ class InputBoxController extends GetxController {
       refreshInputUIStatus();
 
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/recording.wav';
+      final path = '${dir.path}${Platform.pathSeparator}recording.wav';
 
       recordStartTime = DateTime.now();
       try {

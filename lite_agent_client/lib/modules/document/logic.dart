@@ -1,9 +1,12 @@
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/document.dart';
-import 'package:lite_agent_client/models/dto/document_page.dart';
 import 'package:lite_agent_client/models/dto/library.dart';
+import 'package:lite_agent_client/models/dto/base/page.dart';
 
 import '../../repositories/library_repository.dart';
+import '../../server/api_server/file_server.dart';
+import '../../utils/alarm_util.dart';
+import '../../widgets/pagination/pagination_controller.dart';
 import '../library_detail/logic.dart';
 
 class DocumentLogic extends GetxController {
@@ -17,13 +20,33 @@ class DocumentLogic extends GetxController {
   var pageButtonNumberStart = 1;
   final int pageButtonCount = 10;
 
+  // 分页控制器
+  late final PaginationController paginationController;
+
   @override
   void onInit() {
     super.onInit();
+    initPagination();
 
     var param = Get.arguments as LibraryDto;
     libraryId = param.id;
     initData();
+  }
+
+  /// 初始化分页控制器
+  void initPagination() {
+    paginationController = PaginationController();
+    paginationController.initialize(
+      currentPage: currentPage.value,
+      totalPage: totalPage.value,
+      pageButtonCount: pageButtonCount,
+      pageButtonNumberStart: pageButtonNumberStart,
+      onPageChanged: loadData,
+    );
+
+    // 设置双向同步
+    ever(currentPage, (page) => paginationController.updateCurrentPage(page));
+    ever(totalPage, (totalPage) => paginationController.updateTotalPage(totalPage));
   }
 
   void initData() {
@@ -48,10 +71,10 @@ class DocumentLogic extends GetxController {
       pageButtonNumberStart = currentPage.value;
     }
 
-    DocumentPageDto? data = await libraryRepository.getDocumentListBy(libraryId, pageNo);
+    PageDTO<DocumentDto>? data = await libraryRepository.getDocumentListBy(libraryId, pageNo);
     int pageSize = LibraryRepository.DOCUMENT_PAGE_SIZE;
     if (data != null) {
-      int totalItem = int.parse(data.total);
+      int totalItem = data.total;
       int totalPage = totalItem % pageSize > 0 ? (totalItem ~/ pageSize) + 1 : totalItem ~/ pageSize;
 
       totalCount.value = totalItem;
@@ -69,5 +92,19 @@ class DocumentLogic extends GetxController {
     selectedDocument = document;
     LibraryDetailLogic libraryLogic = Get.find();
     libraryLogic.switchPage(LibraryDetailLogic.PAGE_SEGMENT);
+  }
+
+  Future<void> download(DocumentDto document) async {
+    final result = await FileServer.downloadDatasetMarkdownZip(fileId: document.fileId);
+    switch (result) {
+      case DownloadResult.success:
+        AlarmUtil.showAlertToast('下载成功');
+        break;
+      case DownloadResult.cancelled:
+        break;
+      case DownloadResult.failed:
+        AlarmUtil.showAlertToast('下载失败');
+        break;
+    }
   }
 }

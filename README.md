@@ -5,10 +5,10 @@ English · [中文](README-zh_CN.md)
 LiteAgent is an open-source AI Agent platform designed for industrial applications, enabling users to quickly build and deploy AI Agent applications. It supports integration with various models and tools, providing web, desktop, and backend services suitable for diverse industrial scenarios.
 
 ## Program description
-  - [Web](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README.md)
-  - [Desktop](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README.md)
-  - [Backend](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README.md)
-  - [SDK](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk)
+  - [Web](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README.md): manage agent, tool, model, knowledge base and user, etc.
+  - [Desktop](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README.md): manage agent, tool, model, etc.
+  - [Backend](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README.md): service and api for web, desktop and sdk.
+  - [SDK](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk): C#/LabVIEW/TypeScript/Dart/Java sdk, to help developers quickly integrate LiteAgent.
 
 ## Features
 
@@ -22,6 +22,7 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Reflection agent(Web, Desktop)
 - Agent mode support: Parallel, Serial, Reject
 - Auto Multi Agent (Web, Desktop)
+- Support exporting/importing configurations
 
 ### 2. Tool Support
 
@@ -32,6 +33,10 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Protocol: MCP
   - Server support MCP over SSE
   - Desktop support MCP over stdio
+- Protocol: OpenTool
+  - Support for OpenTool-formatted specification documents
+  - Support calling OpenTool Server
+- Support exporting tools
 
 ### 3. Functional Modules
 
@@ -49,6 +54,14 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Only support OpenAI Style API，other models(like: Zhipu-AI、QianFan、ChatGLM、Kimi、qwen and so on), please use the OneAPI tool to convert to OpenAI style.
 - Speech-to-Text (ASR Model)
 - Text-to-Speech (TTS Model)
+- LLM Support exporting/importing JSON-formatted configurations
+
+### 5. Knowledge Base Support
+
+- Convert documents to markdown, including text and images (Web)
+- Add document content summarization (Web)
+- Knowledge base retrieval, support "View Original" and "Download Original Document" (Web, Desktop)
+- Knowledge base list, can select and "Download as Markdown" (Web, Desktop)
 
 ## Quick Start
 

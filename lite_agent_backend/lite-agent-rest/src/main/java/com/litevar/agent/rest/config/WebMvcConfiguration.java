@@ -18,6 +18,8 @@ import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
@@ -85,11 +87,11 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
         //核心线程数
-        executor.setCorePoolSize(20);
+        executor.setCorePoolSize(3);
         //最大线程数
-        executor.setMaxPoolSize(100);
+        executor.setMaxPoolSize(200);
         //等待队列大小
-        executor.setQueueCapacity(100);
+        executor.setQueueCapacity(150);
         executor.setThreadNamePrefix("asyncExecutor-");
         //线程空闲存活时间
         executor.setKeepAliveSeconds(60);
@@ -117,6 +119,15 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                                 .responseTimeout(Duration.ofSeconds(120))
                 ))
                 .build();
+    }
+
+    /**
+     * 自定义Reactor调度器
+     * 适用于SSE流式响应等场景
+     */
+    @Bean(name = "customScheduler", destroyMethod = "dispose")
+    public Scheduler customScheduler() {
+        return Schedulers.newParallel("custom-scheduler", 300, true);
     }
 
     @Override

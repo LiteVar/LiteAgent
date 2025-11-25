@@ -3,6 +3,8 @@ package com.litevar.agent.core.module.tool;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.dto.ToolDTO;
 import com.litevar.agent.base.entity.ToolFunction;
@@ -26,6 +28,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -63,7 +66,7 @@ public class ToolService extends ServiceImpl<ToolProvider> {
         return key;
     }
 
-    public void addTool(ToolVO vo, String workspaceId) {
+    public ToolProvider addTool(ToolVO vo, String workspaceId) {
         ToolProvider tool = this.one(lambdaQuery()
                 .projectDisplay(ToolProvider::getId)
                 .eq(ToolProvider::getWorkspaceId, workspaceId)
@@ -81,6 +84,7 @@ public class ToolService extends ServiceImpl<ToolProvider> {
         String id = tool.getId();
         functionList.forEach(i -> i.setToolId(id));
         toolFunctionService.saveBatch(functionList);
+        return tool;
     }
 
     @CacheEvict(value = {CacheKey.TOOL_INFO, CacheKey.TOOL_API_KEY_INFO}, key = "#vo.id")
@@ -218,6 +222,74 @@ public class ToolService extends ServiceImpl<ToolProvider> {
             tool.setFunctionList(functionVOS);
         });
         return res;
+    }
+
+    public byte[] exportTool(String id, boolean plainText) {
+        ToolProvider tool = proxy().findById(id);
+        return exportTool(tool, plainText);
+    }
+
+    public byte[] exportTool(ToolProvider tool, boolean plainText) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("name", tool.getName());
+        data.put("description", tool.getDescription());
+        data.put("schemaType", tool.getSchemaType());
+        data.put("schemaStr", tool.getSchemaStr());
+        data.put("apiKeyType", tool.getApiKeyType());
+        data.put("apiKey", StrUtil.nullToEmpty(tool.getApiKey()));
+        data.put("autoAgent", tool.getAutoAgent());
+
+        if (!plainText && ObjectUtil.equal(tool.getSchemaType(), ToolSchemaType.OPEN_TOOL.getValue())) {
+            JSONObject obj = JSONUtil.parseObj(tool.getSchemaStr());
+            if (StrUtil.isNotEmpty(obj.getStr("apiKey"))) {
+                obj.set("apiKey", "{{<APIKEY>}}");
+                obj.set("serverUrl", "{{serverUrl}}");
+                data.put("schemaStr", obj.toString());
+            }
+        } else if (!plainText && ObjectUtil.equal(tool.getSchemaType(), ToolSchemaType.MCP.getValue())) {
+            JSONObject obj = JSONUtil.parseObj(tool.getSchemaStr());
+            obj.set("baseUrl", "{{baseUrl}}");
+            String sseEndpoint = obj.getStr("sseEndpoint");
+            if (StrUtil.isNotBlank(sseEndpoint)) {
+                int questionIdx = sseEndpoint.indexOf('?');
+                if (questionIdx >= 0 && questionIdx < sseEndpoint.length() - 1) {
+                    String path = sseEndpoint.substring(0, questionIdx);
+                    String queryPart = sseEndpoint.substring(questionIdx + 1);
+                    List<String> params = StrUtil.split(queryPart, '&');
+                    List<String> maskedParams = new ArrayList<>();
+                    if (ObjectUtil.isNotEmpty(params)) {
+                        for (String param : params) {
+                            if (StrUtil.isBlank(param)) {
+                                continue;
+                            }
+                            int eqIdx = param.indexOf('=');
+                            if (eqIdx > 0) {
+                                String key = param.substring(0, eqIdx);
+                                maskedParams.add(key + "={{" + key + "}}");
+                            }
+                        }
+                        if (!maskedParams.isEmpty()) {
+                            sseEndpoint = path + "?" + String.join("&", maskedParams);
+                        } else {
+                            sseEndpoint = path;
+                        }
+                    } else {
+                        sseEndpoint = path;
+                    }
+                }
+                obj.set("sseEndpoint", sseEndpoint);
+            }
+
+            data.put("schemaStr", obj.toString());
+        }
+
+        if (StrUtil.isNotBlank(data.get("apiKey") + "") && !plainText) {
+            // 敏感信息脱敏处理: 使用占位符
+            data.put("apiKey", "{{<APIKEY>}}");
+        }
+
+        String jsonStr = JSONUtil.toJsonPrettyStr(data);
+        return jsonStr.getBytes(StandardCharsets.UTF_8);
     }
 
     public List<ToolFunction> getFunctionList(List<String> toolIds) {

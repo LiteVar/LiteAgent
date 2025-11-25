@@ -22,51 +22,67 @@ import java.util.Optional;
  */
 @Service
 public class UserService {
-	@Autowired
-	private BaseMapper baseMapper;
+    @Autowired
+    private BaseMapper baseMapper;
 
-	@Cacheable(value = CacheKey.USER_INFO, key = "#id")
-	public Account getById(String id) {
-		return Optional.ofNullable(baseMapper.getById(id, Account.class)).orElseThrow();
-	}
+    @Cacheable(value = CacheKey.USER_INFO, key = "#id")
+    public Account getById(String id) {
+        return Optional.ofNullable(baseMapper.getById(id, Account.class)).orElseThrow();
+    }
 
-	public Account getByEmail(String email) {
-		return baseMapper.getByColumn("email", email, Account.class).stream().findFirst()
-			.orElseThrow(() -> new ServiceException(ServiceExceptionEnum.NOT_FOUND_RECORD.getCode(), "账号不存在"));
-	}
+    public Account getByEmail(String email) {
+        return Optional.ofNullable(getEmailOfNullable(email))
+                .orElseThrow(() -> new ServiceException(ServiceExceptionEnum.NOT_FOUND_RECORD.getCode(), "账号不存在"));
+    }
 
-	@CacheEvict(value = CacheKey.USER_INFO, key = "#userId")
-	public void update(String userId, String name, String avatar) {
-		Account account = getById(userId);
-		if (!StrUtil.equals(name, account.getName())) {
-			account.setName(name);
-		}
-		if (!StrUtil.equals(avatar, account.getAvatar())) {
-			account.setAvatar(avatar);
-		}
-		baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, userId));
-	}
+    public Account getEmailOfNullable(String email) {
+        return baseMapper.one(new QueryWrapper<Account>().lambdaQuery().eq(Account::getEmail, email), Account.class);
+    }
 
-	@CacheEvict(value = CacheKey.USER_INFO, key = "#result.id")
-	public Account update(String originPwd, String newPwd) {
-		Account account = getById(LoginContext.currentUserId());
-		String old = SecureUtil.md5(account.getSalt() + originPwd);
-		if (!StrUtil.equals(old, account.getPassword())) {
-			throw new ServiceException(ServiceExceptionEnum.ORIGIN_PASSWORD_WRONG);
-		}
-		String password = SecureUtil.md5(account.getSalt() + newPwd);
-		account.setPassword(password);
-		baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, account.getId()));
-		return account;
-	}
+    public Account getByMobile(String mobile) {
+        return baseMapper.one(new QueryWrapper<Account>().lambdaQuery().eq(Account::getMobile, mobile), Account.class);
+    }
 
-	@CacheEvict(value = CacheKey.USER_INFO, key = "#result.id")
-	public Account resetPassword(String email, String password) {
-		Account account = getByEmail(email);
-		String encryptPwd = SecureUtil.md5(account.getSalt() + password);
-		account.setPassword(encryptPwd);
-		baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, account.getId()));
+    @CacheEvict(value = CacheKey.USER_INFO, key = "#userId")
+    public void update(String userId, String name, String avatar) {
+        Account account = getById(userId);
+        if (!StrUtil.equals(name, account.getName())) {
+            account.setName(name);
+        }
+        if (!StrUtil.equals(avatar, account.getAvatar())) {
+            account.setAvatar(avatar);
+        }
+        baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, userId));
+    }
 
-		return account;
-	}
+    @CacheEvict(value = CacheKey.USER_INFO, key = "#result.id")
+    public Account update(String originPwd, String newPwd) {
+        Account account = getById(LoginContext.currentUserId());
+        String old = SecureUtil.md5(account.getSalt() + originPwd);
+        if (!StrUtil.equals(old, account.getPassword())) {
+            throw new ServiceException(ServiceExceptionEnum.ORIGIN_PASSWORD_WRONG);
+        }
+        String password = SecureUtil.md5(account.getSalt() + newPwd);
+        account.setPassword(password);
+        baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, account.getId()));
+        return account;
+    }
+
+    @CacheEvict(value = CacheKey.USER_INFO, key = "#result.id")
+    public Account bindMobile(String mobile) {
+        Account account = getById(LoginContext.currentUserId());
+        account.setMobile(mobile);
+        baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, account.getId()));
+        return account;
+    }
+
+    @CacheEvict(value = CacheKey.USER_INFO, key = "#result.id")
+    public Account resetPassword(String email, String password) {
+        Account account = getByEmail(email);
+        String encryptPwd = SecureUtil.md5(account.getSalt() + password);
+        account.setPassword(encryptPwd);
+        baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, account.getId()));
+
+        return account;
+    }
 }

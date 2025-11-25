@@ -7,16 +7,18 @@ part of 'model.dart';
 // **************************************************************************
 
 ModelDTO _$ModelDTOFromJson(Map<String, dynamic> json) => ModelDTO(
-      json['id'] as String,
-      json['alias'] as String,
-      json['name'] as String,
-      json['baseUrl'] as String,
-      json['apiKey'] as String,
-      (json['maxTokens'] as num?)?.toInt(),
-      json['type'] as String,
-      json['autoAgent'] as bool?,
-      json['toolInvoke'] as bool?,
-      json['deepThink'] as bool?,
+      json['id'] as String? ?? '',
+      json['alias'] as String? ?? '',
+      json['name'] as String? ?? '',
+      json['baseUrl'] as String? ?? '',
+      json['apiKey'] as String? ?? '',
+      (json['maxTokens'] as num?)?.toInt() ?? 4096,
+      json['type'] as String? ?? 'LLM',
+      json['autoAgent'] as bool? ?? false,
+      json['toolInvoke'] as bool? ?? false,
+      json['deepThink'] as bool? ?? false,
+      json['similarId'] as String? ?? '',
+      (json['operate'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$ModelDTOToJson(ModelDTO instance) => <String, dynamic>{
@@ -30,4 +32,6 @@ Map<String, dynamic> _$ModelDTOToJson(ModelDTO instance) => <String, dynamic>{
       'autoAgent': instance.autoAgent,
       'toolInvoke': instance.toolInvoke,
       'deepThink': instance.deepThink,
+      'similarId': instance.similarId,
+      'operate': instance.operate,
     };

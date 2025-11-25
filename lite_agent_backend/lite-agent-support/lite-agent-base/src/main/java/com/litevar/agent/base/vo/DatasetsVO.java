@@ -16,6 +16,10 @@ public class DatasetsVO {
     private String icon;
     private String description;
     private Boolean shareFlag;
+    /**
+     * 文本模型id
+     */
+    private String llmModelId;
     private String embeddingModel;
     private String embeddingModelProvider;
     private Integer retrievalTopK;

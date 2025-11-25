@@ -2,63 +2,42 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'document.g.dart';
 
-
 @JsonSerializable()
 class DocumentDto extends Object {
-
-  @JsonKey(name: 'id')
+  @JsonKey(name: 'id', defaultValue: '')
   String id;
 
-  @JsonKey(name: 'name')
+  @JsonKey(name: 'name', defaultValue: '')
   String name;
 
-  @JsonKey(name: 'userId')
-  String userId;
+  @JsonKey(name: 'datasetId', defaultValue: '')
+  String datasetId;
 
-  @JsonKey(name: 'workspaceId')
-  String workspaceId;
+  @JsonKey(name: 'dataSourceType', defaultValue: '')
+  String dataSourceType;
 
-  @JsonKey(name: 'datasetId')
-  String? datasetId;
-
-  @JsonKey(name: 'dataSourceType')
-  String? dataSourceType;
-
-  @JsonKey(name: 'filePath')
-  String? filePath;
-
-  @JsonKey(name: 'content')
-  String? content;
+  @JsonKey(name: 'content', defaultValue: '')
+  String content;
 
   @JsonKey(name: 'htmlUrl')
   List<String>? htmlUrl;
 
-  @JsonKey(name: 'md5Hash')
-  String? md5Hash;
+  @JsonKey(name: 'wordCount', defaultValue: 0)
+  int wordCount;
 
-  @JsonKey(name: 'wordCount')
-  int? wordCount;
+  @JsonKey(name: 'tokenCount', defaultValue: 0)
+  int tokenCount;
 
-  @JsonKey(name: 'tokenCount')
-  int? tokenCount;
+  @JsonKey(name: 'enableFlag', defaultValue: true)
+  bool enableFlag;
 
-  @JsonKey(name: 'metadata')
-  String? metadata;
+  @JsonKey(name: 'fileId', defaultValue: '')
+  String fileId;
 
-  @JsonKey(name: 'enableFlag')
-  bool? enableFlag;
-
-  @JsonKey(name: 'createTime')
-  String? createTime;
-
-  @JsonKey(name: 'updateTime')
-  String? updateTime;
-
-
-  DocumentDto(this.id,this.name,this.userId,this.workspaceId,this.datasetId,this.dataSourceType,this.filePath,this.content,this.htmlUrl,this.md5Hash,this.wordCount,this.tokenCount,this.metadata,this.enableFlag,this.createTime,this.updateTime,);
+  DocumentDto(this.id, this.name, this.datasetId, this.dataSourceType, this.content, this.htmlUrl, this.wordCount, this.tokenCount,
+      this.enableFlag, this.fileId);
 
   factory DocumentDto.fromJson(Map<String, dynamic> srcJson) => _$DocumentDtoFromJson(srcJson);
 
   Map<String, dynamic> toJson() => _$DocumentDtoToJson(this);
-
 }

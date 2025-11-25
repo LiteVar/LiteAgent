@@ -1,43 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:lite_agent_client/models/local_data_model.dart';
-import 'package:lite_agent_client/repositories/model_repository.dart';
+import 'package:lite_agent_client/models/local/model.dart';
+import 'package:lite_agent_client/models/dto/model.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
 import 'package:lite_agent_client/utils/extension/string_extension.dart';
+import 'package:lite_agent_client/utils/extension/model_extension.dart';
+import 'package:lite_agent_client/utils/model/model_converter.dart';
+import 'package:lite_agent_client/utils/model/model_validator.dart';
+import 'package:lite_agent_client/widgets/dialog/dialog_export_confirm.dart';
 
 import 'dialog_common_confirm.dart';
 
 class EditModelDialog extends StatelessWidget {
-  ModelBean? model;
+  final ModelData? model;
+  final bool isEdit;
+  bool? isKnowledgeModel;
+  final void Function(ModelFormData? modelData, {bool isDelete}) onConfirmCallback;
 
-  late ModelEditParams params;
-  late bool isEdit;
-  void Function(ModelEditParams params) onConfirmCallback;
-
-  EditModelDialog({super.key, required this.model, required this.isEdit, required this.onConfirmCallback}) {
-    String nickName = "";
-    if (model != null) {
-      nickName = model?.nickName ?? "模型${model?.id.lastSixChars ?? ""}";
-    } else {
-      nickName = model?.nickName ?? "";
-    }
-    int maxToken = 4096;
-    String maxTokenString = model?.maxToken ?? "";
-    if (maxTokenString.isNotEmpty) {
-      maxToken = int.parse(maxTokenString);
-    }
-    params = ModelEditParams(
-      type: model?.type ?? "LLM",
-      name: model?.name ?? "",
-      nickName: nickName,
-      baseUrl: model?.url ?? "",
-      apiKey: model?.key ?? "",
-      maxToken: maxToken,
-      supportMultiAgent: model?.supportMultiAgent ?? false,
-      supportToolCalling: model?.supportToolCalling ?? true,
-      supportDeepThinking: model?.supportDeepThinking ?? false,
-    );
+  EditModelDialog({super.key, required this.model, required this.isEdit, this.isKnowledgeModel = false, required this.onConfirmCallback}) {
+    logic.initData(model);
   }
 
   final dialogTitleColor = const Color(0xFFf5f5f5);
@@ -48,30 +30,39 @@ class EditModelDialog extends StatelessWidget {
   Future<void> _confirm() async {
     String type = logic.modelType.value;
     String name = logic.nameController.text.trimmed();
-    String nickName = logic.nickNameController.text.trimmed();
+    String alias = logic.aliasController.text.trimmed();
     String baseUrl = logic.urlController.text.trimmed();
     String apiKey = logic.apiController.text.trimmed();
     String maxToken = logic.maxTokenController.text.trimmed();
-    bool supportMultiAgent = type == "LLM" ? logic.supportMultiAgent.value : false;
-    bool supportToolCalling = type == "LLM" ? logic.supportToolCalling.value : false;
-    bool supportDeepThinking = type == "LLM" ? logic.supportDeepThinking.value : false;
+    bool isLLM = type == ModelValidator.LLM;
+    bool supportMultiAgent = isLLM ? logic.supportMultiAgent.value : false;
+    bool supportToolCalling = isLLM ? logic.supportToolCalling.value : false;
+    bool supportDeepThinking = isLLM ? logic.supportDeepThinking.value : false;
 
     if (name.trim().isEmpty) {
       AlarmUtil.showAlertDialog("模型名称不能为空");
       return;
-    } else if (nickName.isEmpty) {
+    }
+    if (alias.isEmpty) {
       AlarmUtil.showAlertDialog("连接别名不能为空");
       return;
-    } else if (baseUrl.trim().isEmpty) {
+    }
+    if (baseUrl.trim().isEmpty) {
       AlarmUtil.showAlertDialog("BaseUrl不能为空");
       return;
-    } else if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
-      AlarmUtil.showAlertDialog("BaseUrl格式错误");
-      return;
-    } else if (apiKey.trim().isEmpty) {
+    }
+    Uri? uri = Uri.tryParse(baseUrl);
+    if (uri == null || (!uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) || uri.host.isEmpty) {
+      if (!(isKnowledgeModel ?? false)) {
+        AlarmUtil.showAlertDialog("BaseUrl格式错误");
+        return;
+      }
+    }
+    if (apiKey.trim().isEmpty) {
       AlarmUtil.showAlertDialog("ApiKey不能为空");
       return;
-    } else if (maxToken.trim().isEmpty) {
+    }
+    if (maxToken.trim().isEmpty) {
       //AlarmUtil.showAlertDialog("maxToken不能为空");
       //return;
       maxToken = "4096";
@@ -80,18 +71,18 @@ class EditModelDialog extends StatelessWidget {
       return;
     }
 
-    if (await _hasDuplicateNickname(nickName, model?.id)) {
+    if (!await ModelValidator.isAliasUniqueAsync(alias, excludeId: model?.id)) {
       AlarmUtil.showAlertDialog("该别名已存在，请重新输入");
       return;
     }
 
-    onConfirmCallback(ModelEditParams(
-      type: type,
+    onConfirmCallback((
       name: name,
-      nickName: nickName,
+      alias: alias,
       baseUrl: baseUrl,
       apiKey: apiKey,
-      maxToken: int.parse(maxToken),
+      maxToken: maxToken,
+      modelType: type,
       supportMultiAgent: supportMultiAgent,
       supportToolCalling: supportToolCalling,
       supportDeepThinking: supportDeepThinking,
@@ -99,15 +90,8 @@ class EditModelDialog extends StatelessWidget {
     Get.back();
   }
 
-  Future<bool> _hasDuplicateNickname(String newNickname, String? currentId) async {
-    final existingModels = await modelRepository.getModelListFromBox();
-    return existingModels.any(
-        (model) => model.nickName != null && model.nickName!.isNotEmpty && model.nickName == newNickname && model.id != (currentId ?? ""));
-  }
-
   @override
   Widget build(BuildContext context) {
-    logic.initData(params);
     return Center(
       child: Container(
         width: 588,
@@ -124,20 +108,24 @@ class EditModelDialog extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(children: [
-                        Container(
-                          margin: const EdgeInsets.fromLTRB(5, 0, 10, 0),
-                          child: const Text("模型类型", style: TextStyle(fontSize: 14, color: Colors.black)),
-                        ),
-                        const Text("*", style: TextStyle(fontSize: 14, color: Colors.red))
-                      ]),
-                      Obx(() => Container(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [_buildRadioOption('LLM'), _buildRadioOption('TTS'), _buildRadioOption('ASR')],
+                      if (!(isKnowledgeModel ?? false)) ...[
+                        Row(
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.fromLTRB(5, 0, 10, 0),
+                              child: const Text("模型类型", style: TextStyle(fontSize: 14, color: Colors.black)),
                             ),
-                          )),
+                            const Text("*", style: TextStyle(fontSize: 14, color: Colors.red))
+                          ],
+                        ),
+                        Obx(() => Container(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                              _buildRadioOption(ModelValidator.LLM),
+                              _buildRadioOption(ModelValidator.TTS),
+                              _buildRadioOption(ModelValidator.ASR),
+                            ])))
+                      ],
                       const SizedBox(height: 5),
                       buildInputColumn(
                           title: "模型名称",
@@ -150,7 +138,7 @@ class EditModelDialog extends StatelessWidget {
                           title: "连接别名",
                           hint: "请输入别名，如我的备用模型，xx专用模型之类",
                           underLineTips: "同个模型的名称通过不同API Key可以有多个，所以设置一个易于区分的名称。",
-                          controller: logic.nickNameController,
+                          controller: logic.aliasController,
                           isRequired: true,
                           textLimit: 100),
                       buildInputColumn(title: "BaseURL", hint: "请输入URL", controller: logic.urlController, isRequired: true),
@@ -158,7 +146,7 @@ class EditModelDialog extends StatelessWidget {
                       buildInputColumn(
                           title: "Max Token", hint: "请输入Max Token，最小值为1", controller: logic.maxTokenController, isNumberOnly: true),
                       Obx(() => Offstage(
-                            offstage: logic.modelType.value != "LLM",
+                            offstage: logic.modelType.value != ModelValidator.LLM,
                             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                               Expanded(child: buildFunctionSwitchContainer("支持Auto Multi Agent使用", logic.supportMultiAgent)),
                               Expanded(child: buildFunctionSwitchContainer("支持工具调用", logic.supportToolCalling)),
@@ -211,10 +199,7 @@ class EditModelDialog extends StatelessWidget {
       child: Row(children: [
         Text(isEdit ? "编辑模型" : "新建模型"),
         const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.close, size: 16, color: Colors.black),
-          onPressed: () => Get.back(),
-        )
+        IconButton(icon: const Icon(Icons.close, size: 16, color: Colors.black), onPressed: () => Get.back())
       ]),
     );
   }
@@ -222,26 +207,39 @@ class EditModelDialog extends StatelessWidget {
   Row buildBottomButton() {
     return Row(
       children: [
-        if (isEdit)
+        if (isEdit && !(isKnowledgeModel ?? false)) ...[
           TextButton(
               style: ButtonStyle(
                   padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
                   shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(2), side: const BorderSide(color: Color(0xFFd9d9d9), width: 1.0)))),
               onPressed: () => showRemoveDialog(),
-              child: const Text('删除', style: TextStyle(color: Color(0xA6D43030), fontSize: 14))),
+              child: const Text('删除', style: TextStyle(color: Color(0xffD43030), fontSize: 14))),
+          const SizedBox(width: 16),
+          TextButton(
+              style: ButtonStyle(
+                  padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(2), side: const BorderSide(color: Color(0xFFd9d9d9), width: 1.0)))),
+              onPressed: () => showExportConfirmDialog(logic),
+              child: const Text('导出', style: TextStyle(color: Color(0xA6000000), fontSize: 14)))
+        ],
         const Spacer(),
         TextButton(
             style: ButtonStyle(
                 padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
+                overlayColor: WidgetStateProperty.all(Colors.transparent),
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(2), side: const BorderSide(color: Color(0xFFd9d9d9), width: 1.0)))),
             onPressed: () => Get.back(),
-            child: const Text('取消', style: TextStyle(color: Color(0xFF999999), fontSize: 14))),
+            child: const Text('取消', style: TextStyle(color: Color(0xA6000000), fontSize: 14))),
         const SizedBox(width: 16),
         TextButton(
             style: ButtonStyle(
                 padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(30, 5, 30, 5)),
+                overlayColor: WidgetStateProperty.all(Colors.transparent),
                 backgroundColor: WidgetStateProperty.all(buttonColor),
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)))),
             onPressed: () => _confirm(),
@@ -299,9 +297,9 @@ class EditModelDialog extends StatelessWidget {
   Widget _buildRadioOption(String option) {
     return Expanded(
       child: RadioListTile<String>(
-        title: Text(option, style: const TextStyle(fontSize: 14)),
+        title: Text(option.toUpperCase(), style: const TextStyle(fontSize: 14)),
         value: option,
-        groupValue: logic.modelType.value,
+        groupValue: ModelConverter.normalizeModelType(logic.modelType.value),
         visualDensity: const VisualDensity(horizontal: VisualDensity.minimumDensity, vertical: VisualDensity.minimumDensity),
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         controlAffinity: ListTileControlAffinity.leading,
@@ -326,83 +324,84 @@ class EditModelDialog extends StatelessWidget {
           content: "即将删除模型的所有信息，确认删除？",
           confirmString: "删除",
           onConfirmCallback: () async {
-            onConfirmCallback(ModelEditParams.delete());
+            onConfirmCallback(null, isDelete: true);
             Get.back();
           },
         ));
   }
 }
 
+void showExportConfirmDialog(EditModelDialogController logic) {
+  Get.dialog(
+      barrierDismissible: false,
+      ExportConfirmDialog(
+        exportType: "模型",
+        onConfirmCallback: (exportPlaintext) => logic.exportModelData(exportPlaintext),
+      ));
+}
+
+typedef ModelFormData = ({
+  String name,
+  String baseUrl,
+  String apiKey,
+  String maxToken,
+  String modelType,
+  String alias,
+  bool supportMultiAgent,
+  bool supportToolCalling,
+  bool supportDeepThinking,
+});
+
 class EditModelDialogController extends GetxController {
   final TextEditingController nameController = TextEditingController();
-  final TextEditingController nickNameController = TextEditingController();
+  final TextEditingController aliasController = TextEditingController();
   final TextEditingController urlController = TextEditingController();
   final TextEditingController apiController = TextEditingController();
   final TextEditingController maxTokenController = TextEditingController();
 
-  RxString modelType = 'LLM'.obs;
+  RxString modelType = ModelValidator.LLM.obs;
   RxBool supportMultiAgent = false.obs;
   RxBool supportToolCalling = true.obs;
   RxBool supportDeepThinking = false.obs;
 
-  void initData(ModelEditParams params) {
-    modelType.value = params.type;
-    nameController.text = params.name;
-    nickNameController.text = params.nickName;
-    urlController.text = params.baseUrl;
-    apiController.text = params.apiKey;
-    maxTokenController.text = params.maxToken.toString();
-    supportMultiAgent.value = params.supportMultiAgent;
+  void initData(ModelData? params) {
+    modelType.value = params?.type ?? ModelValidator.LLM;
+    nameController.text = params?.name ?? "";
+    aliasController.text = params?.alias ?? "";
+    urlController.text = params?.url ?? "";
+    apiController.text = params?.key ?? "";
+    maxTokenController.text = params?.maxToken ?? "4096";
+    supportMultiAgent.value = params?.supportMultiAgent ?? false;
+    supportToolCalling.value = params?.supportToolCalling ?? true;
+    supportDeepThinking.value = params?.supportDeepThinking ?? false;
+  }
+
+  Future<void> exportModelData(bool exportPlaintext) async {
+    String type = modelType.value;
+    String name = nameController.text.trimmed();
+    String alias = aliasController.text.trimmed();
+    String baseUrl = urlController.text.trimmed();
+    String apiKey = apiController.text.trimmed();
+    int maxToken = int.tryParse(maxTokenController.text.trimmed()) ?? 4096;
+    bool isLLM = type == ModelValidator.LLM;
+    bool autoAgent = isLLM ? supportMultiAgent.value : false;
+    bool toolInvoke = isLLM ? supportToolCalling.value : false;
+    bool deepThink = isLLM ? supportDeepThinking.value : false;
+
+    final modelDTO = ModelDTO("", alias, name, baseUrl, apiKey, maxToken, type, autoAgent, toolInvoke, deepThink, "", 0);
+
+    String? savePath = await modelDTO.exportJson(exportPlaintext);
+    bool isSuccess = savePath != null;
+    AlarmUtil.showAlertToast(isSuccess ? "模型数据导出成功！" : "导出失败");
   }
 
   @override
   void onClose() {
     nameController.dispose();
-    nickNameController.dispose();
+    aliasController.dispose();
     urlController.dispose();
     apiController.dispose();
     maxTokenController.dispose();
     super.onClose();
-  }
-}
-
-class ModelEditParams {
-  final String type;
-  final String name;
-  final String nickName;
-  final String baseUrl;
-  final String apiKey;
-  final int maxToken;
-  final bool supportMultiAgent;
-  final bool supportToolCalling;
-  final bool supportDeepThinking;
-  final bool isDelete;
-
-  ModelEditParams({
-    required this.type,
-    required this.name,
-    required this.nickName,
-    required this.baseUrl,
-    required this.apiKey,
-    required this.maxToken,
-    required this.supportMultiAgent,
-    required this.supportToolCalling,
-    required this.supportDeepThinking,
-    this.isDelete = false,
-  });
-
-  factory ModelEditParams.delete() {
-    return ModelEditParams(
-      isDelete: true,
-      type: "",
-      name: "",
-      nickName: "",
-      baseUrl: "",
-      apiKey: "",
-      maxToken: 0,
-      supportMultiAgent: false,
-      supportToolCalling: false,
-      supportDeepThinking: false,
-    );
   }
 }

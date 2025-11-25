@@ -2,17 +2,19 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Dataset API",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "description": "数据集检索API"
   },
   "servers": [
     {
-      "url": "$serverUrl/v1/dataset/$id"
+      "url": "{SERVER_URL}/v1/dataset"
     }
   ],
   "paths": {
-    "/retrieve": {
+    "/retrieveDesktop": {
       "get": {
-        "description": "检索数据集内容",
+        "description": "从指定的数据集中检索相关内容。系统必须在所有可用数据集中搜索，大模型只需要提供检索查询内容。可用数据集ID：{DATASET_IDS}",
+        "summary": "数据集检索",
         "parameters": [
           {
             "name": "query",
@@ -21,7 +23,21 @@
             "schema": {
               "type": "string"
             },
-            "description": "要检索的内容"
+            "description": "要检索的内容查询字符串"
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true,
+            "description": "要搜索的数据集ID列表。系统必须在所有可用数据集中搜索。可用数据集ID：{DATASET_IDS}"
           }
         ],
         "responses": {
@@ -34,64 +50,93 @@
                   "properties": {
                     "code": {
                       "type": "integer",
-                      "example": 0
+                      "example": 200
                     },
                     "message": {
-                      "type": "string"
+                      "type": "string",
+                      "example": "请求成功"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "workspaceId": {
-                            "type": "string"
-                          },
-                          "datasetId": {
-                            "type": "string"
-                          },
-                          "documentId": {
-                            "type": "string"
-                          },
-                          "embeddingId": {
-                            "type": "string"
-                          },
-                          "content": {
-                            "type": "string"
-                          },
-                          "metadata": {
-                            "type": "string"
-                          },
-                          "wordCount": {
-                            "type": "integer",
-                            "default": 0
-                          },
-                          "tokenCount": {
-                            "type": "integer",
-                            "default": 0
-                          },
-                          "hitCount": {
-                            "type": "integer",
-                            "default": 0
-                          },
-                          "enableFlag": {
-                            "type": "boolean",
-                            "default": false
-                          },
-                          "createTime": {
-                            "type": "string"
-                          },
-                          "updateTime": {
-                            "type": "string"
-                          },
-                          "documentName": {
-                            "type": "string"
-                          },
-                          "score": {
-                            "type": "number"
+                      "type": "object",
+                      "properties": {
+                        "result": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "description": "文档片段唯一标识符"
+                              },
+                              "userId": {
+                                "type": "string",
+                                "description": "用户ID"
+                              },
+                              "workspaceId": {
+                                "type": "string",
+                                "description": "工作空间ID"
+                              },
+                              "datasetId": {
+                                "type": "string",
+                                "description": "数据集ID"
+                              },
+                              "documentId": {
+                                "type": "string",
+                                "description": "文档ID"
+                              },
+                              "embeddingId": {
+                                "type": "string",
+                                "description": "向量嵌入ID"
+                              },
+                              "vectorCollectionName": {
+                                "type": "string",
+                                "description": "向量集合名称"
+                              },
+                              "content": {
+                                "type": "string",
+                                "description": "文档内容片段，这是需要交给大模型处理的核心文本内容"
+                              },
+                              "metadata": {
+                                "type": "string",
+                                "description": "元数据信息，JSON格式字符串"
+                              },
+                              "wordCount": {
+                                "type": "integer",
+                                "default": 0,
+                                "description": "字数统计"
+                              },
+                              "tokenCount": {
+                                "type": "integer",
+                                "default": 0,
+                                "description": "token数量"
+                              },
+                              "hitCount": {
+                                "type": "integer",
+                                "default": 0,
+                                "description": "命中次数"
+                              },
+                              "enableFlag": {
+                                "type": "boolean",
+                                "default": false,
+                                "description": "是否启用"
+                              },
+                              "createTime": {
+                                "type": "string",
+                                "description": "创建时间"
+                              },
+                              "updateTime": {
+                                "type": "string",
+                                "description": "更新时间"
+                              },
+                              "documentName": {
+                                "type": "string",
+                                "description": "文档名称"
+                              },
+                              "score": {
+                                "type": "number",
+                                "description": "相关性评分"
+                              }
+                            }
                           }
                         }
                       }

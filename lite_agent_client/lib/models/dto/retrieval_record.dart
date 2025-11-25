@@ -6,22 +6,22 @@ part 'retrieval_record.g.dart';
 @JsonSerializable()
 class RetrievalRecordDto extends Object {
 
-  @JsonKey(name: 'id')
+  @JsonKey(name: 'id', defaultValue: '')
   String id;
 
-  @JsonKey(name: 'datasetId')
+  @JsonKey(name: 'datasetId', defaultValue: '')
   String datasetId;
 
-  @JsonKey(name: 'agentId')
+  @JsonKey(name: 'agentId', defaultValue: '')
   String agentId;
 
-  @JsonKey(name: 'content')
+  @JsonKey(name: 'content', defaultValue: '')
   String content;
 
-  @JsonKey(name: 'retrieveType')
+  @JsonKey(name: 'retrieveType', defaultValue: '')
   String retrieveType;
 
-  @JsonKey(name: 'createTime')
+  @JsonKey(name: 'createTime', defaultValue: '')
   String createTime;
 
   RetrievalRecordDto(this.id,this.datasetId,this.agentId,this.content,this.retrieveType,this.createTime,);

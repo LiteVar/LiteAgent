@@ -70,7 +70,7 @@ npm run openapi-ts
 
 The initialization page is displayed. Create the first user and activate the system.
 The domain name + ` / init `, such as: http://localhost:5173/init
-![](./docs/initSuperUser.jpg)
+![](./docs/initSuperUser.png)
 
 ### After login, enter the the management background
 ![](./docs/open-admin.png)

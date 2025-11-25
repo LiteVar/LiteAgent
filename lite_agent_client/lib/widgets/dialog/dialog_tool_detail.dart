@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lite_agent_client/models/local_data_model.dart';
+import 'package:lite_agent_client/models/local/tool.dart';
+import 'package:lite_agent_client/utils/tool/tool_converter.dart';
 
 class ToolDetailDialog extends StatelessWidget {
-  final ToolBean tool;
+  final ToolModel tool;
 
   ToolDetailDialog({required this.tool});
 
@@ -42,7 +43,7 @@ class ToolDetailDialog extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        buildInfoRow(title: "Schema类型:", content: tool.schemaType),
+                        buildInfoRow(title: "Schema类型:", content: ToolConverter.getSchemaTypeOptionString(tool.schemaType)),
                         buildInfoRow(title: "Schema文稿:", content: tool.schemaText),
                         buildInfoRow(title: "API Key类型:", content: tool.apiType),
                         buildInfoRow(title: "Api Key值:", content: tool.apiText),

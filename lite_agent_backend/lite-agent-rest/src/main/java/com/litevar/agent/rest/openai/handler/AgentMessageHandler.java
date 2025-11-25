@@ -166,6 +166,9 @@ public class AgentMessageHandler {
         if (ex != null) {
             if (ex instanceof ServiceException) {
                 content = ex.getMessage();
+            } else if (StrUtil.isNotEmpty(ex.getMessage())
+                    && ex.getMessage().contains("This model's maximum context length is")) {
+                content = "上下文长度超过token限制，请刷新当前界面";
             }
         }
         outMessage.setContent(content);

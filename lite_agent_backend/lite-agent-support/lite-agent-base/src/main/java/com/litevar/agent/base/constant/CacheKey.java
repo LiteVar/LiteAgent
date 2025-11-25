@@ -40,6 +40,7 @@ public interface CacheKey {
     String AGENT_DATASET_DRAFT = "agent:draft:dataset:%s";
     String AGENT_API_KEY = "agent:apiKey";
     String AUTO_AGENT_CREATE = "agent:auto:%s";
+    String AGENT_IMPORT_PREVIEW = "agent:import:preview:%s";
 
     String MODEL_INFO = "model:info";
     String TOOL_INFO = "tool:info";
@@ -48,5 +49,10 @@ public interface CacheKey {
 
     // 重置密码-验证码缓存key
     String RESET_PASSWORD_CAPTCHA = "reset:password:captcha:%s";
+    String REGISTER_PICTURE_CAPTCHA = "register:picture:captcha:%s";
+    String REGISTER_EMAIL_CAPTCHA = "register:email:captcha:%s";
+    String BIND_MOBILE_CAPTCHA = "bind:mobile:captcha:%s";
 
+    // markdown转换任务进度
+    String MARKDOWN_CONVERSION_PROGRESS = "markdown:conversion:progress:%s";
 }

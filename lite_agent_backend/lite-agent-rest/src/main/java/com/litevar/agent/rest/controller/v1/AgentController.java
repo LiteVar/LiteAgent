@@ -12,22 +12,38 @@ import com.litevar.agent.base.entity.AgentApiKey;
 import com.litevar.agent.base.entity.AgentDatasetRela;
 import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.enums.RoleEnum;
+import com.litevar.agent.base.enums.ServiceExceptionEnum;
+import com.litevar.agent.base.exception.StreamException;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.util.RedisUtil;
+import com.litevar.agent.base.valid.AddAction;
 import com.litevar.agent.base.vo.AgentCreateForm;
 import com.litevar.agent.base.vo.AgentDetailVO;
 import com.litevar.agent.base.vo.AgentUpdateForm;
 import com.litevar.agent.base.vo.DatasetVO;
 import com.litevar.agent.core.module.agent.AgentApiKeyService;
 import com.litevar.agent.core.module.agent.AgentService;
+import com.litevar.agent.rest.config.LitevarProperties;
+import com.litevar.agent.rest.openai.agent.AgentManager;
 import com.litevar.agent.rest.service.AgentDatasetRelaService;
+import com.litevar.agent.rest.service.AgentImportProgressPublisher;
 import com.litevar.agent.rest.service.DatasetService;
+import com.litevar.agent.rest.util.AgentExportUtil;
+import com.litevar.agent.rest.util.AgentImportUtil;
+import com.litevar.agent.rest.util.FileDownloadUtil;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
 
+import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -49,9 +65,15 @@ public class AgentController {
     private DatasetService datasetService;
     @Autowired
     private AgentApiKeyService agentApiKeyService;
+    @Autowired
+    private AgentExportUtil agentExportUtil;
+    @Autowired
+    private AgentImportUtil agentImportUtil;
+    @Autowired
+    private AgentImportProgressPublisher agentImportProgressPublisher;
 
-    @Value("${external.api.url}")
-    private String externalApiUrl;
+    @Autowired
+    private LitevarProperties litevarProperties;
 
     /**
      * agent列表
@@ -185,6 +207,7 @@ public class AgentController {
             agentDatasetRelaService.bind(id, datasetIds);
             RedisUtil.delKey(String.format(CacheKey.AGENT_DATASET_DRAFT, id));
         }
+        AgentManager.clearSessionFromAgent(id);
         return ResponseData.success();
     }
 
@@ -206,7 +229,7 @@ public class AgentController {
         }
 
         String apiKey = "sk-" + UUID.fastUUID().toString(true);
-        String url = externalApiUrl + "/liteAgent/v1";
+        String url = litevarProperties.getExternalApiUrl() + "/liteAgent/v1";
 
         AgentApiKey agentApiKey = new AgentApiKey();
         agentApiKey.setAgentId(id);
@@ -226,5 +249,74 @@ public class AgentController {
     public ResponseData<String> resetSequence(@PathVariable("agentId") String agentId) {
         RedisUtil.delKey(String.format(CacheKey.REFLECT_TOOL_INFO, agentId));
         return ResponseData.success();
+    }
+
+    /**
+     * 上传agent文件
+     * 读取agent文件返回预览数据供用户确认
+     *
+     * @param file agent文件
+     * @return
+     */
+    @PostMapping(value = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
+    public ResponseData<AgentImportUtil.ImportDescriptor> previewImport(@RequestPart("file") MultipartFile file,
+                                                                        @RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId) {
+        AgentImportUtil.ImportDescriptor preview = agentImportUtil.previewAgent(file, workspaceId);
+        return ResponseData.success(preview);
+    }
+
+    /**
+     * 导入agent
+     *
+     * @param workspaceId 工作空间id
+     * @param token       预览数据中的token值
+     * @param param       修改确认后的数据
+     * @return
+     */
+    @PostMapping(value = "/import/{token}")
+    @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
+    public ResponseData<String> importAgent(@RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId,
+                                            @PathVariable("token") @NotBlank String token,
+                                            @RequestBody @Validated(value = AddAction.class) AgentImportUtil.ImportDescriptor param) {
+        String agentId = agentImportUtil.importAgent(workspaceId, token, param);
+        return ResponseData.success(agentId);
+    }
+
+    /**
+     * agent 导入进度
+     *
+     * @param token 预览数据中的token值
+     * @return SSE 流
+     */
+    @GetMapping(value = "/import/progress/{token}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
+    public reactor.core.publisher.Flux<ServerSentEvent<String>> importProgress(@PathVariable("token") @NotBlank String token) {
+        if (!agentImportUtil.hasImportContext(token)) {
+            throw new StreamException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "token不存在或已过期");
+        }
+        Flux<String> flux = Flux.concat(
+                        Flux.just("开始导入工作"),
+                        agentImportProgressPublisher.listen(token))
+                .take(Duration.ofMinutes(10));
+        return flux.map(message -> ServerSentEvent.<String>builder()
+                .data(message)
+                .build());
+    }
+
+    /**
+     * 导出agent
+     *
+     * @param id        agent id
+     * @param plainText 是否明文,默认为false
+     * @return
+     */
+    @GetMapping("/export/{id}")
+    public void exportAgent(@PathVariable("id") String id,
+                            @RequestParam(value = "plainText", defaultValue = "false") boolean plainText,
+                            HttpServletResponse response) throws IOException {
+        Agent agent = agentService.findById(id);
+        byte[] bytes = agentExportUtil.exportAgent(agent, plainText);
+        FileDownloadUtil.download(response, agent.getName() + ".agent", bytes);
     }
 }

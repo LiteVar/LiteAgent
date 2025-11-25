@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Modal, Typography, Descriptions, Button, Popconfirm, Skeleton } from 'antd';
 import { getV1ToolDetailByIdOptions } from "@/client/@tanstack/query.gen";
 import { useQuery } from '@tanstack/react-query'
@@ -13,10 +13,11 @@ interface ToolInfoModalProps {
   toolInfo: ToolDTO | undefined
   deleteTool: (toolId: string) => void;
   showEditingToolModal: (tool: any) => void;
+  showExportModal?: (event: React.MouseEvent, record: any) => void;
 }
 
 const ToolInfoModal: React.FC<ToolInfoModalProps> = (props) => {
-  const { visible, onClose, toolInfo, deleteTool, showEditingToolModal } = props;
+  const { visible, onClose, toolInfo, deleteTool, showEditingToolModal, showExportModal } = props;
   const toolId = toolInfo?.id;
   const { data, isLoading } = useQuery({
     ...getV1ToolDetailByIdOptions({
@@ -29,22 +30,39 @@ const ToolInfoModal: React.FC<ToolInfoModalProps> = (props) => {
 
   const toolDetail: ToolProvider | undefined = data?.data;
 
+  const [isSchemaExpanded, setIsSchemaExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setIsSchemaExpanded(false);
+    }
+  }, [visible]);
+
   const handelEdit = useCallback(() => {
     showEditingToolModal({ ...toolDetail, ...toolInfo })
     onClose()
-  }, [toolDetail, showEditingToolModal, toolInfo])
+  }, [toolDetail, showEditingToolModal, toolInfo, onClose])
 
   const handelDelete = useCallback(async () => {
     await deleteTool(toolId!)
     onClose()
-  }, [toolDetail, deleteTool])
+  }, [toolId, deleteTool, onClose])
+
+  const handelExport = useCallback(async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (showExportModal && toolDetail) {
+      showExportModal(event, toolDetail);
+    }
+  }, [showExportModal, toolDetail])
 
   return (
     <Modal
       centered
+      zIndex={99}
       open={visible}
       onCancel={onClose}
       footer={null}
+      destroyOnClose
       width={600}
     >
       {isLoading &&
@@ -59,13 +77,38 @@ const ToolInfoModal: React.FC<ToolInfoModalProps> = (props) => {
             {toolDetail?.schemaType === ToolSchemaType.OPEN_API3 ? 'OpenAPI3(YAML/JSON)' :
               toolDetail?.schemaType === ToolSchemaType.JSON_RPC ? 'OpenRPC(JSON)' :
                 toolDetail?.schemaType === ToolSchemaType.OPEN_TOOL ? '第三方open tool' :
-                  toolDetail?.schemaType === ToolSchemaType.MCP ? 'MCP(SSE)' :
-                    toolDetail?.schemaType === ToolSchemaType.OPEN_MODBUS ? 'OpenModbus(JSON)' : ''}
+                  toolDetail?.schemaType === ToolSchemaType.MCP ? 'MCP(HTTP)' :
+                    toolDetail?.schemaType === ToolSchemaType.OPEN_MODBUS ? 'OpenModbus(JSON)' : 
+                      toolDetail?.schemaType === ToolSchemaType.OPEN_TOOL_SPEC ? 'OpenTool Spec' : ''}
           </Descriptions.Item>
           <Descriptions.Item label="schema文稿">
-            <Paragraph ellipsis={{ rows: 3, expandable: true, symbol: '展开' }} style={{ maxHeight: 500, overflowY: 'auto' }}>
-              {toolDetail?.schemaStr}
-            </Paragraph>
+            <div
+              className="schema-paragraph-wrapper"
+              style={{ position: 'relative', paddingBottom: 24 }}
+            >
+              <Paragraph
+                ellipsis={{
+                  rows: 3,
+                  expandable: true,
+                  symbol: '展开',
+                  expanded: isSchemaExpanded,
+                  onExpand: () => setIsSchemaExpanded(true)
+                }}
+                style={{ maxHeight: 500, overflowY: 'auto' }}
+              >
+                {toolDetail?.schemaStr}
+              </Paragraph>
+              {isSchemaExpanded && (
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ position: 'absolute', right: 0, bottom: 0 }}
+                  onClick={() => setIsSchemaExpanded(false)}
+                >
+                  收起
+                </Button>
+              )}
+            </div>
           </Descriptions.Item>
           {toolDetail?.apiKeyType && (
             <Descriptions.Item label="API Key类型">{toolDetail?.apiKeyType}</Descriptions.Item>
@@ -82,6 +125,9 @@ const ToolInfoModal: React.FC<ToolInfoModalProps> = (props) => {
 
         {toolInfo?.canEdit &&
           <Button className="w-28 mr-4" type="primary" onClick={handelEdit}>编辑</Button>
+        }
+        {toolInfo?.canEdit && showExportModal &&
+          <Button className="w-28 mr-4" type="primary" onClick={handelExport}>导出</Button>
         }
         {toolInfo?.canDelete &&
           <Popconfirm

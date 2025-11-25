@@ -94,7 +94,7 @@ export default function WorkspaceLayout() {
             variant="borderless"
             value={currentWorkspace?.id}
             onChange={handleWorkspaceChange}
-            suffixIcon={<SwapOutlined className="text-white" />}
+            suffixIcon={<SwapOutlined className="text-white cursor-pointer pointer-events-none"/>}
             dropdownStyle={{ width: 208 }}
           >
             {workspaces.map((workspace) => (

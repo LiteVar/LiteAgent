@@ -5,12 +5,18 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/account.dart';
-import 'package:lite_agent_client/models/dto/agent.dart';
+import 'package:lite_agent_client/models/local/conversation.dart';
+import 'package:lite_agent_client/models/local/function.dart';
+import 'package:lite_agent_client/models/local/message.dart';
+import 'package:lite_agent_client/models/local/model.dart';
 import 'package:lite_agent_client/repositories/agent_repository.dart';
 import 'package:lite_agent_client/repositories/conversation_repository.dart';
 import 'package:lite_agent_client/server/local_server/agent_server.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
+import 'package:lite_agent_client/utils/extension/agent_extension.dart';
+import 'package:lite_agent_client/utils/agent/agent_validator.dart';
+import 'package:lite_agent_client/utils/model/model_validator.dart';
 import 'package:lite_agent_client/utils/web_util.dart';
 import 'package:lite_agent_client/widgets/dialog/dialog_select_agent.dart';
 import 'package:lite_agent_core_dart/lite_agent_core.dart';
@@ -18,11 +24,14 @@ import 'package:lite_agent_core_dart/lite_agent_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../config/constants.dart';
 import '../../config/routes.dart';
 import '../../models/dto/agent_detail.dart';
-import '../../models/local_data_model.dart';
+import '../../models/local/agent.dart';
 import '../../repositories/model_repository.dart';
 import '../../repositories/tool_repository.dart';
+import '../../utils/log_util.dart';
+import '../../utils/extension/tool_extension.dart';
 import '../../server/local_server/audio_service.dart';
 import '../../server/local_server/parser.dart';
 import '../../widgets/input_box_container.dart';
@@ -33,8 +42,8 @@ class ChatLogic extends GetxController with WindowListener {
   late StreamSubscription _agentSubscription;
   late StreamSubscription _modelSubscription;
 
-  var conversationList = <AgentConversationBean>[].obs;
-  Rx<AgentConversationBean?> currentConversation = Rx<AgentConversationBean?>(null);
+  var conversationList = <ConversationModel>[].obs;
+  Rx<ConversationModel?> currentConversation = Rx<ConversationModel?>(null);
   var isShowDrawer = false.obs;
   var selectImagePath = "".obs;
 
@@ -45,15 +54,15 @@ class ChatLogic extends GetxController with WindowListener {
   AccountDTO? account;
 
   //var currentThoughtList = <Thought>[].obs;
-  var currentSubMessageList = <ChatMessage>[].obs;
+  var currentSubMessageList = <ChatMessageModel>[].obs;
   var currentThoughtProcessId = "";
   var showThoughtProcessDetail = false.obs;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   StreamSubscription? completeSub;
   StreamSubscription? stateSub;
-  ModelBean? currentTTSModel;
-  ModelBean? currentASRModel;
+  ModelData? currentTTSModel;
+  ModelData? currentASRModel;
 
   final inputBoxController = InputBoxController();
   final ChatMessageListViewController listViewController = ChatMessageListViewController();
@@ -107,12 +116,11 @@ class ChatLogic extends GetxController with WindowListener {
     var list = await agentRepository.getCloudAgentList(0);
     conversationList.assignAll(await conversationRepository.getConversationListFromBox());
     for (var info in conversationList) {
+      info.agent = null; //avoid cache
       if (info.isCloud) {
         for (var agent in list) {
           if (agent.id == info.agentId) {
-            var bean = AgentBean();
-            info.agent = bean;
-            bean.translateFromDTO(agent);
+            info.agent = agent.toModel();
             break;
           }
         }
@@ -191,7 +199,7 @@ class ChatLogic extends GetxController with WindowListener {
           conversationList.removeWhere((info) => info.agentId == agent.id);
           conversationList.refresh();
           conversationRepository.removeConversation(agent.id);
-          conversationRepository.removeAdjustmentConversation(agent.id);
+          debugConversationRepository.removeDebugConversation(agent.id);
         }
       }
     });
@@ -234,7 +242,7 @@ class ChatLogic extends GetxController with WindowListener {
     Get.back();
   }
 
-  void createNewChat(AgentBean agent) async {
+  void createNewChat(AgentModel agent) async {
     var isAgentCloud = agent.isCloud ?? false;
     if (isAgentCloud) {
       var cloudAgent = await agentRepository.getCloudAgentDetail(agent.id);
@@ -242,7 +250,7 @@ class ChatLogic extends GetxController with WindowListener {
         AlarmUtil.showAlertDialog("ai模型初始化失败,请正确配置模型");
         return;
       }
-      if (cloudAgent?.agent?.type == AgentType.REFLECTION) {
+      if (cloudAgent?.agent?.type == AgentValidator.DTO_TYPE_REFLECTION) {
         AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
         return;
       }
@@ -251,7 +259,7 @@ class ChatLogic extends GetxController with WindowListener {
         AlarmUtil.showAlertDialog("ai模型初始化失败,请正确配置模型");
         return;
       }
-      if (agent.agentType == AgentType.REFLECTION) {
+      if (agent.agentType == AgentValidator.DTO_TYPE_REFLECTION) {
         AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
         return;
       }
@@ -263,7 +271,7 @@ class ChatLogic extends GetxController with WindowListener {
         return;
       }
     }
-    AgentConversationBean conversation = AgentConversationBean();
+    ConversationModel conversation = ConversationModel();
     conversation.agentId = agent.id;
     conversation.agent = agent;
     conversation.isCloud = agent.isCloud ?? false;
@@ -273,8 +281,8 @@ class ChatLogic extends GetxController with WindowListener {
   }
 
   Future<void> sendMessage(String message) async {
-    AgentBean? agent = currentConversation.value?.agent;
-    if (agent != null && agent.agentType == AgentType.REFLECTION) {
+    AgentModel? agent = currentConversation.value?.agent;
+    if (agent != null && agent.agentType == AgentValidator.DTO_TYPE_REFLECTION) {
       AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
       return;
     }
@@ -297,7 +305,7 @@ class ChatLogic extends GetxController with WindowListener {
 
     var conversation = currentConversation.value;
     if (conversation != null) {
-      var sendMessage = ChatMessage()
+      var sendMessage = ChatMessageModel()
         ..message = message
         ..roleName = "userName"
         ..sendRole = ChatRoleType.User;
@@ -415,7 +423,7 @@ class ChatLogic extends GetxController with WindowListener {
     }
   }
 
-  void showMessageThoughtDetail(ChatMessage? message) {
+  void showMessageThoughtDetail(ChatMessageModel? message) {
     if (message == null) {
       showThoughtProcessDetail.value = false;
       //currentThoughtList.clear();
@@ -479,7 +487,7 @@ class ChatLogic extends GetxController with WindowListener {
           var hasTTSModel = agentDTO.ttsModel != null;
           listViewController.setAudioButtonVisible(hasTTSModel);
 
-          var enableInput = agentDTO.agent?.type != AgentType.REFLECTION;
+          var enableInput = agentDTO.agent?.type != AgentValidator.DTO_TYPE_REFLECTION;
           inputBoxController.setEnableInput(enableInput, "反思Agent不能进行聊天对话");
 
           var hasASRModel = agentDTO.asrModel != null;
@@ -488,28 +496,20 @@ class ChatLogic extends GetxController with WindowListener {
           if (hasTTSModel) {
             String baseUrl = agentDTO.ttsModel!.baseUrl;
             if (baseUrl.endsWith("/v1")) baseUrl = baseUrl.substring(0, baseUrl.length - 3);
-
-            currentTTSModel = ModelBean()
-              ..name = agentDTO.ttsModel!.name
-              ..url = baseUrl
-              ..key = agentDTO.ttsModel!.apiKey;
+            currentTTSModel = ModelData.simpleConfig(name: agentDTO.ttsModel!.name, baseUrl: baseUrl, apiKey: agentDTO.ttsModel!.apiKey);
           }
 
           if (hasASRModel) {
             String baseUrl = agentDTO.asrModel!.baseUrl;
             if (baseUrl.endsWith("/v1")) baseUrl = baseUrl.substring(0, baseUrl.length - 3);
-
-            currentASRModel = ModelBean()
-              ..name = agentDTO.asrModel!.name
-              ..url = baseUrl
-              ..key = agentDTO.asrModel!.apiKey;
+            currentASRModel = ModelData.simpleConfig(name: agentDTO.asrModel!.name, baseUrl: baseUrl, apiKey: agentDTO.asrModel!.apiKey);
           }
         }
       } else {
         var hasTTSModel = agent.ttsModelId != null && agent.ttsModelId!.isNotEmpty;
         listViewController.setAudioButtonVisible(hasTTSModel);
 
-        var enableInput = agent.agentType != AgentType.REFLECTION;
+        var enableInput = agent.agentType != AgentValidator.DTO_TYPE_REFLECTION;
         inputBoxController.setEnableInput(enableInput, "反思Agent不能进行聊天对话");
 
         var hasASRModel = agent.asrModelId != null && agent.asrModelId!.isNotEmpty;
@@ -530,7 +530,7 @@ class ChatLogic extends GetxController with WindowListener {
   }
 
   void jumpToAdjustPage() {
-    AgentBean? agent = currentConversation.value?.agent;
+    AgentModel? agent = currentConversation.value?.agent;
     if (agent != null) {
       if (agent.isCloud ?? false) {
         WebUtil.openAgentAdjustUrl(agent.id);
@@ -542,11 +542,7 @@ class ChatLogic extends GetxController with WindowListener {
   }
 
   void onStartChatButtonClick() {
-    Get.dialog(SelectAgentDialog(onStartChatConfirm: (AgentDTO agent) {
-      var targetAgent = AgentBean();
-      targetAgent.translateFromDTO(agent);
-      createNewChat(targetAgent);
-    }));
+    Get.dialog(SelectAgentDialog(onStartChatConfirm: (AgentModel agent) => createNewChat(agent)));
   }
 
   Future<bool> startChat() async {
@@ -563,7 +559,7 @@ class ChatLogic extends GetxController with WindowListener {
       agentDTO = await agentRepository.getCloudAgentDetail(agent.id);
 
       if (agentDTO != null) {
-        var enableInput = agentDTO.agent?.type != AgentType.REFLECTION;
+        var enableInput = agentDTO.agent?.type != AgentValidator.DTO_TYPE_REFLECTION;
         inputBoxController.setEnableInput(enableInput, "反思Agent不能进行聊天对话");
         if (!enableInput) {
           return false;
@@ -573,28 +569,32 @@ class ChatLogic extends GetxController with WindowListener {
       }
     } else {
       var isAutoAgent = agent.autoAgentFlag ?? false;
-      var autoAgentModelList = <ModelBean>[];
+      var autoAgentModelList = <ModelData>[];
       if (isAutoAgent) {
         var allModels = await modelRepository.getModelListFromBox();
-        var modelList = <ModelBean>[];
-        modelList.assignAll(allModels.where((model) => model.type == "LLM" || model.type == null));
+        var modelList = <ModelData>[];
+        modelList.assignAll(allModels.where((model) => model.type == ModelValidator.LLM || model.type == null));
         autoAgentModelList.assignAll(modelList.where((model) => model.supportMultiAgent == true));
 
-        var autoFunctionList = <AgentToolFunction>[];
+        var autoFunctionList = <ToolFunctionModel>[];
         var toolList = await toolRepository.getToolListFromBox();
         var autoAgentToolList = toolList.where((tool) => tool.supportMultiAgent == true).toList();
         for (var tool in autoAgentToolList) {
-          await tool.initToolFunctionList();
-          for (var function in tool.functionList) {
-            function.toolName = tool.name;
-            autoFunctionList.add(function);
+          try {
+            await tool.initFunctions();
+            for (var function in tool.functionList) {
+              function.toolName = tool.name;
+              autoFunctionList.add(function);
+            }
+          } catch (e) {
+            Log.e("init tool function error: $e");
           }
         }
         agent.functionList ??= [];
         agent.functionList?.assignAll(autoFunctionList);
       }
 
-      var enableInput = agent.agentType != AgentType.REFLECTION;
+      var enableInput = agent.agentType != AgentValidator.DTO_TYPE_REFLECTION;
       inputBoxController.setEnableInput(enableInput, "反思Agent不能进行聊天对话");
       if (!enableInput) {
         return false;
@@ -649,9 +649,7 @@ class ChatLogic extends GetxController with WindowListener {
       if (info.isCloud) {
         for (var agent in list) {
           if (agent.id == info.agentId) {
-            var bean = AgentBean();
-            info.agent = bean;
-            bean.translateFromDTO(agent);
+            info.agent = agent.toModel();
             break;
           }
         }

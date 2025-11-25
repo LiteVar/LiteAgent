@@ -1,59 +1,39 @@
-import 'package:hive/hive.dart';
-
-import '../models/local_data_model.dart';
+import 'package:lite_agent_client/models/local/conversation.dart';
+import 'base_hive_repository.dart';
 
 final conversationRepository = ConversationRepository();
+final debugConversationRepository = DebugConversationRepository();
 
-class ConversationRepository {
+class ConversationRepository extends BaseHiveRepository<ConversationModel> {
   static final ConversationRepository _instance = ConversationRepository._internal();
 
   factory ConversationRepository() => _instance;
 
-  ConversationRepository._internal();
+  ConversationRepository._internal() : super("conversation_box_key");
 
-  static const String conversationBoxKey = "conversation_box_key";
-  Box<AgentConversationBean>? _box;
-
-  Future<Box<AgentConversationBean>> get _conversationBox async => _box ??= await Hive.openBox<AgentConversationBean>(conversationBoxKey);
-
-  Future<List<AgentConversationBean>> getConversationListFromBox() async {
-    List<AgentConversationBean> list = [];
-    list.addAll((await _conversationBox).values);
+  Future<List<ConversationModel>> getConversationListFromBox() async {
+    final list = (await getAll()).toList();
     list.sort((a, b) => (b.updateTime ?? 0) - (a.updateTime ?? 0));
     return list;
   }
 
-  Future<void> removeConversation(String key) async {
-    await (await _conversationBox).delete(key);
-  }
+  Future<void> removeConversation(String key) async => delete(key);
 
-  Future<void> updateConversation(String key, AgentConversationBean agent) async {
-    await (await _conversationBox).put(key, agent);
-  }
+  Future<void> updateConversation(String key, ConversationModel agent) async => save(key, agent);
 
-  Future<AgentConversationBean?> getConversationFromBox(String key) async {
-    return (await _conversationBox).get(key);
-  }
+  Future<ConversationModel?> getConversationFromBox(String key) async => getData(key);
+}
 
-  Future<void> clear() async {
-    await (await _conversationBox).clear();
-  }
+class DebugConversationRepository extends BaseHiveRepository<ConversationModel> {
+  static final DebugConversationRepository _instance = DebugConversationRepository._internal();
 
-  static const String debugConversationBoxKey = "debug_conversation_box_key";
-  Box<AgentConversationBean>? _debugBox;
+  factory DebugConversationRepository() => _instance;
 
-  Future<Box<AgentConversationBean>> get _debugConversationBox async =>
-      _debugBox ??= await Hive.openBox<AgentConversationBean>(debugConversationBoxKey);
+  DebugConversationRepository._internal() : super("debug_conversation_box_key");
 
-  Future<void> updateAdjustmentHistory(String key, AgentConversationBean agent) async {
-    await (await _debugConversationBox).put(key, agent);
-  }
+  Future<void> updateDebugHistory(String key, ConversationModel agent) async => save(key, agent);
 
-  Future<AgentConversationBean?> getAdjustmentHistory(String key) async {
-    return (await _debugConversationBox).get(key);
-  }
+  Future<ConversationModel?> getDebugHistory(String key) async => getData(key);
 
-  Future<void> removeAdjustmentConversation(String key) async {
-    await (await _debugConversationBox).delete(key);
-  }
+  Future<void> removeDebugConversation(String key) async => delete(key);
 }

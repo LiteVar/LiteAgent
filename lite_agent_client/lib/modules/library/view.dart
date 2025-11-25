@@ -1,20 +1,17 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/library.dart';
 import 'package:lite_agent_client/utils/extension/int_extension.dart';
 
 import '../../widgets/common_widget.dart';
+import '../../widgets/pagination/pagination_widget.dart';
 import 'logic.dart';
 
 class LibraryPage extends StatelessWidget {
   LibraryPage({super.key});
 
   final LibraryLogic logic = Get.put(LibraryLogic());
-
-  var itemSpacingWidth = 10.0;
-  var pageButtonNumberStart = 1;
+  final itemSpacingWidth = 10.0;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +43,7 @@ class LibraryPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  buildBottomPageContainer()
+                  PaginationWidget(controller: logic.paginationController)
                 ],
               );
             } else {
@@ -55,58 +52,6 @@ class LibraryPage extends StatelessWidget {
           })),
         ],
       ),
-    );
-  }
-
-  Container buildBottomPageContainer() {
-    if (logic.totalPage.value < 1) return Container();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 20, 60, 20),
-      child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-        Row(
-          children: [
-            const SizedBox(width: 10),
-            InkWell(
-              onTap: () => logic.loadData(logic.currentPage.value - 1),
-              child: buildAssetImage("icon_button_left.png", 30, const Color(0xff666666)),
-            )
-          ],
-        ),
-        ...List.generate(
-          min(logic.pageButtonCount, logic.totalPage.value), // 动态生成的小组件数量
-              (index) {
-            var page = logic.pageButtonNumberStart + index;
-            return Row(
-              children: [
-                const SizedBox(width: 10),
-                InkWell(
-                  onTap: () => logic.loadData(page),
-                  child: Container(
-                    decoration: logic.currentPage.value == (page)
-                        ? BoxDecoration(color: const Color(0xff337fe3), borderRadius: BorderRadius.circular(4))
-                        : BoxDecoration(border: Border.all(color: const Color(0xfff5f5f5)), borderRadius: BorderRadius.circular(4)),
-                    width: 30,
-                    height: 30,
-                    child: Center(
-                        child: Text("$page",
-                            style:
-                            TextStyle(fontSize: 16, color: logic.currentPage.value == page ? Colors.white : const Color(0xff666666)))),
-                  ),
-                )
-              ],
-            );
-          },
-        ),
-        Row(
-          children: [
-            const SizedBox(width: 10),
-            InkWell(
-              onTap: () => logic.loadData(logic.currentPage.value + 1),
-              child: buildAssetImage("icon_button_right.png", 30, const Color(0xff666666)),
-            )
-          ],
-        ),
-      ]),
     );
   }
 
@@ -177,7 +122,7 @@ class LibraryPage extends StatelessWidget {
                     child: Text(library.name,
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, color: Colors.black))),
                 Offstage(
-                    offstage: !(library.shareFlag ?? false),
+                    offstage: !(library.shareFlag),
                     child: Container(
                         margin: const EdgeInsets.only(left: 4),
                         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
@@ -192,7 +137,7 @@ class LibraryPage extends StatelessWidget {
               children: [
                 buildLabelContainer("文件:${library.docCount}"),
                 buildLabelContainer("Agent:${library.agentCount}"),
-                buildLabelContainer("字数:${library.wordCount?.toShortForm()}")
+                buildLabelContainer("字数:${library.wordCount.toShortForm()}")
               ],
             ),
             const SizedBox(height: 8),

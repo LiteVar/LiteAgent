@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
 import 'package:lite_agent_client/repositories/agent_repository.dart';
 
-import '../../models/local_data_model.dart';
+import '../../config/constants.dart';
+import '../../utils/agent/agent_validator.dart';
 import '../../repositories/model_repository.dart';
 import '../../utils/alarm_util.dart';
 import '../common_widget.dart';
@@ -15,8 +17,8 @@ class SelectChildAgentDialog extends StatelessWidget {
 
   //data
   var currentAgentId = "";
-  var selectAgents = <AgentBean>[];
-  var agentList = <AgentBean>[].obs;
+  var selectAgents = <AgentModel>[];
+  var agentList = <AgentModel>[].obs;
   var noModelList = <String>[];
   Function()? onSelectChanged;
 
@@ -33,7 +35,7 @@ class SelectChildAgentDialog extends StatelessWidget {
     agentList.assignAll(list);
   }
 
-  Future<void> toggleSelectStatus(AgentBean agent) async {
+  Future<void> toggleSelectStatus(AgentModel agent) async {
     var isSelected = false;
     for (var selectAgent in selectAgents) {
       if (selectAgent.id == agent.id) {
@@ -49,10 +51,10 @@ class SelectChildAgentDialog extends StatelessWidget {
         return;
       }
 
-      if (agent.agentType == AgentType.REFLECTION && selectAgents.length >= 5) {
+      if (agent.agentType == AgentValidator.DTO_TYPE_REFLECTION && selectAgents.length >= 5) {
         var refectionAgentNumber = 0;
         for (var agent in agentList) {
-          if (isAgentSelected(agent) && agent.agentType == AgentType.REFLECTION) {
+          if (isAgentSelected(agent) && agent.agentType == AgentValidator.DTO_TYPE_REFLECTION) {
             refectionAgentNumber++;
           }
           if (refectionAgentNumber >= 5) {
@@ -78,7 +80,7 @@ class SelectChildAgentDialog extends StatelessWidget {
     return list;
   }
 
-  bool isAgentSelected(AgentBean agent) {
+  bool isAgentSelected(AgentModel agent) {
     for (var selectAgent in selectAgents) {
       if (selectAgent.id == agent.id) {
         return true;
@@ -124,13 +126,13 @@ class SelectChildAgentDialog extends StatelessWidget {
     );
   }
 
-  Container buildListItem(AgentBean agent) {
+  Container buildListItem(AgentModel agent) {
     var isSelected = isAgentSelected(agent);
     var buttonText = isSelected ? "移除" : "添加";
     var typeString = "";
-    if (agent.agentType == AgentType.DISTRIBUTE) {
+    if (agent.agentType == AgentValidator.DTO_TYPE_DISTRIBUTE) {
       typeString = "分发";
-    } else if (agent.agentType == AgentType.REFLECTION) {
+    } else if (agent.agentType == AgentValidator.DTO_TYPE_REFLECTION) {
       typeString = "反思";
     } else {
       typeString = "普通";

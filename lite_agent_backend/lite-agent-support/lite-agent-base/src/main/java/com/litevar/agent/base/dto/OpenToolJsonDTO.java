@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * open tool schema
  * <p>
- * 参照<a href="https://github.com/LiteVar/opentool_dart/blob/main/opentool-specification-en.md">OpenTool规范</a>
+ * 参照<a href="https://github.com/opentool-hub/opentool-spec/blob/main/opentool-specification-en.md">OpenTool规范</a>
  * </p>
  *
  * @author uncle
@@ -26,6 +26,18 @@ import java.util.Map;
 public class OpenToolJsonDTO {
     @Valid
     private List<Function> functions;
+    @Valid
+    private Server server;
+
+    @Data
+    public static class Server {
+        /**
+         * 指向OpenTool Server目标主机的 URL
+         */
+        @NotBlank(message = "server.url不能为空")
+        private String url;
+        private String description;
+    }
 
 
     @Data
@@ -43,7 +55,7 @@ public class OpenToolJsonDTO {
          * 函数入参
          */
         @Valid
-        @NotNull
+        @NotNull(message = "functions.parameters不能为空")
         private List<Parameter> parameters;
     }
 
@@ -52,7 +64,7 @@ public class OpenToolJsonDTO {
         /**
          * 参数名称
          */
-        @NotBlank
+        @NotBlank(message = "parameters.name不能为空")
         private String name;
         /**
          * 参数描述
@@ -60,12 +72,12 @@ public class OpenToolJsonDTO {
         private String description;
 
         @Valid
-        @NotNull
+        @NotNull(message = "parameters.schema不能为空")
         private Schema schema;
         /**
          * 参数是否必填
          */
-        @NotNull
+        @NotNull(message = "parameters.required不能为空")
         private Boolean required;
     }
 
@@ -74,7 +86,7 @@ public class OpenToolJsonDTO {
         /**
          * 类型
          */
-        @NotNull
+        @NotNull(message = "schema.type不能为空")
         private ParamType type;
         private String description;
         /**

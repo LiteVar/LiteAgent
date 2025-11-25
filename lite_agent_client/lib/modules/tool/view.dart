@@ -1,8 +1,8 @@
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lite_agent_client/models/dto/tool.dart';
 
+import '../../models/local/tool.dart';
 import '../../widgets/common_widget.dart';
 import 'logic.dart';
 
@@ -13,6 +13,8 @@ class ToolPage extends StatelessWidget {
 
   final buttonColor = const Color(0xFF2a82f5);
   final itemBorderColor = const Color(0xFFd9d9d9);
+
+  final itemSpacingWidth = 20.0;
 
   @override
   Widget build(BuildContext context) {
@@ -81,16 +83,28 @@ class ToolPage extends StatelessWidget {
   Widget buildListExpanded() {
     return Expanded(child: Obx(() {
       if (logic.currentToolList.isNotEmpty) {
-        return GridView.count(
-            crossAxisCount: 4,
-            childAspectRatio: 3 / 2.2,
-            children: List.generate(logic.currentToolList.length, (index) {
-              var tool = logic.currentToolList[index];
-              return InkWell(
-                onTap: () => logic.showLocalToolDetailDialog(tool.id),
-                child: _buildToolItem(tool),
-              );
-            }));
+        return Container(
+          margin: const EdgeInsets.all(15),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                  child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                        spacing: itemSpacingWidth,
+                        runSpacing: itemSpacingWidth,
+                        children: List.generate(
+                            logic.currentToolList.length,
+                            (index) => InkWell(
+                                  onTap: () => logic.showToolDetailDialog(logic.currentToolList[index]),
+                                  child: _buildToolItem(constraints.maxWidth, logic.currentToolList[index]),
+                                ))))));
+            },
+          ),
+        );
       } else {
         String text = logic.currentTab.value == ToolLogic.TAB_LOCAL ? "暂无工具，请创建" : "暂无工具";
         return Column(
@@ -183,9 +197,11 @@ class ToolPage extends StatelessWidget {
         child: const Text('新建本地工具', style: TextStyle(color: Colors.white, fontSize: 14)));
   }
 
-  Widget _buildToolItem(ToolDTO tool) {
+  Widget _buildToolItem(double maxWidth, ToolModel tool) {
+    // 计算子项宽度（减去间距）
+    final itemWidth = (maxWidth - itemSpacingWidth * 3) / 4;
     return Container(
-      margin: const EdgeInsets.all(10),
+      width: itemWidth,
       padding: const EdgeInsets.fromLTRB(15, 10, 15, 10),
       decoration: BoxDecoration(
         border: Border.all(color: itemBorderColor),
@@ -193,6 +209,7 @@ class ToolPage extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -204,11 +221,11 @@ class ToolPage extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(tool.name ?? "",
+                child: Text(tool.name,
                     style: const TextStyle(fontSize: 16, color: Colors.black), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               Offstage(
-                offstage: !(tool.shareFlag ?? false),
+                offstage: !tool.shareFlag,
                 child: Container(
                   width: 44,
                   height: 24,
@@ -222,13 +239,8 @@ class ToolPage extends StatelessWidget {
           const SizedBox(height: 4),
           SizedBox(
               height: 68,
-              child: Text(
-                tool.description ?? "",
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14),
-              )),
-          const Spacer(),
+              child: Text(tool.description, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14))),
+          const SizedBox(height: 10),
           Obx(() {
             if (logic.currentTab.value == ToolLogic.TAB_LOCAL) {
               return Container(
@@ -237,9 +249,7 @@ class ToolPage extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       InkWell(
-                        onTap: () {
-                          logic.showEditToolDialog(tool.id);
-                        },
+                        onTap: () => logic.showEditToolDialog(tool),
                         child: Row(
                           children: [
                             buildAssetImage("icon_file_text.png", 16, Colors.blue),
@@ -280,14 +290,11 @@ class ToolPage extends StatelessWidget {
                     ],
                   ));
             } else {
-              return InkWell(
-                onTap: () => logic.showCloudToolDetailDialog(tool.id),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  buildAssetImage("icon_file_text.png", 16, Colors.blue),
-                  const SizedBox(width: 4),
-                  const Text('查看详情', style: TextStyle(color: Colors.blue, fontSize: 14))
-                ]),
-              );
+              return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                buildAssetImage("icon_file_text.png", 16, Colors.blue),
+                const SizedBox(width: 4),
+                const Text('查看详情', style: TextStyle(color: Colors.blue, fontSize: 14))
+              ]);
             }
           })
         ],

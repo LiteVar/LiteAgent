@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/config/routes.dart';
-import 'package:lite_agent_client/models/dto/agent.dart';
-import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
+import 'package:lite_agent_client/utils/agent/agent_validator.dart';
+import 'package:lite_agent_client/utils/snowflake_util.dart';
 import 'package:lite_agent_client/repositories/account_repository.dart';
 import 'package:lite_agent_client/repositories/agent_repository.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
@@ -12,11 +12,12 @@ import 'package:lite_agent_client/widgets/dialog/dialog_agent_detail.dart';
 import 'package:lite_agent_client/widgets/dialog/dialog_agent_edit.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../models/local_data_model.dart';
+import '../../models/local/agent.dart';
 import '../../repositories/model_repository.dart';
 import '../../utils/alarm_util.dart';
 import '../../widgets/dialog/dialog_common_confirm.dart';
 import '../../widgets/dialog/dialog_login.dart';
+import '../home/logic.dart';
 
 class AgentLogic extends GetxController with WindowListener {
   static const String TAB_LOCAL = "local";
@@ -32,8 +33,8 @@ class AgentLogic extends GetxController with WindowListener {
   var currentTab = TAB_LOCAL.obs;
   var currentSecondaryTab = TAB_SEC_ALL.obs;
 
-  var currentAgentList = <AgentDTO>[].obs;
-  final Map<String, List<AgentDTO>> _agentListMap = <String, List<AgentDTO>>{};
+  var currentAgentList = <AgentModel>[].obs;
+  final _agentListMap = <String, List<AgentModel>>{};
 
   var isLogin = false;
 
@@ -52,34 +53,38 @@ class AgentLogic extends GetxController with WindowListener {
 
   void initData() async {
     isLogin = (await accountRepository.isLogin());
-    _agentListMap[TAB_LOCAL] = <AgentDTO>[];
-    _agentListMap[TAB_SEC_ALL] = <AgentDTO>[];
-    _agentListMap[TAB_SEC_SYSTEM] = <AgentDTO>[];
-    _agentListMap[TAB_SEC_SHARE] = <AgentDTO>[];
-    _agentListMap[TAB_SEC_MINE] = <AgentDTO>[];
+    _agentListMap[TAB_LOCAL] = <AgentModel>[];
+    _agentListMap[TAB_SEC_ALL] = <AgentModel>[];
+    _agentListMap[TAB_SEC_SYSTEM] = <AgentModel>[];
+    _agentListMap[TAB_SEC_SHARE] = <AgentModel>[];
+    _agentListMap[TAB_SEC_MINE] = <AgentModel>[];
     loadLocalData();
-    loadCloudData();
+    loadAllCloudData();
     switchTab(TAB_LOCAL);
   }
 
   Future<void> loadLocalData() async {
-    _agentListMap[TAB_LOCAL]!.assignAll((await agentRepository.getAgentDTOListFromBox()));
-    AgentDTO? autoAgent = _agentListMap[TAB_LOCAL]!.firstWhereOrNull((agent) => agent.autoAgentFlag == true);
+    List<AgentModel> list = [];
+    list.assignAll((await agentRepository.getAgentListFromBox()));
+    list.sort((a, b) => (b.createTime ?? 0) - (a.createTime ?? 0));
+    _agentListMap[TAB_LOCAL]!.assignAll(list);
+
+    AgentModel? autoAgent = _agentListMap[TAB_LOCAL]!.firstWhereOrNull((agent) => agent.autoAgentFlag == true);
     if (autoAgent != null) {
       _agentListMap[TAB_LOCAL]!.remove(autoAgent);
       _agentListMap[TAB_LOCAL]!.insert(0, autoAgent);
     } else {
-      AgentDTO newAgent = await newAutoAgent();
-      _agentListMap[TAB_LOCAL]!.insert(0, newAgent);
+      _agentListMap[TAB_LOCAL]!.insert(0, await newAutoAgent());
     }
+
     currentAgentList.refresh();
   }
 
-  Future<void> loadCloudData() async {
-    _agentListMap[TAB_SEC_ALL]!.assignAll((await agentRepository.getCloudAgentList(0)));
-    _agentListMap[TAB_SEC_SYSTEM]!.assignAll((await agentRepository.getCloudAgentList(1)));
-    _agentListMap[TAB_SEC_SHARE]!.assignAll((await agentRepository.getCloudAgentList(2)));
-    _agentListMap[TAB_SEC_MINE]!.assignAll((await agentRepository.getCloudAgentList(3)));
+  Future<void> loadAllCloudData() async {
+    _agentListMap[TAB_SEC_ALL]!.assignAll((await agentRepository.getCloudAgentListAndTranslate(0)));
+    _agentListMap[TAB_SEC_SYSTEM]!.assignAll((await agentRepository.getCloudAgentListAndTranslate(1)));
+    _agentListMap[TAB_SEC_SHARE]!.assignAll((await agentRepository.getCloudAgentListAndTranslate(2)));
+    _agentListMap[TAB_SEC_MINE]!.assignAll((await agentRepository.getCloudAgentListAndTranslate(3)));
 
     currentAgentList.refresh();
   }
@@ -89,7 +94,7 @@ class AgentLogic extends GetxController with WindowListener {
       if (event.message == EventBusMessage.login) {
         isLogin = true;
         currentTab.refresh();
-        loadCloudData();
+        loadAllCloudData();
       } else if (event.message == EventBusMessage.logout) {
         isLogin = false;
         currentTab.refresh();
@@ -121,17 +126,14 @@ class AgentLogic extends GetxController with WindowListener {
     Get.back();
   }
 
-  Future<AgentDTO> newAutoAgent() async {
+  Future<AgentModel> newAutoAgent() async {
     String des = "AI能够理解任务，并从工具库和模型库中，搭建一个临时的agent执行任务，可以精准、高效地达成目标。";
     String agentId = snowFlakeUtil.getId();
-    var newAgent = AgentDTO(
-        agentId, "Auto Multi Agent", "", des, "", "", false, 0.0, 1.0, 4096, "", null, null, null, null, null, false, true, null, null);
-    AgentBean targetAgent = AgentBean();
-    targetAgent.translateFromDTO(newAgent);
     int createTime = DateTime.now().microsecondsSinceEpoch;
-    targetAgent.createTime = createTime;
-    await agentRepository.updateAgent(newAgent.id, targetAgent);
-    return newAgent;
+    var autoAgent =
+        AgentModel(id: agentId, name: "Auto Multi Agent", iconPath: "", description: des, createTime: createTime, autoAgentFlag: true);
+    await agentRepository.updateAgent(autoAgent.id, autoAgent);
+    return autoAgent;
   }
 
   void showRemoveAgentDialog(String id) {
@@ -154,7 +156,7 @@ class AgentLogic extends GetxController with WindowListener {
       if (agent.id == id) {
         localList.remove(agent);
         agentRepository.removeAgent(id);
-        eventBus.fire(AgentMessageEvent(message: EventBusMessage.delete, agent: AgentBean()..id = id));
+        eventBus.fire(AgentMessageEvent(message: EventBusMessage.delete, agent: AgentModel.onlyId(id)));
         currentAgentList.refresh();
         break;
       }
@@ -168,28 +170,20 @@ class AgentLogic extends GetxController with WindowListener {
     }
     String agentId = snowFlakeUtil.getId();
     int createTime = DateTime.now().microsecondsSinceEpoch;
-    var agent = AgentDTO(
-        agentId, name, iconPath, description, "", "", false, 0.0, 1.0, 4096, "", null, null, null, null, null, false, false, null, null);
-    localList.insert(1, agent);
+    var newAgent = AgentModel(id: agentId, name: name, iconPath: iconPath, description: description, createTime: createTime);
+    localList.insert(1, newAgent);
     currentAgentList.refresh();
-
-    AgentBean targetAgent = AgentBean();
-    targetAgent.translateFromDTO(agent);
-    targetAgent.createTime = createTime;
-    await agentRepository.updateAgent(agentId, targetAgent);
+    await agentRepository.updateAgent(newAgent.id, newAgent);
   }
 
-  void updateAgent(AgentBean agent, bool updateBox) async {
-    var localList = _agentListMap[TAB_LOCAL];
-    if (localList == null) {
-      return;
-    }
+  void updateAgent(AgentModel agent, bool updateBox) async {
+    var localList = _agentListMap[TAB_LOCAL]!;
     String targetId = agent.id;
     if (targetId.isNotEmpty) {
       for (var target in localList) {
         if (target.id == targetId) {
           var index = localList.indexOf(target);
-          localList[index] = agent.translateToDTO();
+          localList[index] = agent;
           currentAgentList.refresh();
           if (updateBox) {
             await agentRepository.updateAgent(targetId, agent);
@@ -213,19 +207,15 @@ class AgentLogic extends GetxController with WindowListener {
     }
   }
 
-  void jumpToAdjustPage(AgentDTO agent) {
-    AgentBean targetAgent = AgentBean();
-    targetAgent.translateFromDTO(agent);
-    Get.toNamed(Routes.adjustment, arguments: targetAgent);
+  void jumpToAdjustPage(AgentModel agent) {
+    Get.toNamed(Routes.adjustment, arguments: agent);
   }
 
   void showCreateAgentDialog() {
     Get.dialog(
         barrierDismissible: false,
         EditAgentDialog(
-            name: "",
-            iconPath: "",
-            description: "",
+            agent: null,
             isEdit: false,
             onConfirmCallback: (name, iconPath, description) {
               createNewAgent(name, iconPath, description);
@@ -233,14 +223,11 @@ class AgentLogic extends GetxController with WindowListener {
             }));
   }
 
-  void showAgentDetailDialog(AgentDTO agent) {
-    AgentBean targetAgent = AgentBean();
-    targetAgent.translateFromDTO(agent);
-    Get.dialog(AgentDetailDialog(agent: targetAgent));
+  void showAgentDetailDialog(AgentModel agent) {
+    Get.dialog(AgentDetailDialog(agent: agent));
   }
 
-  void startChat(AgentDTO agent) async {
-    AgentBean? targetAgent;
+  void startChat(AgentModel agent) async {
     var isCloudAgent = agent.isCloud ?? false;
     if (isCloudAgent) {
       var agentDetail = await agentRepository.getCloudAgentDetail(agent.id);
@@ -248,25 +235,22 @@ class AgentLogic extends GetxController with WindowListener {
         AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
         return;
       }
-      if (agentDetail?.agent?.type == AgentType.REFLECTION) {
+      if (agentDetail?.agent?.type == AgentValidator.DTO_TYPE_REFLECTION) {
         AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
         return;
       }
-      targetAgent = AgentBean()..translateFromDTO(agent);
     } else {
-      String modelId = agent.llmModelId ?? "";
-      var model = await modelRepository.getModelFromBox(modelId);
+      var model = await modelRepository.getModelFromBox(agent.modelId);
       if (model == null) {
         AlarmUtil.showAlertDialog("没有设置模型，无法进行聊天");
         return;
       }
-      if (agent.type == AgentType.REFLECTION) {
+      if (agent.agentType == AgentValidator.DTO_TYPE_REFLECTION) {
         AlarmUtil.showAlertToast("反思Agent不能进行聊天对话");
         return;
       }
-      targetAgent = await agentRepository.getAgentFromBox(agent.id);
     }
-    eventBus.fire(AgentMessageEvent(message: EventBusMessage.startChat, agent: targetAgent));
+    eventBus.fire(AgentMessageEvent(message: EventBusMessage.startChat, agent: agent));
   }
 
   void onLoginButtonClick() {
@@ -277,13 +261,21 @@ class AgentLogic extends GetxController with WindowListener {
     if (currentTab.value == TAB_CLOUD) {
       EasyLoading.show(status: "加载中...");
       try {
-        await loadCloudData();
+        await loadAllCloudData();
         EasyLoading.dismiss();
         AlarmUtil.showAlertToast("同步成功");
         eventBus.fire(MessageEvent(message: EventBusMessage.sync));
       } catch (e) {
         EasyLoading.dismiss();
       }
+    }
+  }
+
+  void showImportAgentDialog() {
+    // 通过 HomePageLogic 切换到导入页面
+    if (Get.isRegistered<HomePageLogic>()) {
+      final homeLogic = Get.find<HomePageLogic>();
+      homeLogic.switchToAgentImportPage();
     }
   }
 }

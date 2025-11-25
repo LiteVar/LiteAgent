@@ -6,8 +6,10 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 
 interface ModelFormModalProps {
   visible: boolean;
+  disabledModelRule?: boolean;
   onCancel: () => void;
   onOk: (values: ModelVOAddAction) => void;
+  showExportModal?: (event: any, record: any) => void;
   onDelete?: (id: string) => void;
   initialData?: ModelVOAddAction;
 }
@@ -112,6 +114,7 @@ const ModelFormModal: React.FC<ModelFormModalProps> = (props) => {
 
   return (
     <Modal
+      zIndex={10}
       centered
       title={isEditing ? '编辑模型' : '新建模型'}
       open={visible}
@@ -189,7 +192,7 @@ const ModelFormModal: React.FC<ModelFormModalProps> = (props) => {
           <Form.Item
             name="baseUrl"
             label="BaseURL"
-            rules={[
+            rules={props.disabledModelRule ? [] : [
               {
                 required: true,
                 message: '请输入URL',
@@ -214,9 +217,9 @@ const ModelFormModal: React.FC<ModelFormModalProps> = (props) => {
           <Form.Item
             name="apiKey"
             label="API Key"
-            rules={[{ required: true, message: '请输入API Key', whitespace: true }]}
+            rules={props.disabledModelRule ? [] : [{ required: true, message: '请输入API Key', whitespace: true }]}
           >
-            <Input maxLength={60} placeholder="请输入key值" />
+            <Input maxLength={100} placeholder="请输入key值" />
           </Form.Item>
 
           <Form.Item
@@ -282,6 +285,11 @@ const ModelFormModal: React.FC<ModelFormModalProps> = (props) => {
             删除
           </Button>
         </Popconfirm>
+      )}
+      {!!initialData && !!props.showExportModal && (
+        <Button className={`bottom-[20px] float-left absolute ${isEditing && onDelete ? 'left-[120px]' : ''}`} onClick={event => props.showExportModal?.(event, initialData as any)} key={`edit-${initialData?.id}`}>
+          导出
+        </Button>
       )}
     </Modal>
   );

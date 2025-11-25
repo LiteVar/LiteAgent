@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { debounce } from 'lodash';
+import { debounce, cloneDeep } from 'lodash';
 import { MessageRole, TaskMessageType } from '@/types/Message';
 import {
   AgentMessage,
@@ -118,7 +118,7 @@ const updateMessages = (
   const index = prevMessages.findIndex(
     (msg) => msg.id === id && msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.TEXT
   );
-  const newMsgs = JSON.parse(JSON.stringify(prevMessages));
+  const newMsgs = cloneDeep(prevMessages);
 
   if (index !== -1) {
     newMsgs[index].responding = true;
@@ -237,10 +237,10 @@ const performComplexMessageUpdate = (
   type: TaskMessageType,
   createNewMessage?: boolean
 ): void => {
-  const newAgentMessage = JSON.parse(JSON.stringify(agentMessage));
+  const newAgentMessage = cloneDeep(agentMessage);
   messageActions.complexMessageUpdate(agentId, id, (prev) => {
-    const msgsMap = JSON.parse(JSON.stringify(prev));
-    const msgs = JSON.parse(JSON.stringify(prev?.[agentId]?.messages || []));
+    const msgsMap = cloneDeep(prev);
+    const msgs = cloneDeep(prev?.[agentId]?.messages || []);
     const newMsgs = updateMessages(
       agentSwitchRef,
       msgs,

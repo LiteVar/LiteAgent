@@ -1,18 +1,19 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
-import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
+import 'package:lite_agent_client/models/local/tool.dart';
+import 'package:lite_agent_client/utils/snowflake_util.dart';
 import 'package:lite_agent_client/repositories/tool_repository.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
+import 'package:lite_agent_client/utils/extension/tool_extension.dart';
 import 'package:lite_agent_client/widgets/dialog/dialog_tool_detail.dart';
-import 'package:lite_agent_client/widgets/dialog/dialog_tool_edit.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../models/dto/tool.dart';
-import '../../models/local_data_model.dart';
 import '../../repositories/account_repository.dart';
 import '../../widgets/dialog/dialog_common_confirm.dart';
 import '../../widgets/dialog/dialog_login.dart';
+import '../../widgets/dialog/tool_edit/dialog.dart';
+import '../../widgets/dialog/tool_edit/controller.dart';
 
 class ToolLogic extends GetxController with WindowListener {
   static const String TAB_LOCAL = "local";
@@ -27,8 +28,8 @@ class ToolLogic extends GetxController with WindowListener {
 
   var currentTab = TAB_LOCAL.obs;
   var currentSecondaryTab = TAB_SEC_ALL.obs;
-  var currentToolList = <ToolDTO>[].obs;
-  final Map<String, List<ToolDTO>> _toolListMap = <String, List<ToolDTO>>{};
+  var currentToolList = <ToolModel>[].obs;
+  final _toolListMap = <String, List<ToolModel>>{};
 
   var isLogin = false;
 
@@ -47,28 +48,29 @@ class ToolLogic extends GetxController with WindowListener {
 
   Future<void> initData() async {
     isLogin = (await accountRepository.isLogin());
-    _toolListMap[TAB_LOCAL] = <ToolDTO>[];
-    _toolListMap[TAB_SEC_ALL] = <ToolDTO>[];
-    _toolListMap[TAB_SEC_SYSTEM] = <ToolDTO>[];
-    _toolListMap[TAB_SEC_SHARE] = <ToolDTO>[];
-    _toolListMap[TAB_SEC_MINE] = <ToolDTO>[];
+    _toolListMap[TAB_LOCAL] = <ToolModel>[];
+    _toolListMap[TAB_SEC_ALL] = <ToolModel>[];
+    _toolListMap[TAB_SEC_SYSTEM] = <ToolModel>[];
+    _toolListMap[TAB_SEC_SHARE] = <ToolModel>[];
+    _toolListMap[TAB_SEC_MINE] = <ToolModel>[];
     await loadLocalData(false);
     await loadCloudData(false);
     switchTab(TAB_LOCAL);
   }
 
   Future<void> loadLocalData(bool refresh) async {
-    _toolListMap[TAB_LOCAL]!.assignAll((await toolRepository.getToolDTOListFromBox()));
+    _toolListMap[TAB_LOCAL]!.assignAll((await toolRepository.getToolListFromBox()));
+    _toolListMap[TAB_LOCAL]!.sort((a, b) => (b.createTime ?? 0) - (a.createTime ?? 0));
     if (refresh) {
       currentToolList.refresh();
     }
   }
 
   Future<void> loadCloudData(bool refresh) async {
-    _toolListMap[TAB_SEC_ALL]!.assignAll((await toolRepository.getCloudToolList(0)));
-    _toolListMap[TAB_SEC_SYSTEM]!.assignAll((await toolRepository.getCloudToolList(1)));
-    _toolListMap[TAB_SEC_SHARE]!.assignAll((await toolRepository.getCloudToolList(2)));
-    _toolListMap[TAB_SEC_MINE]!.assignAll((await toolRepository.getCloudToolList(3)));
+    _toolListMap[TAB_SEC_ALL]!.assignAll((await toolRepository.getCloudAgentListAndTranslate(0)));
+    _toolListMap[TAB_SEC_SYSTEM]!.assignAll((await toolRepository.getCloudAgentListAndTranslate(1)));
+    _toolListMap[TAB_SEC_SHARE]!.assignAll((await toolRepository.getCloudAgentListAndTranslate(2)));
+    _toolListMap[TAB_SEC_MINE]!.assignAll((await toolRepository.getCloudAgentListAndTranslate(3)));
     if (refresh) {
       currentToolList.refresh();
     }
@@ -128,42 +130,35 @@ class ToolLogic extends GetxController with WindowListener {
         ));
   }
 
-  void updateLocalTool(String id, String name, String description, String schemaType, String schemaText, String apiType, String apiText,
-      bool supportMultiAgent) async {
-    var localList = _toolListMap[TAB_LOCAL];
-    if (localList == null) {
-      return;
+  void updateLocalTool(String id, ToolFormData toolData) async {
+    ToolModel? targetTool;
+    if (id.isNotEmpty) {
+      targetTool = await toolRepository.getToolFromBox(id);
     }
-    String targetId = id;
-    if (targetId.isNotEmpty) {
-      for (var tool in localList) {
-        if (tool.id == targetId) {
-          tool.name = name;
-          tool.description = description;
-          break;
-        }
+    targetTool ??= ToolModel.newEmptyTool(id: snowFlakeUtil.getId(), createTime: DateTime.now().microsecondsSinceEpoch);
+    targetTool.name = toolData.name;
+    targetTool.description = toolData.description;
+    targetTool.schemaType = toolData.schemaType;
+    targetTool.schemaText = toolData.schemaText;
+    targetTool.apiText = toolData.apiText;
+    targetTool.apiType = toolData.apiType;
+    targetTool.supportMultiAgent = toolData.supportMultiAgent;
+    toolRepository.updateTool(targetTool.id, targetTool);
+
+    List<ToolModel> localList = _toolListMap[TAB_LOCAL]!;
+    bool isAdd = false;
+    for (var tool in localList) {
+      if (tool.id == targetTool.id) {
+        int index = localList.indexOf(tool);
+        localList[index] = targetTool;
+        isAdd = true;
+        break;
       }
-    } else {
-      targetId = snowFlakeUtil.getId();
-      var tool = ToolDTO(targetId, "", "", name, description, 0, "", "", "", false, "", "", false, null); //just for showing
-      localList.add(tool);
+    }
+    if (!isAdd) {
+      localList.add(targetTool);
     }
     currentToolList.refresh();
-
-    ToolBean? targetTool = await toolRepository.getToolFromBox(targetId);
-    if (targetTool == null) {
-      targetTool = ToolBean();
-      targetTool.id = targetId;
-      targetTool.createTime = DateTime.now().microsecondsSinceEpoch;
-    }
-    targetTool.name = name;
-    targetTool.description = description;
-    targetTool.schemaType = schemaType;
-    targetTool.schemaText = schemaText;
-    targetTool.apiText = apiText;
-    targetTool.apiType = apiType;
-    targetTool.supportMultiAgent = supportMultiAgent;
-    toolRepository.updateTool(targetId, targetTool);
   }
 
   void switchTab(String tabType) {
@@ -183,62 +178,38 @@ class ToolLogic extends GetxController with WindowListener {
     showEditToolDialog(null);
   }
 
-  void showEditToolDialog(String? toolId) async {
-    ToolBean? tool;
-    if (toolId != null) {
-      tool = await toolRepository.getToolFromBox(toolId);
-    }
+  void showEditToolDialog(ToolModel? tool) async {
     Get.dialog(
         barrierDismissible: false,
         EditToolDialog(
           tool: tool,
           isEdit: tool != null,
-          onConfirmCallback: (name, description, schemaType, schemaText, apiType, apiText, supportMultiAgent) {
-            updateLocalTool(tool?.id ?? "", name, description, schemaType, schemaText, apiType, apiText, supportMultiAgent);
-            switchTab(TAB_LOCAL);
+          onConfirmCallback: (ToolFormData? toolData, {bool isDelete = false}) async {
+            if (isDelete && tool != null) {
+              var localList = _toolListMap[TAB_LOCAL];
+              if (localList != null) {
+                localList.remove(tool);
+              }
+              toolRepository.removeTool(tool.id);
+              currentToolList.refresh();
+              return;
+            }
+            if (toolData != null) {
+              updateLocalTool(tool?.id ?? "", toolData);
+              switchTab(TAB_LOCAL);
+            }
           },
         ));
   }
 
-  Future<void> showCloudToolDetailDialog(String toolId) async {
-    var tool = await toolRepository.getCloudToolDetail(toolId);
-    if (tool != null) {
-      String schemaType = "";
-      switch (tool.schemaType) {
-        case 1:
-          schemaType = SchemaType.OPENAPI;
-          break;
-        case 2:
-          schemaType = SchemaType.JSONRPCHTTP;
-          break;
-        case 3:
-          schemaType = SchemaType.OPENMODBUS;
-          break;
-        case 4:
-          schemaType = SchemaType.OPENTOOL;
-          break;
-        case 5:
-          //The online MCP is in SSE format
-          //schemaType = SchemaType.MCP_STDIO_TOOLS;
-          schemaType = "MCP(SSE)";
-          break;
+  Future<void> showToolDetailDialog(ToolModel tool) async {
+    if (tool.isCloud) {
+      var dto = await toolRepository.getCloudToolDetail(tool.id);
+      if (dto != null) {
+        tool = dto.toModel();
       }
-      ToolBean toolBean = ToolBean()
-        ..name = tool.name ?? ""
-        ..description = tool.description ?? ""
-        ..schemaText = tool.schemaStr ?? ""
-        ..schemaType = schemaType
-        ..apiText = tool.apiKey ?? ""
-        ..apiType = tool.apiKeyType ?? "";
-      Get.dialog(ToolDetailDialog(tool: toolBean));
     }
-  }
-
-  Future<void> showLocalToolDetailDialog(String toolId) async {
-    var tool = await toolRepository.getToolFromBox(toolId);
-    if (tool != null) {
-      Get.dialog(ToolDetailDialog(tool: tool));
-    }
+    Get.dialog(ToolDetailDialog(tool: tool));
   }
 
   void onLoginButtonClick() {

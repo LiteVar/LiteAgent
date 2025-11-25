@@ -21,7 +21,7 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props
       .validateFields()
       .then(async (values) => {
         console.log('Form values:', values);
-        const model = models.find((model) => model.id === values.model);
+        const model = models.find((model) => model.id === values.embeddingModel);
         await postV1DatasetAdd({
           headers: {
             'Workspace-id': workspace?.id!,
@@ -31,8 +31,8 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props
             description: values.description,
             retrievalTopK: values.retrievalTopK ||  10,
             retrievalScoreThreshold: values.similarity || 0.5,
-            llmModelId: values.model,
-            embeddingModel: values.model,
+            llmModelId: values.llmModelId,
+            embeddingModel: values.embeddingModel,
             embeddingModelProvider: model?.name || 'openai',
           },
         });
@@ -63,10 +63,26 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props
         <Form.Item name="name" label="知识库名称" rules={[{ required: true, message: '请输入知识库名称' }]}>
           <Input placeholder="请输入知识库名称" maxLength={40} />
         </Form.Item>
-        <Form.Item name="model" label="嵌入模型" rules={[{ required: true, message: '请选择嵌入模型' }]}>
+        <Form.Item name="embeddingModel" label="嵌入模型" rules={[{ required: true, message: '请选择嵌入模型' }]}>
           <Select placeholder="请选择嵌入模型">
             {models
               .filter((m) => m.type === 'embedding')
+              .map((model) => (
+                <Select.Option key={model.id} value={model.id}>
+                  {model.alias}
+                </Select.Option>
+              ))}
+            <Select.Option className="p-0" key="new" value={null} onClick={() => console.log('新建模型')}>
+              <Link className="w-full h-full block pl-3 leading-10" to={`/workspaces/${workspace?.id!}/models`}>
+                新建模型
+              </Link>
+            </Select.Option>
+          </Select>
+        </Form.Item>
+        <Form.Item name="llmModelId" label="摘要模型" rules={[{ message: '请选择摘要模型' }]}>
+          <Select placeholder="请选择摘要模型">
+            {models
+              .filter((m) => m.type === 'LLM')
               .map((model) => (
                 <Select.Option key={model.id} value={model.id}>
                   {model.alias}

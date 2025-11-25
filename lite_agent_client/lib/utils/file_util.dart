@@ -1,9 +1,17 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:image/image.dart';
+import 'package:lite_agent_client/utils/alarm_util.dart';
 import 'package:lite_agent_client/utils/log_util.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:archive/archive.dart';
+import 'package:dio/dio.dart';
+
+import '../config/constants.dart';
+import '../repositories/account_repository.dart';
 
 final fileUtils = FileUtils();
 
@@ -85,7 +93,7 @@ class FileUtils {
 
     // 保存文件
     var imgDirectoryPath = await _getImgDirectory();
-    var filename = 'processed_${DateTime.now().millisecondsSinceEpoch}.$extension';
+    var filename = 'processed_${DateTime.now().microsecondsSinceEpoch}.$extension';
     final file = File('$imgDirectoryPath${Platform.pathSeparator}$filename');
     await file.writeAsBytes(bytes);
     return file;

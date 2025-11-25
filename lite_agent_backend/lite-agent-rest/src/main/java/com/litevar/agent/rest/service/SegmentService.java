@@ -20,6 +20,7 @@ import com.litevar.agent.rest.vector.MilvusService;
 import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
 import com.mongoplus.model.PageResult;
 import com.mongoplus.service.impl.ServiceImpl;
+import io.milvus.v2.service.vector.response.SearchResp;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.Embedding;
@@ -27,7 +28,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -36,356 +36,307 @@ import java.util.stream.IntStream;
 @Slf4j
 @Service
 public class SegmentService extends ServiceImpl<DocumentSegment> {
-	@Autowired
-	private DatasetService datasetService;
-	@Autowired
-	private DocumentService documentService;
-	@Autowired
-	private EmbeddingService embeddingService;
-	@Autowired
-	private DatasetRetrieveHistoryService retrieveHistoryService;
+    @Autowired
+    private DatasetService datasetService;
+    @Autowired
+    private DocumentService documentService;
+    @Autowired
+    private EmbeddingService embeddingService;
+    @Autowired
+    private DatasetRetrieveHistoryService retrieveHistoryService;
 
-	@Autowired
-	private MilvusService milvusService;
+    @Autowired
+    private MilvusService milvusService;
 
-	/**
-	 * Creates a new segment.
-	 *
-	 * @param documentId the ID of the document
-	 * @param form       the segment to create
-	 * @return the created segment
-	 */
-	public DocumentSegment createSegment(String documentId, SegmentUpdateForm form) {
-		DatasetDocument document = documentService.getById(documentId);
-		Dataset dataset = datasetService.getDataset(document.getDatasetId());
+    /**
+     * Creates a new segment.
+     *
+     * @param documentId the ID of the document
+     * @param form       the segment to create
+     * @return the created segment
+     */
+    public DocumentSegment createSegment(String documentId, SegmentUpdateForm form) {
+        DatasetDocument document = documentService.getById(documentId);
+        Dataset dataset = datasetService.getDataset(document.getDatasetId());
 
-		JSONObject metadata = StrUtil.isNotBlank(form.getMetadata()) ? JSONUtil.parseObj(form.getMetadata()) : new JSONObject();
-		metadata.putIfAbsent("documentId", documentId);
-		metadata.putIfAbsent("datasetId", dataset.getId());
+        JSONObject metadata = StrUtil.isNotBlank(form.getMetadata()) ? JSONUtil.parseObj(form.getMetadata()) : new JSONObject();
+        metadata.putIfAbsent("documentId", documentId);
+        metadata.putIfAbsent("datasetId", dataset.getId());
 
-		//embed segment
-		Document textSegment = Document.builder().text(form.getContent()).metadata(metadata.toBean(Map.class)).build();
-		Embedding embedding = embeddingService.embedSegment(textSegment, dataset.getLlmModelId());
-		String embeddingId = milvusService.insertEmbedding(dataset.getVectorCollectionName(), embedding, textSegment);
+        //embed segment
+        Document textSegment = Document.builder().text(form.getContent()).metadata(metadata.toBean(Map.class)).build();
+        Embedding embedding = embeddingService.embedText(form.getContent(), dataset.getEmbeddingModel());
+        String embeddingId = milvusService.insertEmbedding(dataset.getVectorCollectionName(), embedding, textSegment);
 
-		DocumentSegment segment = BeanUtil.toBean(form, DocumentSegment.class, CopyOptions.create().setIgnoreNullValue(true));
-		segment.setUserId(document.getUserId());
-		segment.setWorkspaceId(document.getWorkspaceId());
-		segment.setDatasetId(document.getDatasetId());
-		segment.setDocumentId(documentId);
-		segment.setWordCount(form.getContent().length());
-		segment.setTokenCount(TikToken.countTokens(form.getContent()));
-		segment.setMetadata(metadata.toString());
-		segment.setEmbeddingId(embeddingId);
-		segment.setVectorCollectionName(dataset.getVectorCollectionName());
-		save(segment);
+        DocumentSegment segment = BeanUtil.toBean(form, DocumentSegment.class, CopyOptions.create().setIgnoreNullValue(true));
+        segment.setUserId(document.getUserId());
+        segment.setWorkspaceId(document.getWorkspaceId());
+        segment.setDatasetId(document.getDatasetId());
+        segment.setDocumentId(documentId);
+        segment.setWordCount(form.getContent().length());
+        segment.setTokenCount(TikToken.countTokens(form.getContent()));
+        segment.setMetadata(metadata.toString());
+        segment.setEmbeddingId(embeddingId);
+        segment.setVectorCollectionName(dataset.getVectorCollectionName());
+        save(segment);
 
-		document.setWordCount(document.getWordCount() + segment.getWordCount());
-		document.setTokenCount(document.getTokenCount() + segment.getTokenCount());
-		documentService.updateById(document);
+        document.setWordCount(document.getWordCount() + segment.getWordCount());
+        document.setTokenCount(document.getTokenCount() + segment.getTokenCount());
+        document.setNeedSummary(Boolean.TRUE);
+        documentService.updateById(document);
 
-		return segment;
-	}
+        return segment;
+    }
 
-	public List<DocumentSegment> embedSegments(
-		String workspaceId, String datasetId, String documentId, List<Document> segments
-	) {
-		Dataset dataset = datasetService.getDataset(datasetId);
-		List<Embedding> embeddings = embeddingService.embedSegments(segments, dataset.getLlmModelId());
-		List<String> embeddingIds = milvusService.insertEmbeddings(dataset.getVectorCollectionName(), embeddings, segments);
+    public List<DocumentSegment> embedSegments(
+        String workspaceId, String datasetId, String documentId, String fileId, List<Document> segments
+    ) {
+        Dataset dataset = datasetService.getDataset(datasetId);
+        List<Embedding> embeddings = embeddingService.embedSegments(segments, dataset.getEmbeddingModel());
+        List<String> embeddingIds = milvusService.insertEmbeddings(dataset.getVectorCollectionName(), embeddings, segments);
 
-		List<DocumentSegment> documentSegments = new ArrayList<>(segments.size());
+        List<DocumentSegment> documentSegments = new ArrayList<>(segments.size());
 
-		IntStream.range(0, segments.size()).forEach(i -> {
-			Document segment = segments.get(i);
-			DocumentSegment docSegment = new DocumentSegment();
-			docSegment.setUserId(dataset.getUserId());
-			docSegment.setWorkspaceId(workspaceId);
-			docSegment.setDatasetId(datasetId);
-			docSegment.setDocumentId(documentId);
-			docSegment.setContent(segment.getText());
-			docSegment.setWordCount(segment.getText().length());
-			docSegment.setTokenCount(TikToken.countTokens(segment.getText()));
-			docSegment.setEmbeddingId(embeddingIds.get(i));
-			docSegment.setVectorCollectionName(dataset.getVectorCollectionName());
-			docSegment.setHitCount(0);
-			docSegment.setEnableFlag(true);
-			docSegment.setMetadata(JSONUtil.toJsonStr(segment.getMetadata()));
-			documentSegments.add(docSegment);
-		});
+        IntStream.range(0, segments.size()).forEach(i -> {
+            Document segment = segments.get(i);
+            DocumentSegment docSegment = new DocumentSegment();
+            docSegment.setUserId(dataset.getUserId());
+            docSegment.setWorkspaceId(workspaceId);
+            docSegment.setDatasetId(datasetId);
+            docSegment.setDocumentId(documentId);
+            docSegment.setFileId(fileId);
+            docSegment.setContent(segment.getText());
+            docSegment.setWordCount(segment.getText().length());
+            docSegment.setTokenCount(TikToken.countTokens(segment.getText()));
+            docSegment.setEmbeddingId(embeddingIds.get(i));
+            docSegment.setVectorCollectionName(dataset.getVectorCollectionName());
+            docSegment.setHitCount(0);
+            docSegment.setEnableFlag(true);
+            docSegment.setMetadata(JSONUtil.toJsonStr(segment.getMetadata()));
+            documentSegments.add(docSegment);
+        });
 
-		saveBatch(documentSegments);
-		return documentSegments;
-	}
+        saveBatch(documentSegments);
+        return documentSegments;
+    }
 
-	/**
-	 * Lists segments in a document with pagination.
-	 *
-	 * @param documentId the ID of the document
-	 * @param pageNo     the page number
-	 * @param pageSize   the page size
-	 * @return a page model containing the segments
-	 */
-	public PageModel<DocumentSegment> listSegments(String documentId, String query, Integer pageNo, Integer pageSize) {
-		LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
-			.eq(DocumentSegment::getDocumentId, documentId);
+    /**
+     * Lists segments in a document with pagination.
+     *
+     * @param documentId the ID of the document
+     * @param pageNo     the page number
+     * @param pageSize   the page size
+     * @return a page model containing the segments
+     */
+    public PageModel<DocumentSegment> listSegments(String documentId, String query, Integer pageNo, Integer pageSize) {
+        LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
+                .eq(DocumentSegment::getDocumentId, documentId)
+                .like(StrUtil.isNotBlank(query), DocumentSegment::getContent, query)
+                .orderByAsc(DocumentSegment::getId);
+        PageResult<DocumentSegment> pageResult = this.page(wrapper, pageNo, pageSize);
 
-		if (StrUtil.isNotBlank(query)) {
-			wrapper.like(DocumentSegment::getContent, query);
-		}
+        return new PageModel<>(pageNo, pageSize, pageResult.getTotalSize(), pageResult.getContentData());
+    }
 
-		wrapper.orderByAsc(DocumentSegment::getId);
-		PageResult<DocumentSegment> pageResult = this.page(wrapper, pageNo, pageSize);
+    /**
+     * Updates an existing segment.
+     *
+     * @param id   the ID of the segment to update
+     * @param form the new data for the segment
+     * @return the updated segment
+     */
+    public DocumentSegment updateSegment(String id, SegmentUpdateForm form) {
+        DocumentSegment segment = getById(id);
+        Dataset dataset = datasetService.getDataset(segment.getDatasetId());
 
-		return new PageModel<>(pageNo, pageSize, pageResult.getTotalSize(), pageResult.getContentData());
-	}
+        JSONObject metadata = StrUtil.isNotBlank(form.getMetadata()) ? JSONUtil.parseObj(form.getMetadata()) : new JSONObject();
+        metadata.putIfAbsent("documentId", segment.getDocumentId());
+        metadata.putIfAbsent("datasetId", dataset.getId());
+        segment.setMetadata(metadata.toString());
 
-	/**
-	 * Updates an existing segment.
-	 *
-	 * @param id   the ID of the segment to update
-	 * @param form the new data for the segment
-	 * @return the updated segment
-	 */
-	public DocumentSegment updateSegment(String id, SegmentUpdateForm form) {
-		DocumentSegment segment = getById(id);
-		Dataset dataset = datasetService.getDataset(segment.getDatasetId());
+        if (!StrUtil.equals(form.getContent(), segment.getContent())) {
 
-		int oldWordCount = segment.getWordCount();
-		int oldTokenCount = segment.getTokenCount();
+            int oldWordCount = segment.getWordCount();
+            int oldTokenCount = segment.getTokenCount();
 
-		// Only update allowed fields
-		segment.setContent(form.getContent());
-		segment.setWordCount(form.getContent().length());
-		segment.setTokenCount(TikToken.countTokens(form.getContent()));
-//        segment.setMetadata(form.getMetadata());
-		segment.setVectorCollectionName(dataset.getVectorCollectionName());
+            // Only update allowed fields
+            segment.setContent(form.getContent());
+            segment.setWordCount(form.getContent().length());
+            segment.setTokenCount(TikToken.countTokens(form.getContent()));
+            segment.setVectorCollectionName(dataset.getVectorCollectionName());
 
-		JSONObject metadata = StrUtil.isNotBlank(form.getMetadata()) ? JSONUtil.parseObj(form.getMetadata()) : new JSONObject();
-		metadata.putIfAbsent("documentId", segment.getDocumentId());
-		metadata.putIfAbsent("datasetId", dataset.getId());
-		segment.setMetadata(metadata.toString());
+            //remove old embedding
+            milvusService.removeEmbedding(dataset.getVectorCollectionName(), segment.getEmbeddingId());
 
-		//remove old embedding
-		milvusService.removeEmbedding(dataset.getVectorCollectionName(), segment.getEmbeddingId());
+            //embed new segment
+            Document newSegment = Document.builder().text(segment.getContent()).metadata(metadata.toBean(Map.class)).build();
+            Embedding embedding = embeddingService.embedText(segment.getContent(), dataset.getEmbeddingModel());
+            String embeddingId = milvusService.insertEmbedding(dataset.getVectorCollectionName(), embedding, newSegment);
 
-		//embed new segment
-		Document newSegment = Document.builder().text(segment.getContent()).metadata(metadata.toBean(Map.class)).build();
-		Embedding embedding = embeddingService.embedSegment(newSegment, dataset.getLlmModelId());
-		String embeddingId = milvusService.insertEmbedding(dataset.getVectorCollectionName(), embedding, newSegment);
+            segment.setEmbeddingId(embeddingId);
 
-		segment.setEmbeddingId(embeddingId);
-		updateById(segment);
+            DatasetDocument document = documentService.getById(segment.getDocumentId());
+            document.setWordCount(document.getWordCount() - oldWordCount + segment.getWordCount());
+            document.setTokenCount(document.getTokenCount() - oldTokenCount + segment.getTokenCount());
+            document.setNeedSummary(Boolean.TRUE);
+            documentService.updateById(document);
+        }
+        updateById(segment);
+        return segment;
+    }
 
-		DatasetDocument document = documentService.getById(segment.getDocumentId());
-		document.setWordCount(document.getWordCount() - oldWordCount + segment.getWordCount());
-		document.setTokenCount(document.getTokenCount() - oldTokenCount + segment.getTokenCount());
-		documentService.updateById(document);
+    public void deleteSegments(List<String> ids) {
+        List<DocumentSegment> segments = getByIds(ids);
 
-		return segment;
-	}
+        int wordCount = segments.stream().mapToInt(DocumentSegment::getWordCount).sum();
+        int tokenCount = segments.stream().mapToInt(DocumentSegment::getTokenCount).sum();
 
-	/**
-	 * Deletes a segment by its ID.
-	 *
-	 * @param id the ID of the segment to delete
-	 */
-	public void deleteSegment(String id) {
-		DocumentSegment segment = getById(id);
+        // update document word/token count
+        DatasetDocument document = documentService.getById(segments.get(0).getDocumentId());
+        document.setWordCount(document.getWordCount() - wordCount);
+        document.setTokenCount(document.getTokenCount() - tokenCount);
+        document.setNeedSummary(Boolean.TRUE);
+        documentService.updateById(document);
 
-		DatasetDocument document = documentService.getById(segment.getDocumentId());
-		document.setWordCount(document.getWordCount() - segment.getWordCount());
-		document.setTokenCount(document.getTokenCount() - segment.getTokenCount());
-		documentService.updateById(document);
+        // remove embeddings
+        milvusService.removeEmbeddings(segments.get(0).getVectorCollectionName(), segments.stream().map(DocumentSegment::getEmbeddingId).toList());
 
-		// remove embeddings
-		milvusService.removeEmbedding(segment.getVectorCollectionName(), segment.getEmbeddingId());
+        // remove segments
+        this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
+    }
 
-		removeById(id);
-	}
+    /**
+     * Deletes segments by dataset ID.
+     *
+     * @param datasetId the ID of the dataset
+     */
+    public void deleteSegmentsByDatasetId(String datasetId) {
+        LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
+            .eq(DocumentSegment::getDatasetId, datasetId);
+        List<DocumentSegment> segments = wrapper.list();
 
-	public void deleteSegments(List<String> ids) {
-		List<DocumentSegment> segments = getByIds(ids);
+        if (segments.isEmpty()) {
+            return;
+        }
 
-		int wordCount = segments.stream().mapToInt(DocumentSegment::getWordCount).sum();
-		int tokenCount = segments.stream().mapToInt(DocumentSegment::getTokenCount).sum();
+        // drop collection
+        milvusService.dropCollection(segments.get(0).getVectorCollectionName());
+        // remove segments
+        this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
+    }
 
-		// update document word/token count
-		DatasetDocument document = documentService.getById(segments.get(0).getDocumentId());
-		document.setWordCount(document.getWordCount() - wordCount);
-		document.setTokenCount(document.getTokenCount() - tokenCount);
-		documentService.updateById(document);
+    public void deleteSegmentsByDocumentIds(List<String> documentIds) {
+        LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
+            .in(DocumentSegment::getDocumentId, documentIds);
+        List<DocumentSegment> segments = wrapper.list();
 
-		// remove embeddings
-		milvusService.removeEmbeddings(segments.get(0).getVectorCollectionName(), segments.stream().map(DocumentSegment::getEmbeddingId).toList());
+        if (segments.isEmpty()) {
+            return;
+        }
 
-		// remove segments
-		this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
-	}
+        // remove embeddings
+        milvusService.removeEmbeddings(
+            segments.get(0).getVectorCollectionName(),
+            segments.stream().map(DocumentSegment::getEmbeddingId).toList()
+        );
+        // remove segments
+        this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
+    }
 
-	/**
-	 * Deletes segments by dataset ID.
-	 *
-	 * @param datasetId the ID of the dataset
-	 */
-	public void deleteSegmentsByDatasetId(String datasetId) {
-		LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
-			.eq(DocumentSegment::getDatasetId, datasetId);
-		List<DocumentSegment> segments = wrapper.list();
+    /**
+     * Toggles the enable flag of a segment.
+     */
+    public void toggleEnableFlag(List<DocumentSegment> segmentList, boolean flag) {
+        if (segmentList.isEmpty()) {
+            return;
+        }
+        segmentList.parallelStream().forEach(segment -> segment.setEnableFlag(flag));
 
-		if (segments.isEmpty()) {
-			return;
-		}
+        updateBatchByIds(segmentList);
 
-		// drop collection
-		milvusService.dropCollection(segments.get(0).getVectorCollectionName());
-		// remove segments
-		this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
-	}
+        List<String> embeddingIds = segmentList.stream().map(DocumentSegment::getEmbeddingId).toList();
 
-	/**
-	 * Deletes segments by document ID.
-	 *
-	 * @param documentId the ID of the document
-	 */
-	public void deleteSegmentsByDocumentId(String documentId) {
-		LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
-			.eq(DocumentSegment::getDocumentId, documentId);
-		List<DocumentSegment> segments = wrapper.list();
+        milvusService.toggleEnableFlag(segmentList.get(0).getVectorCollectionName(), embeddingIds, flag);
+    }
 
-		if (segments.isEmpty()) {
-			return;
-		}
+    /**
+     * retrieves segments base on similarity
+     */
+    public List<SegmentVO> retrieveSegments(
+        String agentId, List<String> datasetIds, String content
+    ) {
+        return (List<SegmentVO>) retrieve(agentId, datasetIds, content).get("result");
+    }
 
-		// remove embeddings
-		milvusService.removeEmbeddings(
-			segments.get(0).getVectorCollectionName(),
-			segments.stream().map(DocumentSegment::getEmbeddingId).toList()
-		);
-		// remove segments
-		this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
-	}
+    public Dict retrieve(String agentId, List<String> datasetIds, String content) {
+        List<Dataset> datasetList = datasetService.getByIds(datasetIds);
+        List<String> dsIds = datasetList.parallelStream().map(Dataset::getId).toList();
+        if (dsIds.isEmpty()) {
+            return Dict.create().set("result", Collections.emptyList());
+        }
 
-	public void deleteSegmentsByDocumentIds(List<String> documentIds) {
-		LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
-			.in(DocumentSegment::getDocumentId, documentIds);
-		List<DocumentSegment> segments = wrapper.list();
+        List<OutMessage.KnowledgeHistoryInfo> historyInfoList = new ArrayList<>();
+        List<DatasetRetrieveHistory> historyList = new ArrayList<>();
+        List<SegmentVO> segmentVOS = new ArrayList<>();
 
-		if (segments.isEmpty()) {
-			return;
-		}
+        for (Dataset dataset : datasetList) {
+            Embedding embedding = embeddingService.embedText(content, dataset.getEmbeddingModel());
 
-		// remove embeddings
-		milvusService.removeEmbeddings(
-			segments.get(0).getVectorCollectionName(),
-			segments.stream().map(DocumentSegment::getEmbeddingId).toList()
-		);
-		// remove segments
-		this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
-	}
+            DatasetRetrieveHistory history = retrieveHistoryService.createHistory(dataset.getId(), agentId, content);
+            historyList.add(history);
 
-	/**
-	 * Toggles the enable flag of a segment.
-	 *
-	 * @param id the ID of the segment
-	 */
-	public void toggleEnableFlag(String id) {
-		DocumentSegment segment = getById(id);
+            List<String> summaryDocId = new ArrayList<>();
+            if (StrUtil.isNotBlank(dataset.getSummaryCollectionName())) {
+                //先查询摘要,过滤文档
+                List<SearchResp.SearchResult> summaryResult = milvusService.searchSummaryVector(
+                        dataset.getSummaryCollectionName(), embedding, dataset.getRetrievalTopK(), dataset.getRetrievalScoreThreshold());
+                if (!summaryResult.isEmpty()) {
+                    log.info("搜索{}摘要集合,命中片段数量:{}", dataset.getSummaryCollectionName(), summaryResult.size());
+                    //提取documentId
+                    summaryResult.forEach(i -> summaryDocId.add(i.getId().toString()));
+                } else {
+                    log.warn("搜索{}摘要集合,未命中片段,将不再继续搜索该知识库", dataset.getSummaryCollectionName());
+                    continue;
+                }
+            }
 
-		boolean flag = !segment.getEnableFlag();
-		segment.setEnableFlag(flag);
-		saveOrUpdate(segment);
+            Map<String, Double> result = milvusService.search(
+                    dataset.getVectorCollectionName(),
+                    embedding,
+                    dataset.getRetrievalTopK(),
+                    dataset.getRetrievalScoreThreshold(),
+                    summaryDocId);
+            if (!result.isEmpty()) {
+                OutMessage.KnowledgeHistoryInfo info = new OutMessage.KnowledgeHistoryInfo();
+                info.setId(history.getId());
+                info.setDatasetName(dataset.getName());
+                info.setDatasetId(dataset.getId());
+                historyInfoList.add(info);
 
-		milvusService.toggleEnableFlag(segment.getVectorCollectionName(), List.of(segment.getEmbeddingId()), flag);
-	}
+                List<DocumentSegment> segmentList = this.lambdaQuery()
+                        .eq(DocumentSegment::getDatasetId, dataset.getId())
+                        .in(DocumentSegment::getEmbeddingId, result.keySet())
+                        .eq(DocumentSegment::getEnableFlag, true).list();
+                //update hit count
+                segmentList.parallelStream().forEach(segment -> segment.setHitCount(segment.getHitCount() + 1));
+                this.updateBatchByIds(segmentList);
 
-	/**
-	 * Toggles the enable flag of all segments in a document.
-	 *
-	 * @param documentId the ID of the document
-	 * @param flag       the new flag value
-	 */
-	public void toggleEnableFlagByDocument(String documentId, boolean flag) {
-		List<DocumentSegment> segments = this.getByColumn("document_id", documentId);
-		segments.parallelStream().forEach(segment -> segment.setEnableFlag(flag));
-		saveOrUpdateBatch(segments);
+                List<SegmentVO> voList = segmentList.parallelStream().map(segment -> {
+                    SegmentVO vo = BeanUtil.copyProperties(segment, SegmentVO.class);
+                    vo.setScore(result.get(segment.getEmbeddingId()));
+                    vo.setDocumentName(documentService.getDocument(segment.getDocumentId()).getName());
+                    return vo;
+                }).sorted(Comparator.comparing(SegmentVO::getScore).reversed()).toList();
+                segmentVOS.addAll(voList);
 
-		List<String> embeddingIds = segments.stream().map(DocumentSegment::getEmbeddingId).toList();
-		milvusService.toggleEnableFlag(segments.get(0).getVectorCollectionName(), embeddingIds, flag);
-	}
-
-	/**
-	 * retrieves segments base on similarity
-	 */
-	public List<SegmentVO> retrieveSegments(
-		String agentId, List<String> datasetIds, String content
-	) {
-		return (List<SegmentVO>) retrieve(agentId, datasetIds, content).get("result");
-	}
-
-	public Dict retrieve(String agentId, List<String> datasetIds, String content) {
-		List<Dataset> datasetList = datasetService.getByIds(datasetIds);
-		List<String> dsIds = datasetList.parallelStream().map(Dataset::getId).toList();
-		if (dsIds.isEmpty()) {
-			return Dict.create().set("result", Collections.emptyList());
-		}
-		List<DatasetRetrieveHistory> history = retrieveHistoryService.createHistory(dsIds, agentId, content, StrUtil.isBlank(agentId) ? "TEST" : "AGENT");
-		Map<String, String> datasetMap = datasetList.parallelStream().collect(Collectors.toMap(Dataset::getId, Dataset::getName));
-		List<OutMessage.KnowledgeHistoryInfo> dh = history.stream().map(i -> {
-			String name = datasetMap.get(i.getDatasetId());
-			//历史记录id,数据集名称
-			OutMessage.KnowledgeHistoryInfo info = new OutMessage.KnowledgeHistoryInfo();
-			info.setId(i.getId());
-			info.setDatasetName(name);
-			info.setDatasetId(i.getDatasetId());
-			return info;
-		}).toList();
-
-		Map<String, Double> idScoreMap = datasetList.parallelStream().map(
-				dataset -> {
-					Embedding embedding = embeddingService.embedText(content, dataset.getLlmModelId());
-					return milvusService.search(dataset.getVectorCollectionName(), embedding, dataset.getRetrievalTopK(), dataset.getRetrievalScoreThreshold());
-				}
-			)
-			.flatMap(map -> map.entrySet().stream())
-			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-		List<SegmentVO> segmentVOs = new ArrayList<>();
-		if (!idScoreMap.isEmpty()) {
-			List<DocumentSegment> segments = this.lambdaQuery()
-				.in(DocumentSegment::getEmbeddingId, idScoreMap.keySet())
-				.in(DocumentSegment::getDatasetId, datasetIds)
-				.eq(DocumentSegment::getEnableFlag, true)
-				.list();
-
-			if (!segments.isEmpty()) {
-				//update hit count
-				segments.parallelStream().forEach(segment -> segment.setHitCount(segment.getHitCount() + 1));
-				saveOrUpdateBatch(segments);
-
-				List<SegmentVO> list = segments.parallelStream().map(segment -> {
-					SegmentVO vo = BeanUtil.toBean(segment, SegmentVO.class);
-					vo.setScore(idScoreMap.get(segment.getEmbeddingId()));
-					vo.setDocumentName(documentService.getDocument(segment.getDocumentId()).getName());
-					return vo;
-				}).sorted(Comparator.comparing(SegmentVO::getScore).reversed()).toList();
-				segmentVOs.addAll(list);
-
-				Map<String, List<SegmentVO>> datasetSegment = list.parallelStream().collect(Collectors.groupingBy(SegmentVO::getDatasetId));
-				history.forEach(h -> {
-					List<SegmentVO> vo = datasetSegment.get(h.getDatasetId());
-					if (vo != null) {
-						List<DatasetRetrieveHistory.RetrieveSegment> retrieveSegments =
-							BeanUtil.copyToList(vo, DatasetRetrieveHistory.RetrieveSegment.class);
-
-						h.setRetrieveSegmentList(retrieveSegments);
-					}
-				});
-			}
-		}
-
-		retrieveHistoryService.saveBatch(history);
-		return Dict.create().set("result", segmentVOs).set("history", dh);
-	}
+                List<DatasetRetrieveHistory.RetrieveSegment> retrieveSegmentList = BeanUtil.copyToList(voList, DatasetRetrieveHistory.RetrieveSegment.class);
+                history.setRetrieveSegmentList(retrieveSegmentList);
+            }
+        }
+        if (!historyList.isEmpty()) {
+            retrieveHistoryService.saveBatch(historyList);
+        }
+        return Dict.create().set("result", segmentVOS).set("history", historyInfoList);
+    }
 
 }

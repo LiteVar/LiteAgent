@@ -7,11 +7,24 @@ class Constants {
 }
 
 class HiveTypeIds {
-  static const int agentBeanTypeId = 0;
-  static const int toolBeanTypeId = 1;
-  static const int modelBeanTypeId = 2;
-  static const int messageBeanTypeId = 3;
-  static const int agentConversationBeanTypeId = 4;
-  static const int agentToolFunctionTypeId = 5;
-  static const int messageThoughtTypeId = 6;
+  static const int agentModelTypeId = 0;
+  static const int toolModelTypeId = 1;
+  static const int modelTypeId = 2;
+  static const int messageModelTypeId = 3;
+  static const int conversationModelTypeId = 4;
+  static const int toolFunctionModelTypeId = 5;
+  static const int thoughtModelTypeId = 6;
 }
+
+class OperationMode {
+  static const int PARALLEL = 0;
+  static const int SERIAL = 1;
+  static const int REJECT = 2;
+}
+
+class ImportOperate {
+  static const int operateNew = 0; // 新建
+  static const int operateOverwrite = 1; // 覆盖
+  static const int operateSkip = 2; // 跳过
+}
+

@@ -1,7 +1,7 @@
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lite_agent_client/models/dto/agent.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
 import 'package:lite_agent_client/utils/extension/function_extension.dart';
 import 'package:lite_agent_client/utils/web_util.dart';
 import 'package:lite_agent_client/widgets/common_widget.dart';
@@ -15,6 +15,7 @@ class AgentPage extends StatelessWidget {
 
   final buttonColor = const Color(0xFF2a82f5);
   final itemBorderColor = const Color(0xFFd9d9d9);
+  final itemSpacingWidth = 20.0;
 
   @override
   Widget build(BuildContext context) {
@@ -74,14 +75,27 @@ class AgentPage extends StatelessWidget {
     return Expanded(
       child: Obx(() {
         if (logic.currentAgentList.isNotEmpty) {
-          return GridView.count(
-              crossAxisCount: 4,
-              childAspectRatio: 5 / 4,
-              children: List.generate(
-                  logic.currentAgentList.length,
-                  (index) => InkWell(
-                      onTap: () => logic.showAgentDetailDialog(logic.currentAgentList[index]),
-                      child: _buildAgentItem(logic.currentAgentList[index]))));
+          return Container(
+            margin: const EdgeInsets.all(15),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                    child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                              spacing: itemSpacingWidth,
+                              runSpacing: itemSpacingWidth,
+                              children: List.generate(
+                                  logic.currentAgentList.length,
+                                  (index) => InkWell(
+                                      onTap: () => logic.showAgentDetailDialog(logic.currentAgentList[index]),
+                                      child: _buildAgentItem(constraints.maxWidth, logic.currentAgentList[index])))))));
+              },
+            ),
+          );
         } else {
           String text = logic.currentTab.value == AgentLogic.TAB_LOCAL ? "暂无Agent，请创建" : "暂无Agent";
           return Column(
@@ -156,24 +170,62 @@ class AgentPage extends StatelessWidget {
   }
 
   Widget _buildNewAgentButton() {
-    return TextButton(
-        style: ButtonStyle(
-            padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(24, 18, 24, 18)),
-            backgroundColor: WidgetStateProperty.all(buttonColor),
-            shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)))),
-        onPressed: () => logic.showCreateAgentDialog(),
-        child: const Text('新建本地Agent', style: TextStyle(color: Colors.white, fontSize: 14)));
+    return DropdownButtonHideUnderline(
+      child: DropdownButton2<String>(
+        customButton: TextButton(
+          style: ButtonStyle(
+              padding: WidgetStateProperty.all(const EdgeInsets.fromLTRB(24, 18, 16, 18)),
+              backgroundColor: WidgetStateProperty.all(buttonColor),
+              shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)))),
+          onPressed: null,
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('新建本地Agent', style: TextStyle(color: Colors.white, fontSize: 14)),
+              SizedBox(width: 8),
+              Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
+            ],
+          ),
+        ),
+        dropdownStyleData: const DropdownStyleData(
+          width: null,
+          offset: Offset(0, -5),
+          padding: EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))]),
+        ),
+        menuItemStyleData: const MenuItemStyleData(height: 40, padding: EdgeInsets.zero),
+        items: const [
+          DropdownMenuItem<String>(
+              value: "create", child: Center(child: Text("新建本地Agent", style: TextStyle(fontSize: 14, color: Colors.black)))),
+          DropdownMenuItem<String>(
+              value: "import", child: Center(child: Text("导入Agent", style: TextStyle(fontSize: 14, color: Colors.black)))),
+        ],
+        onChanged: (value) {
+          if (value == "create") {
+            logic.showCreateAgentDialog();
+          } else if (value == "import") {
+            logic.showImportAgentDialog();
+          }
+        },
+      ),
+    );
   }
 
-  Widget _buildAgentItem(AgentDTO agent) {
-    var iconPath = agent.icon ?? "";
+  Widget _buildAgentItem(double maxWidth, AgentModel agent) {
+    // 计算子项宽度（减去间距）
+    final itemWidth = (maxWidth - itemSpacingWidth * 3) / 4;
+    var iconPath = agent.iconPath;
     return Container(
-      margin: const EdgeInsets.all(10),
+      width: itemWidth,
       decoration: BoxDecoration(
         border: Border.all(color: itemBorderColor),
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
               margin: const EdgeInsets.fromLTRB(15, 10, 15, 0),
@@ -185,10 +237,10 @@ class AgentPage extends StatelessWidget {
                       SizedBox(width: 30, height: 30, child: buildAgentProfileImage(iconPath)),
                       const SizedBox(width: 16),
                       Expanded(
-                          child: Text(agent.name ?? "",
+                          child: Text(agent.name,
                               style: const TextStyle(fontSize: 16, color: Colors.black), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       Offstage(
-                        offstage: !(agent.shareTip ?? false),
+                        offstage: !agent.shareFlag,
                         child: Container(
                           width: 44,
                           height: 24,
@@ -200,17 +252,23 @@ class AgentPage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Offstage(
-                    offstage: agent.autoAgentFlag != true,
-                    child: const Text("类型:Auto Multi Agent", style: TextStyle(fontSize: 14)),
-                  ),
                   SizedBox(
-                      height: 64,
-                      child: Text(agent.description ?? "",
-                          maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14))),
+                    height: 84, // 固定高度区域
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (agent.autoAgentFlag == true)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 4),
+                            child: Text("类型:Auto Multi Agent", style: TextStyle(fontSize: 14)),
+                          ),
+                        Text(agent.description, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
                 ],
               )),
-          const Spacer(),
+          const SizedBox(height: 10),
           Obx(() {
             var isLocal = logic.currentTab.value == AgentLogic.TAB_LOCAL;
             double padding = isLocal ? 12 : 22;

@@ -1,5 +1,7 @@
 import 'package:event_bus/event_bus.dart';
-import 'package:lite_agent_client/models/local_data_model.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
+import 'package:lite_agent_client/models/local/model.dart';
+import 'package:lite_agent_client/models/local/tool.dart';
 
 EventBus eventBus = EventBus();
 
@@ -23,21 +25,21 @@ class MessageEvent {
 
 class ToolMessageEvent {
   String message = "";
-  ToolBean? tool;
+  ToolModel? tool;
 
   ToolMessageEvent({required this.message, this.tool});
 }
 
 class ModelMessageEvent {
   String message = "";
-  ModelBean? model;
+  ModelData? model;
 
   ModelMessageEvent({required this.message, this.model});
 }
 
 class AgentMessageEvent {
   String message = "";
-  AgentBean? agent;
+  AgentModel? agent;
 
   AgentMessageEvent({required this.message, this.agent});
 }

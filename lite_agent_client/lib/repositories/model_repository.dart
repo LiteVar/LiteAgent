@@ -1,57 +1,68 @@
 import 'dart:convert';
 
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
 import 'package:lite_agent_client/models/dto/model.dart';
+import 'package:lite_agent_client/models/local/model.dart';
 import 'package:lite_agent_client/server/api_server/model_server.dart';
 import 'package:lite_agent_client/utils/extension/string_extension.dart';
+import 'package:lite_agent_client/utils/model/model_validator.dart';
 
-import '../models/local_data_model.dart';
-import 'account_repository.dart';
 import '../utils/log_util.dart';
+import 'account_repository.dart';
+import 'base_hive_repository.dart';
 
 final modelRepository = ModelRepository();
 
-class ModelRepository {
+class ModelRepository extends BaseHiveRepository<ModelData> {
   static final ModelRepository _instance = ModelRepository._internal();
 
   factory ModelRepository() => _instance;
 
-  ModelRepository._internal();
+  ModelRepository._internal() : super("model_box_key");
 
-  static const String modelBoxKey = "model_box_key";
-  Box<ModelBean>? _box;
+  Future<Iterable<ModelData>> getModelListFromBox() async {
+    final models = await getAll();
+    final needUpdate = <ModelData>[];
 
-  Future<Box<ModelBean>> get _modelBox async => _box ??= await Hive.openBox<ModelBean>(modelBoxKey);
+    for (final model in models) {
+      if (model.alias?.isEmpty != false) {
+        model.alias = "模型${model.id.lastSixChars}";
+        needUpdate.add(model);
+      }
+    }
 
-  Future<Iterable<ModelBean>> getModelListFromBox() async {
-    return (await _modelBox).values;
+    if (needUpdate.isNotEmpty) {
+      final updateMap = {for (final model in needUpdate) model.id: model};
+      await saveAll(updateMap);
+    }
+
+    return models;
   }
 
   Future<void> removeModel(String key) async {
-    await (await _modelBox).delete(key);
+    await delete(key);
     if (await accountRepository.isLogin()) {
       await ModelServer.removeModel(key);
     }
   }
 
-  Future<void> updateModel(String key, ModelBean llm) async {
-    await (await _modelBox).put(key, llm);
+  Future<void> updateModel(String key, ModelData llm) async {
+    await save(key, llm);
     if (await accountRepository.isLogin()) {
       await uploadToServer([llm]);
     }
-    Log.d("updateModel:$key");
   }
 
-  Future<ModelBean?> getModelFromBox(String key) async {
-    return (await _modelBox).get(key);
+  Future<void> updateModels(Map<String, ModelData> models) async {
+    await saveAll(models);
+    if (await accountRepository.isLogin()) {
+      await uploadToServer(models.values.toList());
+    }
   }
 
-  Future<void> clear() async {
-    await (await _modelBox).clear();
-  }
+  Future<ModelData?> getModelFromBox(String key) async => getData(key);
 
-  Future<void> uploadToServer(List<ModelBean> models) async {
+  Future<void> uploadToServer(List<ModelData> models) async {
     List<Map<String, dynamic>> list = [];
     var iterable = models.iterator;
     while (iterable.moveNext()) {
@@ -59,11 +70,11 @@ class ModelRepository {
       if (!model.id.isNumericOnly) {
         continue;
       }
-      String type = model.type ?? "LLM";
-      if (type != "LLM") {
+      String type = model.type ?? ModelValidator.LLM;
+      if (type != ModelValidator.LLM) {
         type = type.toLowerCase();
       }
-      String nickName = model.nickName ?? "模型${model.id.lastSixChars ?? ""}";
+      String nickName = model.alias ?? "模型${model.id.lastSixChars}";
       var jsonMap = {
         "id": model.id,
         "alias": nickName,
@@ -85,9 +96,14 @@ class ModelRepository {
     }
   }
 
+  Future<void> importToServer(ModelDTO model) async {
+    var jsonMap = model.toJson();
+    var response = await ModelServer.importModel(jsonMap);
+  }
+
   Future<void> uploadAllToServer() async {
-    var models = <ModelBean>[];
-    models.addAll(((await _modelBox).values));
+    var models = <ModelData>[];
+    models.addAll(await getAll());
     uploadToServer(models);
   }
 

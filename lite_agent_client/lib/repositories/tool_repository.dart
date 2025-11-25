@@ -1,66 +1,63 @@
 import 'dart:convert';
 
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
+import 'package:lite_agent_client/models/dto/open_tool_schema.dart';
 import 'package:lite_agent_client/models/dto/tool.dart';
+import 'package:lite_agent_client/models/local/tool.dart';
 import 'package:lite_agent_client/server/api_server/tool_server.dart';
 import 'package:lite_agent_client/utils/extension/string_extension.dart';
-import 'package:lite_agent_client/widgets/dialog/dialog_tool_edit.dart';
+import 'package:lite_agent_client/utils/extension/tool_extension.dart';
+import 'package:lite_agent_client/utils/tool/tool_validator.dart';
 import 'package:lite_agent_core_dart/lite_agent_service.dart';
 
-import '../models/local_data_model.dart';
 import '../utils/log_util.dart';
 import 'account_repository.dart';
+import 'base_hive_repository.dart';
 
 final toolRepository = ToolRepository();
 
-class ToolRepository {
+class ToolRepository extends BaseHiveRepository<ToolModel> {
   static final ToolRepository _instance = ToolRepository._internal();
 
   factory ToolRepository() => _instance;
 
-  ToolRepository._internal();
+  ToolRepository._internal() : super("tool_box_key");
 
-  static const String toolBoxKey = "tool_box_key";
-  Box<ToolBean>? _box;
-
-  Future<Box<ToolBean>> get _toolBox async => _box ??= await Hive.openBox<ToolBean>(toolBoxKey);
-
-  Future<Iterable<ToolBean>> getToolListFromBox() async {
-    return (await _toolBox).values;
+  Future<Iterable<ToolModel>> getToolListFromBox() async {
+    return (await getAll()).where((tool) => ToolValidator.isSchemaTypeSupported(tool.schemaType));
   }
 
-  Future<List<ToolDTO>> getToolDTOListFromBox() async {
-    List<ToolDTO> list = [];
-    var iterable = (await _toolBox).values.iterator;
-    while (iterable.moveNext()) {
-      var tool = iterable.current;
-      var dto = tool.translateToDTO();
-      list.add(dto);
+  Future<List<ToolModel>> getCloudAgentListAndTranslate(int tab) async {
+    var list = await toolRepository.getCloudToolList(tab);
+    var tooList = <ToolModel>[];
+    for (var item in list) {
+      var tool = item.toModel();
+      tool.isCloud = true;
+      tooList.add(tool);
     }
-    return list;
+    return tooList;
   }
 
   Future<void> removeTool(String key) async {
-    await (await _toolBox).delete(key);
+    await delete(key);
     if (await accountRepository.isLogin()) {
       await ToolServer.removeTool(key);
     }
   }
 
-  Future<void> updateTool(String key, ToolBean tool) async {
-    await (await _toolBox).put(key, tool);
+  Future<void> updateTool(String key, ToolModel tool) async {
+    await save(key, tool);
     if (await accountRepository.isLogin()) {
       await uploadToServer([tool]);
     }
   }
 
-  Future<ToolBean?> getToolFromBox(String key) async {
-    return (await _toolBox).get(key);
-  }
-
-  Future<void> clear() async {
-    await (await _toolBox).clear();
+  Future<ToolModel?> getToolFromBox(String key) async {
+    ToolModel? tool = await getData(key);
+    if (tool != null && !ToolValidator.isSchemaTypeSupported(tool.schemaType)) {
+      return null;
+    }
+    return tool;
   }
 
   Future<List<ToolDTO>> getCloudToolList(int tab) async {
@@ -77,16 +74,16 @@ class ToolRepository {
     return response.data;
   }
 
-  Future<void> uploadToServer(List<ToolBean> tools) async {
+  Future<void> uploadToServer(List<ToolModel> tools) async {
     var list = <ToolDTO>[];
     for (var tool in tools) {
       if (!tool.id.isNumericOnly) {
         continue;
       }
-      list.add(tool.translateToDTO());
+      list.add(tool.toDTO());
     }
     list.removeWhere((tool) {
-      var schemaStr = tool.schemaStr ?? "";
+      var schemaStr = tool.schemaStr;
       if (schemaStr.isEmpty) {
         return true;
       }
@@ -101,9 +98,9 @@ class ToolRepository {
   }
 
   Future<void> uploadAllToServer() async {
-    var tools = <ToolBean>[];
-    tools.addAll(((await _toolBox).values));
-    tools.removeWhere((item) => item.schemaType == SchemaType.MCP_STDIO_TOOLS || item.schemaType == Protocol.MCP_STDIO_TOOLS);
+    var tools = <ToolModel>[];
+    tools.addAll(await getToolListFromBox());
+    tools.removeWhere((item) => item.schemaType == Protocol.MCP_STDIO);
     uploadToServer(tools);
   }
 
@@ -114,5 +111,10 @@ class ToolRepository {
       list.addAll(response.data!);
     }
     return list;
+  }
+
+  Future<OpenToolSchemaDTO?> loadOpenToolSchema(String host, String apiKey) async {
+    var response = await ToolServer.loadOpenToolSchema(host, apiKey);
+    return response.data;
   }
 }

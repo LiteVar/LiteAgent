@@ -120,8 +120,8 @@ const SequenceModal: React.FC<SequenceModalProps> = ({
                 className="px-3 py-2 cursor-pointer text-center"
                 onClick={() => toggleSequence(fn)}
               >
-                <div>{fn.functionName}</div>
-                <div>{fn.toolName}</div> 
+                <div className='whitespace-pre-wrap break-all'>{fn.functionName}</div>
+                <div className='whitespace-pre-wrap break-all'>{fn.toolName}</div> 
               </Tag>
             ))}
           </div>

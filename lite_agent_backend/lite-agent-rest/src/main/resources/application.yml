@@ -29,6 +29,10 @@ spring:
       embedding: none
       image: none
       moderation: none
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
 
 mongo-plus:
   configuration:
@@ -46,3 +50,11 @@ mongo-plus:
 llm:
   # 大模型请求超时时间(单位:秒)
   timeout: 300
+
+dolphin:
+  base-url: https://example.com:8082
+  token: xxxxx
+  poll-interval: 3s
+  poll-timeout: 5m
+  download-timeout: 2m
+  request-timeout: 60s

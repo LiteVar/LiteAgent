@@ -1,41 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:crypto/crypto.dart' as crypto;
 
-import 'package:openapi_dart/openapi_dart.dart';
-import 'package:openmodbus_dart/openmodbus_dart.dart';
-import 'package:openrpc_dart/openrpc_dart.dart';
-import 'package:opentool_dart/opentool_dart.dart';
 import 'package:yaml/yaml.dart';
 
 import '../../repositories/account_repository.dart';
 
-extension StringHomeAbbreviation on String {
-  // $HOME之前的路径(包括磁盘)缩写为~
-  String homeAbbreviation() {
-    String homeDirectory = Platform.environment['HOME'] ?? '';
-    int startIndex = indexOf(homeDirectory);
-    if (homeDirectory.isNotEmpty && startIndex >= 0) {
-      return '~${substring(startIndex + homeDirectory.length)}';
-    }
-    return this;
-  }
-
-  // 删除$HOME之前的路径
-  String homePrefix() {
-    String homeDirectory = Platform.environment['HOME'] ?? '';
-    int startIndex = indexOf(homeDirectory);
-    if (homeDirectory.isNotEmpty && startIndex >= 0) {
-      return substring(startIndex);
-    }
-    return this;
-  }
-
-  String nameOfPath() {
-    final parts = split('/');
-    final str = parts.isNotEmpty ? parts.last : '';
-    return str.isNotEmpty ? str : this;
-  }
-
+extension StringExtension on String {
   // 将String进行Base64编码
   String encodeBase64() {
     var bytes = utf8.encode(this); // 将当前字符串转换为字节
@@ -48,7 +18,7 @@ extension StringHomeAbbreviation on String {
     return utf8.decode(bytes); // 将字节转换回字符串
   }
 
-  Future<String> fillPicLinkPrefix() async {
+  Future<String> fillPicLinkPrefixAsync() async {
     if (startsWith("http")) {
       return this;
     }
@@ -56,7 +26,7 @@ extension StringHomeAbbreviation on String {
     return "$serverUrl/v1/file/download?filename=$this";
   }
 
-  String fillPicLinkPrefixNoAsync() {
+  String fillPicLinkPrefix() {
     if (startsWith("http") || isEmpty) {
       return this;
     }
@@ -73,70 +43,9 @@ extension StringHomeAbbreviation on String {
     }
   }
 
-  Future<bool> isOpenAIJson() async {
-    try {
-      await OpenAPILoader().load(this);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> isOpenModBusJson() async {
-    try {
-      await OpenModbusLoader().load(this);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> isOpenPPCJson() async {
-    try {
-      await OpenRPCLoader().load(this);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
   bool isYaml() {
     try {
       loadYaml(this) as YamlMap;
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> isOpenAIYaml() async {
-    try {
-      YamlMap yamlMap = loadYaml(this);
-      await OpenAPILoader().load(jsonEncode(yamlMap));
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> isOpenToolJson() async {
-    try {
-      await OpenToolLoader().load(this);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  bool isMCPServersJson() {
-    try {
-      Map<String, dynamic> json = jsonDecode(this);
-      if (json["mcpServers"] == null) return false;
-      json["mcpServers"].forEach((key, value) {
-        if (value["command"] == null || value["args"] == null || value["command"] is! String || value["args"] is! List) {
-          return false;
-        }
-      });
       return true;
     } catch (e) {
       return false;
@@ -153,4 +62,25 @@ extension StringHomeAbbreviation on String {
 
   /// 仅去除尾部空白
   String trimEnd() => replaceAll(RegExp(r'\s+$'), '');
+
+  /// 计算当前字符串的 MD5 十六进制字符串
+  String toMd5Hex() {
+    final bytes = utf8.encode(this);
+    final digest = crypto.md5.convert(bytes);
+    return digest.toString();
+  }
+
+  /// 去除文件名后缀（例如: "a/b/c.json" -> "a/b/c"）
+  /// - 若无后缀或以点结尾，返回原字符串
+  /// - 只删除最后一个点及其之后的内容
+  String withoutExtension() {
+    if (isEmpty) return this;
+    final lastSlash = lastIndexOf('/');
+    final lastBackslash = lastIndexOf('\\');
+    final sep = lastSlash > lastBackslash ? lastSlash : lastBackslash;
+    final dot = lastIndexOf('.');
+    if (dot <= 0) return this; // 无点或点在首位
+    if (sep >= 0 && dot < sep) return this; // 点在目录部分
+    return substring(0, dot);
+  }
 }

@@ -2,30 +2,18 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'workspace.g.dart';
 
-List<WorkSpaceDTO> getWorkspaceDTOList(List<dynamic> list) {
-  List<WorkSpaceDTO> result = [];
-  for (var item in list) {
-    result.add(WorkSpaceDTO.fromJson(item));
-  }
-  return result;
-}
-
 @JsonSerializable()
 class WorkSpaceDTO extends Object {
-  @JsonKey(name: 'id')
+  @JsonKey(name: 'id', defaultValue: '')
   String id;
 
-  @JsonKey(name: 'name')
+  @JsonKey(name: 'name', defaultValue: '')
   String name;
 
-  @JsonKey(name: 'role')
+  @JsonKey(name: 'role', defaultValue: 0)
   int role;
 
-  WorkSpaceDTO(
-    this.id,
-    this.name,
-    this.role,
-  );
+  WorkSpaceDTO(this.id, this.name, this.role);
 
   factory WorkSpaceDTO.fromJson(Map<String, dynamic> srcJson) => _$WorkSpaceDTOFromJson(srcJson);
 

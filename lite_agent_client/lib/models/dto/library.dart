@@ -2,70 +2,51 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'library.g.dart';
 
-
 @JsonSerializable()
 class LibraryDto extends Object {
-
-  @JsonKey(name: 'id')
+  @JsonKey(name: 'id', defaultValue: '')
   String id;
 
-  @JsonKey(name: 'name')
+  @JsonKey(name: 'name', defaultValue: '')
   String name;
 
-  @JsonKey(name: 'userId')
-  String? userId;
+  @JsonKey(name: 'icon', defaultValue: '')
+  String icon;
 
-  @JsonKey(name: 'workspaceId')
-  String? workspaceId;
+  @JsonKey(name: 'description', defaultValue: '')
+  String description;
 
-  @JsonKey(name: 'icon')
-  String? icon;
+  @JsonKey(name: 'shareFlag', defaultValue: false)
+  bool shareFlag;
 
-  @JsonKey(name: 'description')
-  String? description;
+  @JsonKey(name: 'dataSourceType', defaultValue: '')
+  String dataSourceType;
 
-  @JsonKey(name: 'shareFlag')
-  bool? shareFlag;
+  @JsonKey(name: 'docCount', defaultValue: 0)
+  int docCount;
 
-  @JsonKey(name: 'dataSourceType')
-  String? dataSourceType;
+  @JsonKey(name: 'wordCount', defaultValue: 0)
+  int wordCount;
 
-  @JsonKey(name: 'llmModelId')
+  @JsonKey(name: 'agentCount', defaultValue: 0)
+  int agentCount;
+
+  ///embedding模型id
+  String? embeddingModelId;
+
+  ///LLM模型id
   String? llmModelId;
 
-  @JsonKey(name: 'embeddingModel')
-  String? embeddingModel;
+  ///导入时发现的重名模型id
+  String? similarId;
 
-  @JsonKey(name: 'embeddingModelProvider')
-  String? embeddingModelProvider;
+  ///导入时对重名模型的操作
+  int? operate;
 
-  @JsonKey(name: 'retrievalTopK')
-  int? retrievalTopK;
-
-  @JsonKey(name: 'retrievalScoreThreshold')
-  int? retrievalScoreThreshold;
-
-  @JsonKey(name: 'createTime')
-  String? createTime;
-
-  @JsonKey(name: 'updateTime')
-  String? updateTime;
-
-  @JsonKey(name: 'docCount')
-  int? docCount;
-
-  @JsonKey(name: 'wordCount')
-  int? wordCount;
-
-  @JsonKey(name: 'agentCount')
-  int? agentCount;
-
-  LibraryDto(this.id,this.name,this.userId,this.workspaceId,this.icon,this.description,this.shareFlag,this.dataSourceType,this.llmModelId,this.embeddingModel,this.embeddingModelProvider,this.retrievalTopK,this.retrievalScoreThreshold,this.createTime,this.updateTime,);
+  LibraryDto(this.id, this.name, this.icon, this.description, this.shareFlag, this.dataSourceType, this.docCount, this.wordCount,
+      this.agentCount, this.embeddingModelId, this.llmModelId, this.similarId, this.operate);
 
   factory LibraryDto.fromJson(Map<String, dynamic> srcJson) => _$LibraryDtoFromJson(srcJson);
 
   Map<String, dynamic> toJson() => _$LibraryDtoToJson(this);
-
 }
-
-

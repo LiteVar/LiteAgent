@@ -21,9 +21,7 @@ import org.springframework.ai.embedding.Embedding;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,8 +53,6 @@ public class MilvusService {
 	}
 
 	public List<String> insertEmbeddings(String collectionName, List<Embedding> embeddings, List<Document> segments) {
-		ensureCollection(collectionName, embeddings.get(0).getOutput().length);
-
 		List<String> ids = Stream.generate(() -> UUID.randomUUID().toString()).limit(embeddings.size()).toList();
 
 		List<JsonObject> data = new ArrayList<>();
@@ -69,6 +65,11 @@ public class MilvusService {
 			obj.addProperty("enable_flag", true);
 			data.add(obj);
 		}
+		return insertEmbeddings(collectionName, embeddings.get(0).getOutput().length, data);
+	}
+
+	private List<String> insertEmbeddings(String collectionName, int dimension, List<JsonObject> data) {
+		ensureCollection(collectionName, dimension);
 
 		InsertReq insertReq = InsertReq.builder()
 				.collectionName(collectionName)
@@ -76,9 +77,65 @@ public class MilvusService {
 				.build();
 
 		InsertResp insertResp = milvusClient.insert(insertReq);
-		return insertResp.getPrimaryKeys().stream()
-				.map(Object::toString) // 提取 id 并转换为 String
-				.toList();
+		return insertResp.getPrimaryKeys().stream().map(Object::toString).toList();
+	}
+
+	/**
+	 * 文档摘要保存embedding数据
+	 */
+	public void insertSummaryEmbedding(String collectionName, Embedding embedding, String summarize, String documentId) {
+		Map<String, Object> metadata = new HashMap<>();
+		metadata.put("documentId", documentId);
+
+		JsonObject obj = new JsonObject();
+		obj.addProperty(DEFAULT_ID_FIELD_NAME, documentId);
+		obj.addProperty(DEFAULT_TEXT_FIELD_NAME, summarize);
+		obj.add(DEFAULT_METADATA_FIELD_NAME, GSON.toJsonTree(metadata).getAsJsonObject());
+		obj.add(DEFAULT_VECTOR_FIELD_NAME, GSON.toJsonTree(embedding.getOutput()));
+		obj.addProperty("enable_flag", true);
+
+		int dimension = embedding.getOutput().length;
+		ensureCollection(collectionName, dimension);
+
+		GetReq getReq = GetReq.builder()
+				.collectionName(collectionName)
+				.ids(List.of(documentId))
+				.build();
+		GetResp getResp = milvusClient.get(getReq);
+		if (getResp != null && !getResp.getGetResults().isEmpty()) {
+			//update
+			UpsertReq upsertReq = UpsertReq.builder()
+					.collectionName(collectionName)
+					.data(List.of(obj))
+					.build();
+			milvusClient.upsert(upsertReq);
+			return;
+		}
+
+		insertEmbeddings(collectionName, dimension, List.of(obj));
+	}
+
+	public Optional<String> getSummaryText(String collectionName, String documentId) {
+		if (!hasCollection(collectionName)) {
+			return Optional.empty();
+		}
+
+		GetReq getReq = GetReq.builder()
+				.collectionName(collectionName)
+				.ids(List.of(documentId))
+				.outputFields(List.of(DEFAULT_ID_FIELD_NAME, DEFAULT_TEXT_FIELD_NAME))
+				.build();
+
+		GetResp getResp = milvusClient.get(getReq);
+		if (getResp == null || getResp.getResults == null || getResp.getResults.isEmpty()) {
+			return Optional.empty();
+		}
+
+		return getResp.getResults.stream()
+				.map(result -> result.getEntity().get(DEFAULT_TEXT_FIELD_NAME))
+				.filter(Objects::nonNull)
+				.map(Object::toString)
+				.findFirst();
 	}
 
 	public void removeEmbedding(String collectionName, String id) {
@@ -87,6 +144,9 @@ public class MilvusService {
 
 	public void removeEmbeddings(String collectionName, List<String> ids) {
 		if (ids.isEmpty()) {
+			return;
+		}
+		if (!hasCollection(collectionName)) {
 			return;
 		}
 
@@ -108,13 +168,28 @@ public class MilvusService {
 		}
 	}
 
-	public Map<String, Double> search(String collectionName, Embedding embedding, int topK, double minScore) {
+	public Map<String, Double> search(
+        String collectionName, Embedding embedding, int topK, double minScore, List<String> documentIds
+    ) {
+		String filterExpression = "enable_flag == true";
+
+		String documentIdFilter = (documentIds == null
+			? Stream.<String>empty()
+			: documentIds.stream().filter(Objects::nonNull).filter(id -> !id.isBlank()))
+			.map(id -> "\"" + id.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+			.collect(Collectors.joining(", "));
+
+		if (!documentIdFilter.isEmpty()) {
+			filterExpression = filterExpression + " && metadata[\"documentId\"] in [" + documentIdFilter + "]";
+		}
+//        enable_flag == true && metadata["documentId"] in ["1972595493999550465", "1972596909468098561", "1972595308858777602", "1972594769395785729", "1972594165818662913"]
+
 		SearchReq searchReq = SearchReq.builder()
 			.collectionName(collectionName)
 			.annsField(DEFAULT_VECTOR_FIELD_NAME)
 			.data(singletonList(new FloatVec(embedding.getOutput())))
 			.topK(topK)
-			.filter("enable_flag == true") // 只搜索 enable_flag 为 true 的向量
+			.filter(filterExpression) // 根据 enable_flag 以及可选的 documentId 过滤
 			.outputFields(asList(DEFAULT_ID_FIELD_NAME, DEFAULT_TEXT_FIELD_NAME, DEFAULT_METADATA_FIELD_NAME))
 			.metricType(IndexParam.MetricType.COSINE)
 			.consistencyLevel(ConsistencyLevel.EVENTUALLY)
@@ -130,7 +205,27 @@ public class MilvusService {
 			));
 	}
 
+	public List<SearchResp.SearchResult> searchSummaryVector(String collectionName, Embedding embedding, int topK, double minScore) {
+		SearchReq searchReq = SearchReq.builder()
+				.collectionName(collectionName)
+				.annsField(DEFAULT_VECTOR_FIELD_NAME)
+				.data(singletonList(new FloatVec(embedding.getOutput())))
+				.topK(topK)
+				.filter("enable_flag == true") // 只搜索 enable_flag 为 true 的向量
+				.outputFields(asList(DEFAULT_ID_FIELD_NAME, DEFAULT_TEXT_FIELD_NAME, DEFAULT_METADATA_FIELD_NAME))
+				.metricType(IndexParam.MetricType.COSINE)
+				.consistencyLevel(ConsistencyLevel.EVENTUALLY)
+				.build();
+
+		return milvusClient.search(searchReq).getSearchResults().get(0).stream()
+				.filter(result -> result.getScore().doubleValue() >= minScore)
+				.toList();
+	}
+
 	public void toggleEnableFlag(String collectionName, List ids, boolean flag) {
+        if (!hasCollection(collectionName)) {
+            return;
+        }
 		GetReq getReq = GetReq.builder()
 			.collectionName(collectionName)
 			.ids(ids)
@@ -229,27 +324,15 @@ public class MilvusService {
 
 	public void dropCollection(String collectionName) {
 		milvusClient.dropCollection(
-			DropCollectionReq.builder().collectionName(collectionName).build()
+				DropCollectionReq.builder().collectionName(collectionName).build()
 		);
 
-		// 强制清理VectorService中的collection schema缓存
-		// 避免重新创建同名但不同dimension的collection时使用旧缓存
-		try {
-			java.lang.reflect.Field vectorServiceField = milvusClient.getClass().getDeclaredField("vectorService");
-			vectorServiceField.setAccessible(true);
-			Object vectorService = vectorServiceField.get(milvusClient);
-
-			java.lang.reflect.Field cacheField = vectorService.getClass().getDeclaredField("cacheCollectionInfo");
-			cacheField.setAccessible(true);
-			Object cacheObject = cacheField.get(vectorService);
-			if (cacheObject instanceof Map) {
-				@SuppressWarnings("unchecked")
-				Map<String, Object> cache = (Map<String, Object>) cacheObject;
-				cache.remove(collectionName);
-				log.debug("Cleared collection schema cache for '{}'", collectionName);
-			}
-		} catch (Exception e) {
-			log.warn("Failed to clear collection schema cache for '{}', may cause issues when recreating collection with different schema", collectionName, e);
+		//如果存在摘要的集合,也要删除
+		String summaryCollectionName = collectionName.replace("vector_", "summary_");
+		if (hasCollection(summaryCollectionName)) {
+			milvusClient.dropCollection(
+					DropCollectionReq.builder().collectionName(summaryCollectionName).build()
+			);
 		}
 	}
 

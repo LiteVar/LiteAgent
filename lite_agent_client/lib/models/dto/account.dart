@@ -6,26 +6,26 @@ part 'account.g.dart';
 @JsonSerializable()
 class AccountDTO extends Object {
 
-  @JsonKey(name: 'id')
+  @JsonKey(name: 'id', defaultValue: '')
   String id;
 
-  @JsonKey(name: 'name')
+  @JsonKey(name: 'name', defaultValue: '')
   String name;
 
-  @JsonKey(name: 'email')
+  @JsonKey(name: 'email', defaultValue: '')
   String email;
 
-  @JsonKey(name: 'avatar')
-  String? avatar;
+  @JsonKey(name: 'avatar', defaultValue: '')
+  String avatar;
 
-  @JsonKey(name: 'status')
-  int? status;
+  @JsonKey(name: 'status', defaultValue: 0)
+  int status;
 
-  @JsonKey(name: 'createTime')
-  String? createTime;
+  @JsonKey(name: 'createTime', defaultValue: '')
+  String createTime;
 
-  @JsonKey(name: 'updateTime')
-  String? updateTime;
+  @JsonKey(name: 'updateTime', defaultValue: '')
+  String updateTime;
 
   AccountDTO(this.id,this.name,this.email,this.avatar,this.status,this.createTime,this.updateTime,);
 

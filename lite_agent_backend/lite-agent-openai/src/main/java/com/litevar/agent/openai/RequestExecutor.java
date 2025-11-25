@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author uncle
@@ -146,12 +147,27 @@ public class RequestExecutor {
             if (ObjectUtil.isNotEmpty(i)) {
                 timeout = i;
             }
-            Duration duration = Duration.ofSeconds(60);
+            //100个连接,空闲连接保持3分钟
+            ConnectionPool connectionPool = new ConnectionPool(100, 3, TimeUnit.MINUTES);
+
+            // 创建自定义Dispatcher，增加并发限制
+            okhttp3.Dispatcher dispatcher = new okhttp3.Dispatcher();
+            // 总体最大请求数
+            dispatcher.setMaxRequests(200);
+            // 每个主机最大请求数,超过该值,会进入队列等待
+            dispatcher.setMaxRequestsPerHost(50);
+
             okHttpClient = new OkHttpClient.Builder()
-                    .connectTimeout(duration)
-                    .writeTimeout(duration)
-                    .readTimeout(duration)
+                    .dispatcher(dispatcher)
+                    //建立TCP连接的最大等待时间
+                    .connectTimeout(Duration.ofSeconds(15))
+                    //写入请求数据到服务器的超时时间
+                    .writeTimeout(Duration.ofSeconds(30))
+                    //从服务器读取响应数据的超时时间
+                    .readTimeout(Duration.ofSeconds(30))
+                    //整个http调用的总超时时间
                     .callTimeout(Duration.ofSeconds(timeout))
+                    .connectionPool(connectionPool)
                     .build();
         }
         return okHttpClient;

@@ -50,3 +50,5 @@ img/
 macos/Podfile.lock
 macos/Podfile
 
+#cursor
+.vscode

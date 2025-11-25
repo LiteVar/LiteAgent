@@ -1,41 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lite_agent_client/models/uitl/snowflake_uitl.dart';
+import 'package:lite_agent_client/models/local/function.dart';
+import 'package:lite_agent_client/models/local/tool.dart';
+import 'package:lite_agent_client/utils/snowflake_util.dart';
 import 'package:lite_agent_client/repositories/tool_repository.dart';
+import 'package:lite_agent_client/utils/extension/tool_extension.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
+import 'package:lite_agent_client/utils/tool/tool_validator.dart';
+import 'package:lite_agent_client/widgets/dialog/tool_edit/dialog.dart';
+import 'package:lite_agent_client/widgets/dialog/tool_edit/controller.dart';
 import 'package:lite_agent_core_dart/lite_agent_service.dart';
 
-import '../../models/local_data_model.dart';
 import '../common_widget.dart';
-import 'dialog_tool_edit.dart';
 
 class SelectToolFunctionDialog extends StatelessWidget {
-  SelectToolFunctionDialog({super.key, required this.selectToolFunctionList, this.onSelectChanged});
-
   //ui
-  var borderRadius = 16.0;
-  var expandList = <String>[];
+  final double borderRadius = 16.0;
+  final List<String> expandList = <String>[];
 
   //data
-  var selectToolFunctionList = <AgentToolFunction>[];
-  Function()? onSelectChanged;
-  var toolList = <ToolBean>[].obs;
+  final List<ToolFunctionModel> selectToolFunctionList;
+  final Function()? onSelectChanged;
+  final RxList<ToolModel> toolList = <ToolModel>[].obs;
 
-  var mcpService;
+  SelectToolFunctionDialog({super.key, required this.selectToolFunctionList, this.onSelectChanged}) {
+    initData();
+  }
 
   Future<void> initData() async {
     toolList.assignAll((await toolRepository.getToolListFromBox()));
     //make sure functionList will init
     for (var tool in toolList) {
-      tool.functionList.clear();
-      if (tool.schemaType != Protocol.MCP_STDIO_TOOLS) {
-        tool.initToolFunctionList();
+      if (tool.schemaType != Protocol.MCP_STDIO && tool.schemaType != ToolValidator.OPTION_OPENTOOL_SERVER && tool.functionList.isEmpty) {
+        try {
+          await tool.initFunctions();
+        } catch (e) {
+          // 静默处理初始化错误，不影响整体流程
+        }
       }
     }
   }
 
-  bool isFunctionSelected(AgentToolFunction function) {
+  bool isFunctionSelected(ToolFunctionModel function) {
     for (var item in selectToolFunctionList) {
       if (item.toolId == function.toolId && item.functionName == function.functionName && item.requestMethod == function.requestMethod) {
         return true;
@@ -44,7 +52,7 @@ class SelectToolFunctionDialog extends StatelessWidget {
     return false;
   }
 
-  void toggleFunctionSelectStatus(AgentToolFunction function) {
+  void toggleFunctionSelectStatus(ToolFunctionModel function) {
     bool isSelected = false;
     for (var item in selectToolFunctionList) {
       if (item.toolId == function.toolId && item.functionName == function.functionName && item.requestMethod == function.requestMethod) {
@@ -77,8 +85,15 @@ class SelectToolFunctionDialog extends StatelessWidget {
       for (var tool in toolList) {
         if (tool.id == id && tool.functionList.isEmpty) {
           //emptyList means not init yet
-          await tool.initToolFunctionList(showLoading: true);
-          toolList.refresh();
+          EasyLoading.show(status: "正在加载...");
+          try {
+            await tool.initFunctions();
+            toolList.refresh();
+          } catch (e) {
+            AlarmUtil.showAlertToast("工具方法加载失败");
+          } finally {
+            EasyLoading.dismiss();
+          }
           break;
         }
       }
@@ -86,8 +101,8 @@ class SelectToolFunctionDialog extends StatelessWidget {
     toolList.refresh();
   }
 
-  bool isMCPSeverSelected(ToolBean tool) {
-    if (tool.schemaType != Protocol.MCP_STDIO_TOOLS) {
+  bool isToolSelected(ToolModel tool) {
+    if (tool.schemaType != Protocol.MCP_STDIO && tool.schemaType != ToolValidator.OPTION_OPENTOOL_SERVER) {
       return false;
     }
     for (var item in selectToolFunctionList) {
@@ -98,9 +113,9 @@ class SelectToolFunctionDialog extends StatelessWidget {
     return false;
   }
 
-  Future<void> toggleAllFunctionSelectStatus(ToolBean tool) async {
-    if (tool.schemaType == Protocol.MCP_STDIO_TOOLS) {
-      bool isSelected = isMCPSeverSelected(tool);
+  Future<void> toggleAllFunctionSelectStatus(ToolModel tool) async {
+    if (tool.schemaType == Protocol.MCP_STDIO || tool.schemaType == ToolValidator.OPTION_OPENTOOL_SERVER) {
+      bool isSelected = isToolSelected(tool);
       for (var item in selectToolFunctionList) {
         if (item.toolId == tool.id) {
           isSelected = true;
@@ -109,13 +124,14 @@ class SelectToolFunctionDialog extends StatelessWidget {
         }
       }
       if (!isSelected) {
-        AgentToolFunction function = AgentToolFunction()
+        ToolFunctionModel function = ToolFunctionModel()
           ..toolId = tool.id
           ..toolName = tool.name;
         selectToolFunctionList.add(function);
       }
+      onSelectChanged?.call();
     } else {
-      if (await isAllFunctionSelected(tool)) {
+      if (isAllFunctionSelected(tool)) {
         for (var function in tool.functionList) {
           if (isFunctionSelected(function)) {
             toggleFunctionSelectStatus(function);
@@ -132,7 +148,7 @@ class SelectToolFunctionDialog extends StatelessWidget {
     toolList.refresh();
   }
 
-  bool isAllFunctionSelected(ToolBean tool) {
+  bool isAllFunctionSelected(ToolModel tool) {
     for (var function in tool.functionList) {
       if (!isFunctionSelected(function)) {
         return false;
@@ -143,7 +159,6 @@ class SelectToolFunctionDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    initData();
     return Center(
         child: Container(
             width: 586,
@@ -189,9 +204,9 @@ class SelectToolFunctionDialog extends StatelessWidget {
     );
   }
 
-  Container buildListItem(ToolBean tool) {
-    var isMcpServer = tool.schemaType == Protocol.MCP_STDIO_TOOLS;
-    var isSelected = isMcpServer ? isMCPSeverSelected(tool) : isAllFunctionSelected(tool);
+  Container buildListItem(ToolModel tool) {
+    var isWholeSelectTool = tool.schemaType == Protocol.MCP_STDIO || tool.schemaType == ToolValidator.OPTION_OPENTOOL_SERVER;
+    var isSelected = isWholeSelectTool ? isToolSelected(tool) : isAllFunctionSelected(tool);
     var mcpButtonText = isSelected ? "移除" : "添加";
     var normalButtonText = isSelected ? "移除所有方法" : "添加所有方法";
     var buttonTextColor = isSelected ? const Color(0xffF24E4E) : const Color(0xff2A82E4);
@@ -235,7 +250,8 @@ class SelectToolFunctionDialog extends StatelessWidget {
                             RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
                           )),
                       onPressed: () => toggleAllFunctionSelectStatus(tool),
-                      child: Text(isMcpServer ? mcpButtonText : normalButtonText, style: TextStyle(color: buttonTextColor, fontSize: 14)))),
+                      child: Text(isWholeSelectTool ? mcpButtonText : normalButtonText,
+                          style: TextStyle(color: buttonTextColor, fontSize: 14)))),
               InkWell(
                   onTap: () => toggleItemExpandStatus(tool.id),
                   child: buildAssetImage(isExpand ? "icon_up.png" : "icon_down.png", 16, const Color(0xff999999)))
@@ -250,7 +266,7 @@ class SelectToolFunctionDialog extends StatelessWidget {
               children: [
                 ...List.generate(
                   tool.functionList.length,
-                  (index) => buildFunctionItem(tool.functionList[index], !isMcpServer),
+                  (index) => buildFunctionItem(tool.functionList[index], !isWholeSelectTool),
                 )
               ],
             ),
@@ -260,7 +276,7 @@ class SelectToolFunctionDialog extends StatelessWidget {
     );
   }
 
-  Widget buildFunctionItem(AgentToolFunction agentFunction, bool showSelectionButton) {
+  Widget buildFunctionItem(ToolFunctionModel agentFunction, bool showSelectionButton) {
     var isSelected = isFunctionSelected(agentFunction);
     var buttonText = isSelected ? "移除" : "添加";
     var buttonTextColor = isSelected ? const Color(0xffF24E4E) : const Color(0xff2A82E4);
@@ -298,21 +314,31 @@ class SelectToolFunctionDialog extends StatelessWidget {
   }
 
   void _showCreateToolDialog() {
-    Get.dialog(barrierDismissible: false, EditToolDialog(tool: null, isEdit: false, onConfirmCallback: _createNewTool));
+    Get.dialog(
+        barrierDismissible: false,
+        EditToolDialog(
+          tool: null,
+          isEdit: false,
+          onConfirmCallback: (ToolFormData? toolData, {bool isDelete = false}) async {
+            if (toolData != null) {
+              _createNewTool(toolData);
+            }
+          },
+        ));
   }
 
-  void _createNewTool(
-      String name, String description, String schemaType, String schemaText, String apiType, String apiText, bool supportMultiAgent) {
-    ToolBean targetTool = ToolBean()
-      ..id = snowFlakeUtil.getId()
-      ..createTime = DateTime.now().microsecondsSinceEpoch
-      ..name = name
-      ..description = description
-      ..schemaType = schemaType
-      ..schemaText = schemaText
-      ..apiText = apiText
-      ..apiType = apiType
-      ..supportMultiAgent = supportMultiAgent;
+  void _createNewTool(ToolFormData toolData) {
+    ToolModel targetTool = ToolModel(
+      id: snowFlakeUtil.getId(),
+      createTime: DateTime.now().microsecondsSinceEpoch,
+      name: toolData.name,
+      description: toolData.description,
+      schemaType: toolData.schemaType,
+      schemaText: toolData.schemaText,
+      apiText: toolData.apiText,
+      apiType: toolData.apiType,
+      supportMultiAgent: toolData.supportMultiAgent,
+    );
 
     toolList.add(targetTool);
     toolList.refresh();

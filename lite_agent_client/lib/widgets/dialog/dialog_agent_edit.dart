@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
+import 'package:lite_agent_client/utils/agent/agent_validator.dart';
 import '../../utils/log_util.dart';
 import 'package:lite_agent_client/config/constants.dart';
 import 'package:lite_agent_client/utils/alarm_util.dart';
@@ -12,17 +14,13 @@ import 'package:lite_agent_client/widgets/common_widget.dart';
 import '../../utils/file_util.dart';
 
 class EditAgentDialog extends StatefulWidget {
-  final String name;
-  final String iconPath;
-  final String description;
+  final AgentModel? agent;
   final bool isEdit;
   final void Function(String name, String iconPath, String description) onConfirmCallback;
 
   const EditAgentDialog({
     super.key,
-    required this.name,
-    required this.iconPath,
-    required this.description,
+    required this.agent,
     required this.isEdit,
     required this.onConfirmCallback,
   });
@@ -39,16 +37,20 @@ class _EditToolDialogState extends State<EditAgentDialog> {
   final _iconPath = "".obs;
 
   void _initData() {
-    _nameController = TextEditingController(text: widget.name);
-    _iconPath.value = widget.iconPath;
-    _desController = TextEditingController(text: widget.description);
+    _nameController = TextEditingController(text: widget.agent?.name ?? "");
+    _iconPath.value = widget.agent?.iconPath ?? "";
+    _desController = TextEditingController(text: widget.agent?.description ?? "");
   }
 
-  void _confirm() {
+  Future<void> _confirm() async {
     String name = _nameController!.text;
     String description = _desController!.text;
     if (name.trim().isEmpty) {
       AlarmUtil.showAlertDialog("Agent名称必填项不能为空");
+      return;
+    }
+    if (!await AgentValidator.isNameUniqueAsync(name, excludeId: widget.agent?.id)) {
+      AlarmUtil.showAlertDialog("Agent名称已存在，请重新输入");
       return;
     }
     widget.onConfirmCallback(name, _iconPath.value, description);

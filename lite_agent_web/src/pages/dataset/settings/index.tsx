@@ -53,13 +53,14 @@ const Settings: React.FC<SettingsProps> = ({ refetch }) => {
   const onFinish = async (values: {
     name: string;
     description: string;
-    model: string;
+    embeddingModel: string;
+    llmModelId: string;
     retrievalTopK: number;
     retrievalScoreThreshold: number;
   }) => {
     setLoading(true);
     try {
-      const model = models?.find((model) => model.id === values.model);
+      const model = models?.find((model) => model.id === values.embeddingModel);
       const res = await putV1DatasetById({
         path: { id: datasetId },
         headers: {
@@ -68,8 +69,8 @@ const Settings: React.FC<SettingsProps> = ({ refetch }) => {
         body: {
           name: values.name,
           description: values.description,
-          llmModelId: values.model,
-          embeddingModel: values.model,
+          llmModelId: values.llmModelId,
+          embeddingModel: values.embeddingModel,
           embeddingModelProvider: model?.name || 'openai',
           retrievalTopK: values.retrievalTopK,
           retrievalScoreThreshold: values.retrievalScoreThreshold,
@@ -121,7 +122,8 @@ const Settings: React.FC<SettingsProps> = ({ refetch }) => {
         initialValues={{
           name: datasetInfo?.name,
           description: datasetInfo?.description,
-          model: datasetInfo?.embeddingModel,
+          embeddingModel: datasetInfo?.embeddingModel,
+          llmModelId: datasetInfo?.llmModelId,
           retrievalTopK: datasetInfo?.retrievalTopK,
           retrievalScoreThreshold: datasetInfo?.retrievalScoreThreshold,
         }}
@@ -145,7 +147,7 @@ const Settings: React.FC<SettingsProps> = ({ refetch }) => {
           />
         </Form.Item>
 
-        <Form.Item name="model" label="嵌入模型" required>
+        <Form.Item name="embeddingModel" label="嵌入模型" required>
           <Select placeholder="请选择嵌入模型" disabled={docsLength > 0}>
             {models
               ?.filter((m) => m.type === 'embedding')
@@ -155,6 +157,23 @@ const Settings: React.FC<SettingsProps> = ({ refetch }) => {
                 </Select.Option>
               ))}
             <Select.Option className="p-0" key="new" value={null} onClick={() => console.log('新建模型')}>
+              <Link className="w-full h-full block pl-3 leading-10" to={`/workspaces/${workspaceId!}/models`}>
+                新建模型
+              </Link>
+            </Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item name="llmModelId" label="摘要模型">
+          <Select placeholder="请选择摘要模型">
+            {models
+              ?.filter((m) => m.type === 'LLM')
+              .map((model) => (
+                <Select.Option key={model.id} value={model.id}>
+                  {model.alias}
+                </Select.Option>
+              ))}
+            <Select.Option className="p-0" key="new" value={undefined} onClick={() => console.log('新建模型')}>
               <Link className="w-full h-full block pl-3 leading-10" to={`/workspaces/${workspaceId!}/models`}>
                 新建模型
               </Link>

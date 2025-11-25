@@ -20,7 +20,7 @@ public enum TaskStatus {
     /**
      * 调用大模型中
      */
-    CALLING_LLM(1, "开始调用大模型"),
+    CALLING_LLM(1, "开始调用大模型,等待大模型返回"),
     /**
      * 执行函数调用中
      */

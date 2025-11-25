@@ -1,9 +1,12 @@
 import 'package:get/get.dart';
+import 'package:lite_agent_client/models/dto/base/page.dart';
 import 'package:lite_agent_client/models/dto/segment.dart';
-import 'package:lite_agent_client/models/dto/segment_page.dart';
 import 'package:lite_agent_client/modules/document/logic.dart';
+import 'package:lite_agent_client/server/api_server/file_server.dart';
+import 'package:lite_agent_client/utils/alarm_util.dart';
 
 import '../../repositories/library_repository.dart';
+import '../../widgets/pagination/pagination_controller.dart';
 import '../library_detail/logic.dart';
 
 class SegmentLogic extends GetxController {
@@ -15,14 +18,18 @@ class SegmentLogic extends GetxController {
   var selectedSegment = Rx<SegmentDto?>(null);
   var documentName = "".obs;
   var documentId = "";
-  var keyWord = "";
+  var fileId = "";
+  var keyWord = "".obs;
 
   var pageButtonNumberStart = 1;
   final int pageButtonCount = 10;
 
+  late final PaginationController paginationController;
+
   @override
   void onInit() {
     super.onInit();
+    initPagination();
     initData();
   }
 
@@ -40,6 +47,7 @@ class SegmentLogic extends GetxController {
     if (documentLogic.selectedDocument != null) {
       documentName.value = documentLogic.selectedDocument!.name;
       documentId = documentLogic.selectedDocument!.id;
+      fileId = documentLogic.selectedDocument!.fileId;
       loadData(1);
     }
   }
@@ -59,10 +67,10 @@ class SegmentLogic extends GetxController {
       pageButtonNumberStart = currentPage.value;
     }
 
-    SegmentPageDto? data = await libraryRepository.getSegmentList(documentId, pageNo, keyWord.trim().isEmpty ? null : keyWord);
+    PageDTO<SegmentDto>? data = await libraryRepository.getSegmentList(documentId, pageNo, keyWord.value.trim().isEmpty ? null : keyWord.value);
     int pageSize = LibraryRepository.SEGMENT_PAGE_SIZE;
     if (data != null) {
-      int totalItem = int.parse(data.total);
+      int totalItem = data.total;
       int totalPage = totalItem % pageSize > 0 ? (totalItem ~/ pageSize) + 1 : totalItem ~/ pageSize;
 
       totalCount.value = totalItem;
@@ -72,7 +80,7 @@ class SegmentLogic extends GetxController {
   }
 
   Future<void> searchKeyWord(String keyWord) async {
-    this.keyWord = keyWord;
+    this.keyWord.value = keyWord;
     loadData(1);
     /*if (keyWord.isEmpty) {
       await loadData(1);
@@ -93,5 +101,41 @@ class SegmentLogic extends GetxController {
     Get.delete<SegmentLogic>();
     LibraryDetailLogic libraryLogic = Get.find();
     libraryLogic.switchPage(LibraryDetailLogic.PAGE_DOCUMENT);
+  }
+
+  /// 初始化分页控制器
+  void initPagination() {
+    paginationController = PaginationController();
+    paginationController.initialize(
+      currentPage: currentPage.value,
+      totalPage: totalPage.value,
+      pageButtonCount: pageButtonCount,
+      pageButtonNumberStart: pageButtonNumberStart,
+      onPageChanged: loadData,
+    );
+    // 设置双向同步
+    ever(currentPage, (page) => paginationController.updateCurrentPage(page));
+    ever(totalPage, (totalPage) => paginationController.updateTotalPage(totalPage));
+  }
+
+  Future<void> downloadDocumentFile() async {
+    final DocumentLogic documentLogic = Get.find();
+    var document = documentLogic.selectedDocument;
+    if (document != null) {
+      final result = await FileServer.downloadDatasetMarkdownZip(fileId: fileId);
+      switch (result) {
+        case DownloadResult.success:
+          AlarmUtil.showAlertToast('下载成功');
+          break;
+        case DownloadResult.cancelled:
+          // 用户取消不显示提示，或者显示"已取消"
+          break;
+        case DownloadResult.failed:
+          AlarmUtil.showAlertToast('下载失败');
+          break;
+      }
+    } else {
+      AlarmUtil.showAlertToast("文档下载失败,请退出页面重试");
+    }
   }
 }

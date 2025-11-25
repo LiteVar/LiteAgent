@@ -3,10 +3,16 @@ import { Space, Divider, Button, message } from 'antd';
 import { PlusOutlined, AudioOutlined } from '@ant-design/icons';
 import sendSvg from '@/assets/dashboard/send-normal.png';
 import sendDisableSvg from '@/assets/dashboard/send-disable.png';
-import { postV1ChatAudioTranscriptions } from '@/client';
 import ResponseCode from '@/constants/ResponseCode';
 import RecordWave from '../record-wave';
-import { ChatInputProps, InputMode, ApiResponse, AgentType } from '@/types/chat';
+import { ChatInputProps, InputMode, AgentType } from '@/types/chat';
+import { getAccessToken } from '@/utils/cache';
+
+interface TranscriptionResponse {
+  code: number;
+  message: string;
+  data: string;
+}
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
   value, 
@@ -44,6 +50,78 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [agentType, onChange]);
 
+  // 语音转文字
+  const handleConvertAudio = useCallback(async () => {
+
+    try {
+      if (audioChunksRef.current.length === 0) {
+        message.warning('未检测到语音内容');
+        setInputMode(InputMode.VOICE_INIT);
+        setAsrLoading(false);
+        return;
+      }
+      setAsrLoading(true);
+
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
+      
+      // 使用 FormData 来上传音频文件
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'audio.mp3');
+      
+      // 获取访问令牌
+      const token = getAccessToken();
+      
+      // 添加 30 秒超时处理
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('语音转文字请求超时'));
+        }, 1000 * 30);
+      });
+
+      // 使用 fetch 发送 multipart/form-data 请求
+      const apiPromise = fetch(`/v1/chat/audio/transcriptions?modelId=${asrModelId}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        // 不要手动设置 Content-Type，让浏览器自动设置（包括 boundary）
+      }).then(response => response.json());
+
+      const res = await Promise.race([apiPromise, timeoutPromise]) as TranscriptionResponse;
+
+      // fetch 返回的数据结构是 { code, message, data }
+      if (res.code !== ResponseCode.S_OK) {
+        message.error(res.message || '语音转化失败');
+        setInputMode(InputMode.VOICE_INIT);
+        setAsrLoading(false);
+        return;
+      }
+
+      const rawData = res.data || '';
+      const parsed = JSON.parse(rawData);
+      // 如果解析后有 text 字段且内容则判定为有效语音内容
+      if (typeof parsed === 'object' && parsed !== null && typeof parsed.text === 'string') {
+        setInputMode(InputMode.VOICE_INIT);
+
+        const text = parsed.text.trim();
+        setTimeout(() => {
+          setAsrLoading(false);
+          onSend('text', text);
+        }, 1000);
+      } else {
+        message.warning('未检测到有效语音内容');
+        setAsrLoading(false);
+        setInputMode(InputMode.VOICE_INIT);
+      }
+    } catch (e) {
+      console.log(e);
+      message.error('网络异常，语音转化失败');
+      setAsrLoading(false);
+      setInputMode(InputMode.VOICE_INIT);
+    }
+  }, [asrModelId, onSend, setAsrLoading]);
+
   // 语音录制
   const startRecording = useCallback(async () => {
     try {
@@ -72,7 +150,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       console.error('录音错误', err);
       message.warning('无法访问麦克风，请检查麦克风权限');
     }
-  }, []);
+  }, [handleConvertAudio]);
 
   const stopRecording = useCallback(() => {
     setInputMode(InputMode.VOICE_INIT);
@@ -82,65 +160,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
       mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
     }
   }, []);
-
-  // 语音转文字
-  const handleConvertAudio = useCallback(async () => {
-
-    try {
-      if (audioChunksRef.current.length === 0) {
-        message.warning('未检测到语音内容');
-        setInputMode(InputMode.VOICE_INIT);
-        setAsrLoading(false);
-        return;
-      }
-      setAsrLoading(true);
-
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
-      
-      // 添加 30 秒超时处理
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('语音转文字请求超时'));
-        }, 1000 * 30);
-      });
-
-      const apiPromise = postV1ChatAudioTranscriptions({
-        query: { modelId: asrModelId },
-        body: { audio: audioBlob }
-      });
-
-      const res = await Promise.race([apiPromise, timeoutPromise]) as ApiResponse<string>;
-
-      if (res.data?.code !== ResponseCode.S_OK) {
-        message.error(res.data?.message || '语音转化失败');
-        setInputMode(InputMode.VOICE_INIT);
-        setAsrLoading(false);
-        return;
-      }
-
-      const rawData = res.data?.data || '';
-      const parsed = JSON.parse(rawData);
-      // 如果解析后有 text 字段且内容则判定为有效语音内容
-      if (typeof parsed === 'object' && parsed !== null && typeof parsed.text === 'string') {
-        setInputMode(InputMode.VOICE_INIT);
-
-        const text = parsed.text.trim();
-        setTimeout(() => {
-          setAsrLoading(false);
-          onSend('text', text);
-        }, 1000);
-      } else {
-        message.warning('未检测到有效语音内容');
-        setAsrLoading(false);
-        setInputMode(InputMode.VOICE_INIT);
-      }
-    } catch (e) {
-      console.log(e);
-      message.error('网络异常，语音转化失败');
-      setAsrLoading(false);
-      setInputMode(InputMode.VOICE_INIT);
-    }
-  }, [asrModelId, onSend]);
 
   // 语音输入区域鼠标按下时的处理
   const handleVoiceMouseDown = () => {

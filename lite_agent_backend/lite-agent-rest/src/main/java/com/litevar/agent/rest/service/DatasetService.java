@@ -2,9 +2,11 @@ package com.litevar.agent.rest.service;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
+import cn.hutool.core.lang.Dict;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.entity.AgentDatasetRela;
 import com.litevar.agent.base.entity.Dataset;
@@ -16,20 +18,25 @@ import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.base.vo.DatasetCreateForm;
 import com.litevar.agent.base.vo.DatasetsVO;
-import com.litevar.agent.base.vo.LoginUser;
+import com.litevar.agent.base.vo.DocumentCreateForm;
 import com.litevar.agent.base.vo.SegmentVO;
 import com.litevar.agent.rest.config.LitevarProperties;
 import com.litevar.agent.rest.util.PermissionUtil;
 import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
 import com.mongoplus.model.PageResult;
 import com.mongoplus.service.impl.ServiceImpl;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Service implementation for Dataset management.
@@ -54,7 +61,14 @@ public class DatasetService extends ServiceImpl<Dataset> {
      * @param form        The form containing dataset creation details.
      * @return The created Dataset object.
      */
-    public Dataset createDataset(String workspaceId, DatasetCreateForm form, HttpServletRequest request) {
+    public Dataset createDataset(String workspaceId, DatasetCreateForm form) {
+        Dataset existDataset = this.lambdaQuery()
+                .projectDisplay(Dataset::getId)
+                .eq(Dataset::getWorkspaceId, workspaceId)
+                .eq(Dataset::getName, form.getName()).one();
+        if (existDataset != null) {
+            throw new ServiceException(ServiceExceptionEnum.DATASET_NAME_DUPLICATE);
+        }
         String userId = LoginContext.currentUserId();
 
         Dataset dataset = BeanUtil.toBean(form, Dataset.class, CopyOptions.create().setIgnoreNullValue(true));
@@ -66,7 +80,7 @@ public class DatasetService extends ServiceImpl<Dataset> {
         // Generate a unique vector collection name for the dataset
         updateVectorCollectionName(dataset.getId());
         // Generate an API key for the dataset
-        generateApiKey(dataset.getId(), request);
+        generateApiKey(dataset.getId());
 
         return getById(dataset.getId());
     }
@@ -87,9 +101,6 @@ public class DatasetService extends ServiceImpl<Dataset> {
         DatasetsVO bean = BeanUtil.toBean(dataset, DatasetsVO.class);
         bean.setCanEdit(PermissionUtil.getEditPermission(dataset.getUserId(), dataset.getWorkspaceId()));
         bean.setCanDelete(PermissionUtil.getEditPermission(dataset.getUserId(), dataset.getWorkspaceId()));
-
-        LoginUser loginUser = LoginContext.me();
-
 
         return bean;
     }
@@ -184,19 +195,13 @@ public class DatasetService extends ServiceImpl<Dataset> {
         return wrapper.list();
     }
 
-    /**
-     * Searches datasets by llmModelId.
-     *
-     * @param llmModelId the llmModelId
-     * @return the list of datasets
-     */
-    public List<Dataset> searchDatasetsByLlmModelId(String llmModelId) {
-        if (StrUtil.isBlank(llmModelId)) {
+    public List<Dataset> searchDatasetsByLlmModelId(String embeddingModelId) {
+        if (StrUtil.isBlank(embeddingModelId)) {
             return Collections.emptyList();
         }
 
         LambdaQueryChainWrapper<Dataset> wrapper = this.lambdaQuery()
-            .eq(Dataset::getLlmModelId, llmModelId);
+                .eq(Dataset::getEmbeddingModel, embeddingModelId);
 
         return wrapper.list();
     }
@@ -210,21 +215,100 @@ public class DatasetService extends ServiceImpl<Dataset> {
      */
     public Dataset updateDataset(String id, DatasetCreateForm form) {
         Dataset dataset = getById(id);
-
-        BeanUtil.copyProperties(
-            form, dataset,
-            CopyOptions.create().setIgnoreNullValue(true).setIgnoreProperties("llmModelId")
-        );
-
-        if (StrUtil.isNotBlank(form.getLlmModelId()) && !StrUtil.equalsIgnoreCase(form.getLlmModelId(), dataset.getLlmModelId())) {
-            long cnt = documentService.countDocumentsByDatasetId(id);
-            if (cnt == 0) {
-                dataset.setLlmModelId(form.getLlmModelId());
+        if (!dataset.getName().equals(form.getName())) {
+            Dataset existDataset = this.lambdaQuery().projectDisplay(Dataset::getId)
+                    .eq(Dataset::getWorkspaceId, dataset.getWorkspaceId())
+                    .eq(Dataset::getName, form.getName()).one();
+            if (existDataset != null) {
+                throw new ServiceException(ServiceExceptionEnum.DATASET_NAME_DUPLICATE);
             }
         }
 
+        //之前没有选择摘要模型,新选择了模型,要帮needSummary的文档做一次摘要
+        boolean firstSummary = StrUtil.isBlank(dataset.getLlmModelId())
+                && StrUtil.isNotBlank(form.getLlmModelId());
+
+        BeanUtil.copyProperties(
+                form, dataset,
+                CopyOptions.create().setIgnoreNullValue(true).setIgnoreProperties("embeddingModel")
+        );
+
+        if (StrUtil.isNotBlank(form.getEmbeddingModel()) && !StrUtil.equalsIgnoreCase(form.getEmbeddingModel(), dataset.getEmbeddingModel())) {
+            long cnt = documentService.countDocumentsByDatasetId(id);
+            if (cnt == 0) {
+                dataset.setEmbeddingModel(form.getEmbeddingModel());
+            }
+        }
+        String summaryCollectionName = StrUtil.isNotBlank(dataset.getLlmModelId()) ? "summary_" + dataset.getId() : "";
+        dataset.setSummaryCollectionName(summaryCollectionName);
+
         updateById(dataset);
+
+        //处理未向量化的文档
+        processPendingDocuments(id);
+
+        if (firstSummary) {
+            documentService.summarizeNeedSummaryDocuments(id);
+        }
+
         return dataset;
+    }
+
+    private void processPendingDocuments(String datasetId) {
+        String uploadRoot = StrUtil.emptyToDefault(litevarProperties.getUploadPath(), System.getProperty("java.io.tmpdir"));
+        Path datasetDir = Paths.get(uploadRoot, "tmpDocument", datasetId);
+        //判断当前文件夹是否为空,如果不为空,读取里面的json文件,转为DocumentCreateForm对象,调用createDocument
+        if (!Files.exists(datasetDir) || !Files.isDirectory(datasetDir)) {
+            return;
+        }
+
+        List<Path> pendingFiles;
+        try (Stream<Path> stream = Files.list(datasetDir)) {
+            pendingFiles = stream
+                    .filter(Files::isRegularFile)
+                    .filter(path -> StrUtil.endWithIgnoreCase(path.getFileName().toString(), ".json"))
+                    .toList();
+        } catch (IOException e) {
+            log.error("读取知识库{}缓存文档列表失败", datasetId, e);
+            return;
+        }
+
+        for (Path pendingFile : pendingFiles) {
+            try {
+                String json = Files.readString(pendingFile, StandardCharsets.UTF_8);
+                if (StrUtil.isBlank(json)) {
+                    Files.deleteIfExists(pendingFile);
+                    continue;
+                }
+
+                DocumentCreateForm form = JSONUtil.toBean(json, DocumentCreateForm.class);
+                documentService.createDocument(datasetId, form);
+                Files.deleteIfExists(pendingFile);
+            } catch (Exception ex) {
+                log.error("处理知识库{}缓存文档{}失败", datasetId, pendingFile.getFileName(), ex);
+            }
+        }
+
+        try (Stream<Path> stream = Files.list(datasetDir)) {
+            boolean hasPendingFiles = stream
+                    .filter(Files::isRegularFile)
+                    .anyMatch(path -> StrUtil.endWithIgnoreCase(path.getFileName().toString(), ".json"));
+            if (hasPendingFiles) {
+                return;
+            }
+        } catch (IOException e) {
+            log.warn("检查知识库{}缓存文档列表失败", datasetId, e);
+            return;
+        }
+
+        try (Stream<Path> stream = Files.list(datasetDir)) {
+            boolean directoryEmpty = stream.findAny().isEmpty();
+            if (directoryEmpty) {
+                Files.deleteIfExists(datasetDir);
+            }
+        } catch (IOException e) {
+            log.warn("删除知识库{}缓存目录失败", datasetId, e);
+        }
     }
 
     /**
@@ -236,6 +320,9 @@ public class DatasetService extends ServiceImpl<Dataset> {
         removeById(id);
         documentService.deleteDocumentsByDatasetId(id);
         segmentService.deleteSegmentsByDatasetId(id);
+
+        //删除agent与数据集的关联
+        agentDatasetRelaService.removeByColumn(AgentDatasetRela::getDatasetId, id);
     }
 
     /**
@@ -255,7 +342,7 @@ public class DatasetService extends ServiceImpl<Dataset> {
     public List<SegmentVO> retrieve(String datasetId, String content, String apikey) {
         Dataset dataset = getById(datasetId);
 
-        if (dataset.getLlmModelId().isBlank()) {
+        if (StrUtil.isBlank(dataset.getEmbeddingModel())) {
             throw new ServiceException(ServiceExceptionEnum.MODEL_NOT_EXIST_OR_NOT_SHARE);
         }
 
@@ -266,7 +353,11 @@ public class DatasetService extends ServiceImpl<Dataset> {
         return segmentService.retrieveSegments("", Collections.singletonList(datasetId), content);
     }
 
-    public Dataset generateApiKey(String id, HttpServletRequest request) {
+    public Dict retrieve(List<String> datasetIds, String content) {
+        return segmentService.retrieve("", datasetIds, content);
+    }
+
+    public Dataset generateApiKey(String id) {
         Dataset dataset = getDataset(id);
 
         if (!PermissionUtil.getEditPermission(dataset.getUserId(), dataset.getWorkspaceId())) {
@@ -277,9 +368,7 @@ public class DatasetService extends ServiceImpl<Dataset> {
         dataset.setApiKey(apiKey);
 
         if (StrUtil.isBlank(dataset.getApiUrl())) {
-            String apiUrl = request.getScheme() + "://"
-                + litevarProperties.getPublicIp() + ":"
-                + litevarProperties.getPublicPort()
+            String apiUrl = litevarProperties.getExternalApiUrl()
                 + "/liteAgent/v1/dataset/"
                 + dataset.getId()
                 + "/retrieve/external?content=%s";
@@ -293,6 +382,10 @@ public class DatasetService extends ServiceImpl<Dataset> {
     private void updateVectorCollectionName(String id) {
         Dataset dataset = getById(id);
         dataset.setVectorCollectionName("vector_" + dataset.getId());
+        //文档摘要向量库
+        if (StrUtil.isNotBlank(dataset.getLlmModelId())) {
+            dataset.setSummaryCollectionName("summary_" + dataset.getId());
+        }
         updateById(dataset);
     }
 

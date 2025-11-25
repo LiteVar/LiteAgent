@@ -1,5 +1,7 @@
 package com.litevar.agent.rest.controller.v1;
 
+import cn.hutool.core.lang.Dict;
+import cn.hutool.core.util.StrUtil;
 import com.litevar.agent.auth.annotation.IgnoreAuth;
 import com.litevar.agent.auth.annotation.WorkspaceRole;
 import com.litevar.agent.auth.util.JwtUtil;
@@ -9,14 +11,15 @@ import com.litevar.agent.base.entity.DatasetDocument;
 import com.litevar.agent.base.entity.DatasetRetrieveHistory;
 import com.litevar.agent.base.entity.DocumentSegment;
 import com.litevar.agent.base.enums.RoleEnum;
+import com.litevar.agent.base.enums.ServiceExceptionEnum;
+import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.vo.*;
-import com.litevar.agent.rest.service.DatasetRetrieveHistoryService;
-import com.litevar.agent.rest.service.DatasetService;
-import com.litevar.agent.rest.service.DocumentService;
-import com.litevar.agent.rest.service.SegmentService;
+import com.litevar.agent.rest.service.*;
+import com.mongoplus.conditions.update.LambdaUpdateChainWrapper;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.NotEmpty;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.MalformedURLException;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 知识库
@@ -44,6 +48,8 @@ public class DatasetController {
     private SegmentService segmentService;
     @Autowired
     private DatasetRetrieveHistoryService retrieveHistoryService;
+    @Autowired
+    private FileSummaryService fileSummaryService;
 
     /**
      * 创建一个新的知识库。
@@ -56,10 +62,9 @@ public class DatasetController {
     @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
     public ResponseData<Dataset> createDataset(
         @RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId,
-        @Validated @RequestBody DatasetCreateForm form,
-        HttpServletRequest request
+        @Validated @RequestBody DatasetCreateForm form
     ) {
-        return ResponseData.success(datasetService.createDataset(workspaceId, form, request));
+        return ResponseData.success(datasetService.createDataset(workspaceId, form));
     }
 
     /**
@@ -148,6 +153,19 @@ public class DatasetController {
         return ResponseData.success(datasetService.retrieve(datasetId, query, ""));
     }
 
+    /**
+     * 知识库检索(desktop端)
+     *
+     * @param datasetIds 知识库ID数组
+     * @param query      检索的内容
+     * @return
+     */
+    @GetMapping("/retrieveDesktop")
+    public ResponseData<Dict> retrieveDesktop(@RequestParam("ids") List<String> datasetIds,
+                                              @RequestParam String query) {
+        return ResponseData.success(datasetService.retrieve(datasetIds, query));
+    }
+
     @IgnoreAuth
     @GetMapping("/{id}/retrieve/external")
     public ResponseData<List<SegmentVO>> retrieveExternal(
@@ -189,16 +207,15 @@ public class DatasetController {
 
     /**
      * 生成API Key
+     *
      * @param id 知识库ID
      * @return Dataset
      */
     @GetMapping("/{id}/apiKey/generate")
     @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
     public ResponseData<Dataset> generateApiKey(
-        @PathVariable("id") String id,
-        HttpServletRequest request
-    ) {
-        return ResponseData.success(datasetService.generateApiKey(id, request));
+            @PathVariable("id") String id) {
+        return ResponseData.success(datasetService.generateApiKey(id));
     }
 
     /**
@@ -214,7 +231,8 @@ public class DatasetController {
         @PathVariable String datasetId,
         @RequestBody DocumentCreateForm form
     ) throws MalformedURLException {
-        return ResponseData.success(documentService.createDocument(datasetId, form));
+        DatasetDocument document = documentService.createDocument(datasetId, form);
+        return ResponseData.success(document);
     }
 
     /**
@@ -274,8 +292,19 @@ public class DatasetController {
     @DeleteMapping("/documents/{documentId}")
     @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
     public ResponseData<String> deleteDocument(@PathVariable String documentId) {
-        documentService.deleteDocument(documentId);
+        documentService.batchDeleteDocuments(List.of(documentId));
         return ResponseData.success();
+    }
+
+    /**
+     * 文档信息
+     *
+     * @param documentId 文档id
+     * @return
+     */
+    @GetMapping("/documentsInfo/{documentId}")
+    public ResponseData<DatasetDocument> documentInfo(@PathVariable String documentId) {
+        return ResponseData.success(documentService.getDocument(documentId));
     }
 
     /**
@@ -331,7 +360,13 @@ public class DatasetController {
     @PutMapping("/segments/{segmentId}/enable")
     @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
     public ResponseData<String> toggleSegmentEnable(@PathVariable String segmentId) {
-        segmentService.toggleEnableFlag(segmentId);
+        DocumentSegment segment = Optional.ofNullable(segmentService.getById(segmentId)).orElseThrow();
+        segmentService.toggleEnableFlag(List.of(segment), !segment.getEnableFlag());
+
+        LambdaUpdateChainWrapper<DatasetDocument> wrapper = documentService.lambdaUpdate()
+                .set(DatasetDocument::getNeedSummary, Boolean.TRUE)
+                .eq(DatasetDocument::getId, segment.getDocumentId());
+        documentService.update(wrapper);
         return ResponseData.success();
     }
 
@@ -376,7 +411,7 @@ public class DatasetController {
     @DeleteMapping("/segments/{segmentId}")
     @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
     public ResponseData<String> deleteSegment(@PathVariable String segmentId) {
-        segmentService.deleteSegment(segmentId);
+        segmentService.deleteSegments(List.of(segmentId));
         return ResponseData.success();
     }
 
@@ -393,4 +428,33 @@ public class DatasetController {
         return ResponseData.success();
     }
 
+    /**
+     * 知识库文档更新摘要
+     *
+     * @param docIds 文档id,多个则用","隔开
+     * @return
+     */
+    @PutMapping("/document/summary")
+    @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
+    public ResponseData<String> summarizeDocument(@RequestParam("docIds") @NotEmpty List<String> docIds) {
+        List<DatasetDocument> documentList = documentService.getByIds(docIds);
+        Dataset dataset = datasetService.getById(documentList.get(0).getDatasetId());
+        if (StrUtil.isEmpty(dataset.getLlmModelId())) {
+            throw new ServiceException(ServiceExceptionEnum.MODEL_NOT_EXIST_OR_NOT_SHARE);
+        }
+        documentList.forEach(doc -> fileSummaryService.summarizeDocument(doc.getDatasetId(), doc));
+        return ResponseData.success();
+    }
+
+    /**
+     * 查看文档摘要
+     *
+     * @param documentId 文档id
+     * @return
+     */
+    @GetMapping("/documents/{documentId}/summary")
+    public ResponseData<String> getDocumentSummary(@PathVariable String documentId) {
+        String summary = documentService.getDocumentSummary(documentId);
+        return ResponseData.success(summary);
+    }
 }

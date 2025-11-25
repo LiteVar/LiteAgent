@@ -2,6 +2,7 @@ package com.litevar.agent.core.util;
 
 import jakarta.annotation.Resource;
 import jakarta.mail.MessagingException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -14,6 +15,7 @@ import jakarta.mail.internet.MimeMessage;
  * @author uncle
  * @since 2024/8/2 14:25
  */
+@Slf4j
 @Component
 public class MailSendUtil {
 
@@ -41,7 +43,7 @@ public class MailSendUtil {
             helper.setFrom(mailSender.getUsername());
             mailSender.send(mimeMessage);
         } catch (MessagingException e) {
-            throw new RuntimeException("Failed to send HTML email", e);
+            log.error("Failed to send HTML email", e);
         }
     }
 }

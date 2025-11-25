@@ -21,6 +21,8 @@ import {
   putV1AgentReleaseById,
 } from '@/client';
 import { DEFAULT_Max_TOKENS } from './components/AdvancedSettingsPopover';
+import { getAccessToken } from '@/utils/cache';
+import FileExportModal from '@/components/workspace/FileExportModal';
 
 const AgentDetailPage: React.FC = () => {
   const agentId = useLocation().pathname.split('/')[2];
@@ -30,11 +32,14 @@ const AgentDetailPage: React.FC = () => {
   const initialAgentInfoRef = useRef<AgentDetailVO | null>(null);
   const handleBackNavigation = useHandleBackNavigation();
   const [showMaxTokenWarning, setShowMaxTokenWarning] = useState(false);
+  const [isExportModalVisible, setIsExportModalVisible] = useState(false);
+  const [exportAgent, setExportAgent] = useState<Agent | undefined>(undefined);
   const [selectedTab, setSelectedTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('tab') || 'edit';
   });
   const [settingAgent, setSettingAgent] = useState<Agent | null>(null);
+  const token = getAccessToken();
 
   const { data: agentData, refetch } = useQuery({
     ...getV1AgentAdminInfoByIdOptions({ path: { id: agentId } }),
@@ -210,9 +215,68 @@ const AgentDetailPage: React.FC = () => {
     });
   }, [workspaceId, agentId, goAgentListPage]);
 
+  const handleExportAgent = useCallback((id: string, checked: boolean) => {
+    fetch(`/v1/agent/export/${id}?plainText=${checked}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/zip,application/octet-stream',
+        Connection: 'keep-alive',
+        Authorization: 'Bearer ' + token,
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`下载失败: ${response.status}`);
+        }
+
+        // 获取并解析文件名
+        const disposition = response.headers.get('content-disposition');
+        let fileName = `${id}.zip`; // 默认文件名
+
+        if (disposition) {
+          // 处理 filename*=UTF-8''... 格式
+          const filenameMatch = disposition.match(/filename\*=UTF-8''(.+)$/i);
+          if (filenameMatch && filenameMatch[1]) {
+            fileName = decodeURIComponent(filenameMatch[1]);
+          } else {
+            // 处理普通 filename=... 格式
+            const normalMatch = disposition.match(/filename=["']?([^"']+)["']?/i);
+            if (normalMatch && normalMatch[1]) {
+              fileName = normalMatch[1];
+            }
+          }
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        closeExportModal();
+      })
+      .catch((error) => {
+        console.error('下载文件时出错:', error);
+        message.error('文件下载失败，请稍后重试');
+      });
+  }, []);
+
   const handleTabChange = (key: string) => {
     setSelectedTab(key);
     navigate(`/agent/${agentId}?tab=${key}`);
+  };
+
+  const showExportModal = (agent: Agent) => {
+    setExportAgent(agent);
+    setIsExportModalVisible(true);
+  };
+
+  const closeExportModal = () => {
+    setIsExportModalVisible(false);
+    setExportAgent(undefined);
   };
 
   if (!agentInfo) return <div>Loading...</div>;
@@ -227,6 +291,7 @@ const AgentDetailPage: React.FC = () => {
         handleDelete={handleDeleteAgent}
         hasUnsavedChanges={hasUnsavedChanges}
         showMaxTokenWarning={showMaxTokenWarning}
+        showExportModal={showExportModal}
       />
       <main
         style={{ borderTop: '1px solid #ddd' }}
@@ -248,6 +313,8 @@ const AgentDetailPage: React.FC = () => {
           <SettingContent visible={selectedTab === 'setting'} settingAgent={settingAgent!} setSettingAgent={setSettingAgent} />
         </div>
       </main>
+
+      <FileExportModal title="智能体" visible={isExportModalVisible && !!exportAgent} id={exportAgent?.id} onClose={closeExportModal} onOk={handleExportAgent} />
     </div>
   );
 };

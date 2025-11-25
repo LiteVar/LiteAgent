@@ -14,6 +14,7 @@ public interface FunctionExecutor {
     String MODBUS = "modbus";
     String EXTERNAL = "external";
     String MCP = "mcp";
+    String OPEN_TOOL = "openTool";
 
     String HEADER = "header";
     String BODY = "body";

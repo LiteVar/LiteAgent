@@ -19,6 +19,8 @@ import com.litevar.agent.core.module.local.LocalAgentService;
 import com.litevar.agent.core.module.tool.ToolFunctionService;
 import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
+import com.mongoplus.conditions.update.LambdaUpdateChainWrapper;
+import com.mongoplus.mapper.BaseMapper;
 import com.mongoplus.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,8 @@ public class AgentService extends ServiceImpl<Agent> {
     private ToolFunctionService toolFunctionService;
     @Autowired
     private AgentApiKeyService agentApiKeyService;
+    @Autowired
+    private BaseMapper baseMapper;
 
     public Agent findById(String id) {
         Agent agent = this.getById(id);
@@ -219,6 +223,12 @@ public class AgentService extends ServiceImpl<Agent> {
     }
 
     public Agent addAgent(String workspaceId, AgentCreateForm form, String userId) {
+        Agent existAgent = this.lambdaQuery().projectDisplay(Agent::getId)
+                .eq(Agent::getWorkspaceId, workspaceId)
+                .eq(Agent::getName, form.getName()).one();
+        if (existAgent != null) {
+            throw new ServiceException(ServiceExceptionEnum.AGENT_NAME_DUPLICATE);
+        }
         Agent agent = new Agent();
         BeanUtil.copyProperties(form, agent, CopyOptions.create().setIgnoreNullValue(true));
         agent.setWorkspaceId(workspaceId);
@@ -233,10 +243,26 @@ public class AgentService extends ServiceImpl<Agent> {
             throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE);
         }
         this.removeById(id);
+
+        //删除草稿数据
+        RedisUtil.delKey(String.format(CacheKey.AGENT_DATASET_DRAFT, id));
+        RedisUtil.delKey(String.format(CacheKey.AGENT_DRAFT, id));
+
+        //删除数据集关联
+        baseMapper.remove(new LambdaUpdateChainWrapper<>(baseMapper, AgentDatasetRela.class)
+                .eq(AgentDatasetRela::getAgentId, id), AgentDatasetRela.class);
     }
 
     public Agent updateAgent(String id, AgentUpdateForm form) {
         Agent agent = findById(id);
+        if (!agent.getName().equals(form.getName())) {
+            Agent existAgent = this.lambdaQuery().projectDisplay(Agent::getId)
+                    .eq(Agent::getWorkspaceId, agent.getWorkspaceId())
+                    .eq(Agent::getName, form.getName()).one();
+            if (existAgent != null) {
+                throw new ServiceException(ServiceExceptionEnum.AGENT_NAME_DUPLICATE);
+            }
+        }
 
         if (ObjectUtil.isNotEmpty(form.getMaxTokens()) && StrUtil.isNotEmpty(form.getLlmModelId())) {
             LlmModel model = modelService.findById(form.getLlmModelId());

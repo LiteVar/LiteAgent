@@ -1,17 +1,53 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/segment.dart';
 import 'package:lite_agent_client/repositories/library_repository.dart';
 
 import '../../widgets/common_widget.dart';
+import '../../widgets/pagination/pagination_widget.dart';
 import 'logic.dart';
 
 class SegmentPage extends StatelessWidget {
   SegmentPage({Key? key}) : super(key: key);
 
   final SegmentLogic logic = Get.put(SegmentLogic());
+
+  /// 创建高亮文本
+  Widget buildHighlightText(String text, String keyword, TextStyle baseStyle, {int? maxLines, TextOverflow? overflow}) {
+    if (keyword.isEmpty) {
+      return Text(text, style: baseStyle, maxLines: maxLines, overflow: overflow);
+    }
+
+    List<TextSpan> spans = [];
+    String lowerText = text.toLowerCase();
+    String lowerKeyword = keyword.toLowerCase();
+    int start = 0;
+
+    while (start < text.length) {
+      int index = lowerText.indexOf(lowerKeyword, start);
+      if (index == -1) {
+        spans.add(TextSpan(text: text.substring(start), style: baseStyle));
+        break;
+      }
+
+      if (index > start) {
+        spans.add(TextSpan(text: text.substring(start, index), style: baseStyle));
+      }
+
+      spans.add(TextSpan(
+        text: text.substring(index, index + keyword.length),
+        style: baseStyle.copyWith(backgroundColor: const Color(0xffFFEB3B), fontWeight: FontWeight.bold),
+      ));
+
+      start = index + keyword.length;
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
+      maxLines: maxLines,
+      overflow: overflow ?? TextOverflow.clip,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +57,9 @@ class SegmentPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              buildTitleSearchRow(),
+              buildTitleRow(),
+              Container(margin: const EdgeInsets.symmetric(vertical: 16), child: horizontalLine()),
+              buildSearchRow(),
               const SizedBox(height: 10),
               Expanded(child: Obx(() {
                 if (logic.segmentList.isNotEmpty) {
@@ -31,7 +69,7 @@ class SegmentPage extends StatelessWidget {
                   return buildEmptyTipsColumn();
                 }
               })),
-              Obx(() => Offstage(offstage: logic.totalPage.value == 0, child: buildBottomPageContainer()))
+              PaginationWidget(margin: const EdgeInsets.all(20), controller: logic.paginationController)
             ],
           )),
       Positioned(
@@ -70,7 +108,11 @@ class SegmentPage extends StatelessWidget {
                         child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(color: const Color(0xfff5f5f5), borderRadius: BorderRadius.circular(8)),
-                            child: Text(segment.content, style: const TextStyle(fontSize: 14, color: Color(0xff333333)))))
+                            child: Obx(() => buildHighlightText(
+                              segment.content,
+                              logic.keyWord.value,
+                              const TextStyle(fontSize: 14, color: Color(0xff333333)),
+                            ))))
                   ]),
                 ),
               )
@@ -112,8 +154,13 @@ class SegmentPage extends StatelessWidget {
             ),
             Container(
               margin: const EdgeInsets.symmetric(vertical: 10),
-              child: Text(content,
-                  maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, color: Color(0xff333333))),
+              child: Obx(() => buildHighlightText(
+                content,
+                logic.keyWord.value,
+                const TextStyle(fontSize: 14, color: Color(0xff333333)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              )),
             ),
             Container(color: Colors.grey, height: 0.5)
           ],
@@ -122,20 +169,38 @@ class SegmentPage extends StatelessWidget {
     );
   }
 
-  Row buildTitleSearchRow() {
+  Row buildTitleRow() {
     return Row(
       children: [
         InkWell(
           onTap: () => logic.onGoBackButtonClick(),
-          child: Container(margin: const EdgeInsets.only(right: 15), child: buildAssetImage("icon_back.png", 20, Colors.black)),
+          child: Container(margin: const EdgeInsets.only(right: 10), child: buildAssetImage("icon_back.png", 20, Colors.black)),
         ),
         Obx(() => Expanded(
             child: Text(logic.documentName.value,
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff333333), fontSize: 24)))),
-        const SizedBox(width: 10),
-        Obx(() => Text("片段(共${logic.totalCount}个片段)", style: const TextStyle(color: Color(0xff666666), fontSize: 16))),
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff333333), fontSize: 18)))),
+        if (logic.fileId.isNotEmpty) ...[
+          const SizedBox(width: 10),
+          InkWell(
+            onTap: () => logic.downloadDocumentFile(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(border: Border.all(color: const Color(0xffc7c7c7)), borderRadius: BorderRadius.circular(11.0)),
+              child: const Text("下载Markdown文档", style: TextStyle(fontSize: 14, color: Color(0xff333333))),
+            ),
+          )
+        ]
+      ],
+    );
+  }
+
+  Row buildSearchRow() {
+    return Row(
+      children: [
+        Obx(() => Text("片段（共 ${logic.totalCount} 个片段）", style: const TextStyle(color: Color(0xff333333), fontSize: 16))),
+        const Spacer(),
         Container(
-            width: 320,
+            width: 240,
             height: 40,
             margin: const EdgeInsets.fromLTRB(10, 0, 10, 0),
             decoration: BoxDecoration(color: const Color(0xfff5f5f5), borderRadius: BorderRadius.circular(4)),
@@ -152,58 +217,6 @@ class SegmentPage extends StatelessWidget {
                   style: const TextStyle(fontSize: 14, color: Color(0xff333333))),
             ))
       ],
-    );
-  }
-
-  Container buildBottomPageContainer() {
-    if (logic.totalPage.value < 1) return Container();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 20, 60, 0),
-      child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-        Row(
-          children: [
-            const SizedBox(width: 10),
-            InkWell(
-              onTap: () => logic.loadData(logic.currentPage.value - 1),
-              child: buildAssetImage("icon_button_left.png", 30, const Color(0xff666666)),
-            )
-          ],
-        ),
-        ...List.generate(
-          min(logic.pageButtonCount, logic.totalPage.value), // 动态生成的小组件数量
-              (index) {
-            var page = logic.pageButtonNumberStart + index;
-            return Row(
-              children: [
-                const SizedBox(width: 10),
-                InkWell(
-                  onTap: () => logic.loadData(page),
-                  child: Container(
-                    decoration: logic.currentPage.value == (page)
-                        ? BoxDecoration(color: const Color(0xff337fe3), borderRadius: BorderRadius.circular(4))
-                        : BoxDecoration(border: Border.all(color: const Color(0xfff5f5f5)), borderRadius: BorderRadius.circular(4)),
-                    width: 30,
-                    height: 30,
-                    child: Center(
-                        child: Text("$page",
-                            style:
-                            TextStyle(fontSize: 16, color: logic.currentPage.value == page ? Colors.white : const Color(0xff666666)))),
-                  ),
-                )
-              ],
-            );
-          },
-        ),
-        Row(
-          children: [
-            const SizedBox(width: 10),
-            InkWell(
-              onTap: () => logic.loadData(logic.currentPage.value + 1),
-              child: buildAssetImage("icon_button_right.png", 30, const Color(0xff666666)),
-            )
-          ],
-        ),
-      ]),
     );
   }
 

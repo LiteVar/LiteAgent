@@ -1,11 +1,10 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/retrieval_result.dart';
 import 'package:lite_agent_client/widgets/common_widget.dart';
 
 import '../../models/dto/retrieval_record.dart';
+import '../../widgets/pagination/pagination_widget.dart';
 import 'logic.dart';
 
 class RetrievalPage extends StatelessWidget {
@@ -49,7 +48,7 @@ class RetrievalPage extends StatelessWidget {
                 child: Obx(() => ListView.builder(
                     itemCount: logic.recordList.length,
                     itemBuilder: (context, index) => buildRecordListItem(index, logic.recordList[index])))),
-            Obx(() => buildBottomPageContainer())
+            PaginationWidget(controller: logic.paginationController, margin: const EdgeInsets.all(20))
           ]),
         )),
         verticalLine(),
@@ -66,7 +65,7 @@ class RetrievalPage extends StatelessWidget {
           onEnter: (event) => logic.recordHoverItemId.value = index.toString(),
           onExit: (event) => logic.recordHoverItemId.value = "",
           child: InkWell(
-              onTap: () => logic.copyRecordTextToInputWidget(record.content),
+              onTap: () => logic.getRetrieveHistory(record.id),
               child: Container(
                 decoration: BoxDecoration(color: backgroundColor),
                 height: 40,
@@ -162,6 +161,7 @@ class RetrievalPage extends StatelessWidget {
               child: const Text("没有找到相关搜索结果", style: TextStyle(color: Color(0xff999999), fontSize: 14)))),
           Expanded(
             child: Obx(() => ListView.separated(
+                controller: logic.resultScrollController,
                 itemCount: logic.resultList.length,
                 itemBuilder: (context, index) => buildResultListItem(index, logic.resultList[index]),
                 separatorBuilder: (BuildContext context, int index) => const SizedBox(height: 10))),
@@ -180,7 +180,7 @@ class RetrievalPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("#${index + 1} | 关联度 ${result.score?.toStringAsFixed(2)}", style: const TextStyle(color: Color(0xff2a82e4), fontSize: 12)),
+          Text("#${index + 1} | 关联度 ${result.score.toStringAsFixed(2)}", style: const TextStyle(color: Color(0xff2a82e4), fontSize: 12)),
           Container(
             margin: const EdgeInsets.symmetric(vertical: 5),
             child: Text(result.content ?? "", style: const TextStyle(color: Color(0xff333333), fontSize: 14)),
@@ -190,63 +190,30 @@ class RetrievalPage extends StatelessWidget {
               Text("token：${result.tokenCount}", style: const TextStyle(color: Color(0xff999999), fontSize: 12)),
               const SizedBox(width: 20),
               buildAssetImage("icon_library_segment.png", 14, const Color(0xff999999)),
-              Text(documentName, style: const TextStyle(color: Color(0xff999999), fontSize: 12)),
+              Flexible(
+                child: Text(
+                  documentName,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: const TextStyle(color: Color(0xff999999), fontSize: 12),
+                ),
+              ),
+              const SizedBox(width: 20),
+              if (result.fileId.isNotEmpty) ...[
+                InkWell(
+                  onTap: () => logic.showDocumentDetail(result.fileId, result.documentName),
+                  child: const Text("查看原文", style: TextStyle(color: Color(0xff2A82E4), fontSize: 12)),
+                ),
+                const SizedBox(width: 20),
+                InkWell(
+                  onTap: () => logic.downloadDocumentFile(result.fileId),
+                  child: const Text("下载源文件", style: TextStyle(color: Color(0xff2A82E4), fontSize: 12)),
+                )
+              ],
             ],
           )
         ],
       ),
-    );
-  }
-
-  Container buildBottomPageContainer() {
-    if (logic.totalPage.value < 1) return Container();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-      child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-        Row(
-          children: [
-            const SizedBox(width: 10),
-            InkWell(
-              onTap: () => logic.loadRetrievalRecord(logic.currentPage.value - 1),
-              child: buildAssetImage("icon_button_left.png", 30, const Color(0xff666666)),
-            )
-          ],
-        ),
-        ...List.generate(
-          min(logic.pageButtonCount, logic.totalPage.value), // 动态生成的小组件数量
-          (index) {
-            var page = logic.pageButtonNumberStart + index;
-            return Row(
-              children: [
-                const SizedBox(width: 10),
-                InkWell(
-                  onTap: () => logic.loadRetrievalRecord(page),
-                  child: Container(
-                    decoration: logic.currentPage.value == (page)
-                        ? BoxDecoration(color: const Color(0xff337fe3), borderRadius: BorderRadius.circular(4))
-                        : BoxDecoration(border: Border.all(color: const Color(0xfff5f5f5)), borderRadius: BorderRadius.circular(4)),
-                    width: 30,
-                    height: 30,
-                    child: Center(
-                        child: Text("$page",
-                            style:
-                                TextStyle(fontSize: 16, color: logic.currentPage.value == page ? Colors.white : const Color(0xff666666)))),
-                  ),
-                )
-              ],
-            );
-          },
-        ),
-        Row(
-          children: [
-            const SizedBox(width: 10),
-            InkWell(
-              onTap: () => logic.loadRetrievalRecord(logic.currentPage.value + 1),
-              child: buildAssetImage("icon_button_right.png", 30, const Color(0xff666666)),
-            )
-          ],
-        ),
-      ]),
     );
   }
 }

@@ -4,10 +4,10 @@ English · [中文](README-zh_CN.md)
 
 ##### Technology Stack
 * JDK 17
-* Springboot 3.3.1
+* Springboot 3.5.4
 * hutool 5.8.29
 * MongoPlus 2.1.6
-* Milvus 2.5.6
+* Milvus 2.6.3
 
 ##### Environment Setup
 * JDK17
@@ -15,7 +15,7 @@ English · [中文](README-zh_CN.md)
 * Mongodb(version 4.0 and above)
 * Redis
 * Email account with SMTP enabled(account,password,service IP,port)
-* Milvus 2.5.6
+* Milvus
 
 ##### Milvus Installation and Deployment
 1.  Follow the official Milvus tutorial to install and deploy Milvus: [Milvus Official Tutorial](https://milvus.io/docs/install_milvus.md).

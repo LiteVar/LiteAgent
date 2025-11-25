@@ -1,9 +1,11 @@
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
+import 'package:lite_agent_client/models/local/conversation.dart';
 import 'package:lite_agent_client/widgets/input_box_container.dart';
 
-import '../../models/local_data_model.dart';
+import '../../widgets/chat_message_items.dart';
 import '../../widgets/common_widget.dart';
 import '../../widgets/listview_chat_message.dart';
 import 'logic.dart';
@@ -71,7 +73,7 @@ class ChatPage extends StatelessWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 14, color: textColor, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                            style: TextStyle(fontSize: 14, color: textColor, fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal),
                           ),
                         ),
                         Obx(() => Offstage(
@@ -113,8 +115,8 @@ class ChatPage extends StatelessWidget {
   }
 
   Expanded _buildChatView() {
-    AgentConversationBean? conversation = logic.currentConversation.value;
-    AgentBean? agent = conversation?.agent;
+    ConversationModel? conversation = logic.currentConversation.value;
+    AgentModel? agent = conversation?.agent;
     return Expanded(
         child: Column(children: [
       Container(
@@ -170,7 +172,7 @@ class ChatPage extends StatelessWidget {
     ]));
   }
 
-  Row _buildAgentInfoRow(AgentBean? agent) {
+  Row _buildAgentInfoRow(AgentModel? agent) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -244,10 +246,10 @@ class ChatPage extends StatelessWidget {
                 child: Obx(() => ListView.builder(
                     itemCount: logic.currentSubMessageList.length,
                     itemBuilder: (context, index) => Container(
-                          margin: const EdgeInsets.all(10),
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: buildSubMessageItem(logic.currentSubMessageList[index], () => logic.currentSubMessageList.refresh()),
-                        ))),
+                        margin: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: ChatMessageItem.buildSubMessageItem(
+                            logic.currentSubMessageList[index], () => logic.currentSubMessageList.refresh())))),
               ),
             ],
           ),

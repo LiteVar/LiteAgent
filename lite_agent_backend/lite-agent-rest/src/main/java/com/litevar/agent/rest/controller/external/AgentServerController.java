@@ -19,7 +19,7 @@ import com.litevar.agent.base.exception.StreamException;
 import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.core.module.agent.AgentService;
 import com.litevar.agent.core.module.agent.ChatService;
-import com.litevar.agent.core.module.tool.executor.OpenToolExecutor;
+import com.litevar.agent.core.module.tool.executor.OpenToolThirdExecutor;
 import com.litevar.agent.openai.completion.message.Message;
 import com.litevar.agent.openai.completion.message.UserMessage;
 import com.litevar.agent.rest.openai.agent.AgentManager;
@@ -41,7 +41,7 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
+import reactor.core.scheduler.Scheduler;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -67,9 +67,11 @@ public class AgentServerController {
     @Autowired
     private AgentUtil agentUtil;
     @Autowired
-    private OpenToolExecutor openToolExecutor;
+    private OpenToolThirdExecutor openToolThirdExecutor;
     @Autowired
     private ChatService chatService;
+    @Autowired
+    private Scheduler customScheduler;
 
     @IgnoreAuth
     @PostMapping("/initSession")
@@ -138,6 +140,7 @@ public class AgentServerController {
                         CurrentAgentRequest.setContext(currentContext);
 
                         if (!taskList.isEmpty()) {
+                            currentContext.setTaskId(taskId);
                             AgentSendMsgDTO msg = new AgentSendMsgDTO();
                             msg.setMessage("执行方案");
                             msg.setType("text");
@@ -160,7 +163,7 @@ public class AgentServerController {
                         }
 
                         afterChat(sessionId, requestId);
-                    }).subscribeOn(Schedulers.boundedElastic()).subscribe(null, sink::error, () -> afterChat(sessionId, requestId));
+                    }).subscribeOn(customScheduler).subscribe(null, sink::error, () -> afterChat(sessionId, requestId));
                 })
                 .timeout(Duration.ofMinutes(10))
                 .doOnError(TimeoutException.class, e -> log.warn("SSE连接超时: sessionId={}", sessionId))
@@ -184,7 +187,7 @@ public class AgentServerController {
     @GetMapping("/version")
     public Object version(@RequestHeader(CommonConstant.HEADER_AUTH) String token) {
         agentUtil.getAgentIdFromToken(token);
-        return Dict.create().set("version", "1.0.0");
+        return Dict.create().set("version", "2.0.0");
     }
 
     @IgnoreAuth
@@ -206,7 +209,7 @@ public class AgentServerController {
         String callId = data.getId();
         String result = JSONUtil.toJsonStr(data.getResult());
         log.info("收到第三方系统接口回调结果,callId:{},result:{}", callId, result);
-        openToolExecutor.callback(callId, result);
+        openToolThirdExecutor.callback(callId, result);
 
         return Dict.create().set("result", "success");
     }

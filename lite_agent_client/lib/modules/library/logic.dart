@@ -2,12 +2,13 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:lite_agent_client/models/dto/library.dart';
-import 'package:lite_agent_client/models/dto/library_page.dart';
+import 'package:lite_agent_client/models/dto/base/page.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../config/routes.dart';
 import '../../repositories/library_repository.dart';
 import '../../utils/event_bus.dart';
+import '../../widgets/pagination/pagination_controller.dart';
 
 class LibraryLogic extends GetxController with WindowListener {
   var libraryList = <LibraryDto>[].obs;
@@ -19,13 +20,32 @@ class LibraryLogic extends GetxController with WindowListener {
   var pageButtonNumberStart = 1;
   final int pageButtonCount = 10;
 
+  // 分页控制器
+  late final PaginationController paginationController;
+
   @override
   void onInit() {
     super.onInit();
     initWindow();
-
+    initPagination();
     initEventBus();
     initData();
+  }
+
+  /// 初始化分页控制器
+  void initPagination() {
+    paginationController = PaginationController();
+    paginationController.initialize(
+      currentPage: currentPage.value,
+      totalPage: totalPage.value,
+      pageButtonCount: pageButtonCount,
+      pageButtonNumberStart: pageButtonNumberStart,
+      onPageChanged: loadData,
+    );
+
+    // 设置双向同步
+    ever(currentPage, (page) => paginationController.updateCurrentPage(page));
+    ever(totalPage, (totalPage) => paginationController.updateTotalPage(totalPage));
   }
 
   void initWindow() async {
@@ -72,7 +92,7 @@ class LibraryLogic extends GetxController with WindowListener {
       pageButtonNumberStart = currentPage.value;
     }
 
-    LibraryPageDto? data = await libraryRepository.getLibraryList(pageNo, keyWord.trim().isEmpty ? null : keyWord);
+    PageDTO<LibraryDto>? data = await libraryRepository.getLibraryList(pageNo, keyWord.trim().isEmpty ? null : keyWord);
     if (data != null) {
       handlePageResultForPage(data);
       libraryList.assignAll(data.list);
@@ -96,9 +116,9 @@ class LibraryLogic extends GetxController with WindowListener {
     loadData(1);
   }
 
-  void handlePageResultForPage(LibraryPageDto data) {
+  void handlePageResultForPage(PageDTO<LibraryDto> data) {
     int pageSize = LibraryRepository.LIBRARY_PAGE_SIZE;
-    int totalItem = int.parse(data.total);
+    int totalItem = data.total;
     int totalPage = totalItem % pageSize > 0 ? (totalItem ~/ pageSize) + 1 : totalItem ~/ pageSize;
 
     this.totalPage.value = totalPage;

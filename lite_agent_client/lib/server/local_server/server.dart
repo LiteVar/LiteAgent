@@ -10,7 +10,7 @@ import 'package:dart_openai_sdk/dart_openai_sdk.dart';
 
 import '../../utils/log_util.dart' as client_log;
 
-/// 全局工具驱动列表，可供所有代理会话使用
+/*/// 全局工具驱动列表，可供所有代理会话使用
 final List<ToolDriver> globalToolDriverList = [
   /// 在此处添加全局工具驱动
 ];
@@ -22,7 +22,8 @@ final Map<OpenToolDto, OpenToolDriver> openToolDriverInfoMap = {
 };
 
 /// 全局代理服务实例
-final AgentService agentService = AgentService(globalToolDriverList: globalToolDriverList);
+final AgentService agentService = AgentService(globalToolDriverList: globalToolDriverList);*/
+final AgentService agentService = AgentService();
 
 /// 全局代理管理服务实例
 late final AgentManageService agentManageService;
@@ -44,7 +45,7 @@ Future<void> startServer() async {
   final AgentController agentController = AgentController(
     agentService, 
     agentManageService, 
-    openToolDriverInfoMap: openToolDriverInfoMap
+    //openToolDriverInfoMap: openToolDriverInfoMap
   );
   
   final AgentManageController agentManageController = AgentManageController(agentManageService);

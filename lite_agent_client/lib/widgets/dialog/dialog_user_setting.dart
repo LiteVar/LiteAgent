@@ -34,7 +34,7 @@ class UserSettingDialog extends StatelessWidget {
     server = await accountRepository.getApiServerUrl();
     account.value = await accountRepository.getAccountInfoFromBox();
     if (account.value != null) {
-      accountAvatar = await account.value?.avatar?.fillPicLinkPrefix() ?? "";
+      accountAvatar = await account.value?.avatar?.fillPicLinkPrefixAsync() ?? "";
     }
     account.refresh();
   }

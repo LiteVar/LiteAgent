@@ -33,5 +33,13 @@ yarn-error.log*
 # IDE
 /.idea
 /.vscode
+/.cursor
 
 .env
+
+/lib/lite_agent_openapi.json
+
+/.claude
+CLAUDE.md
+
+/dist

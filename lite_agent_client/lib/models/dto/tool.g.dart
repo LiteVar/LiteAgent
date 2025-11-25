@@ -7,28 +7,24 @@ part of 'tool.dart';
 // **************************************************************************
 
 ToolDTO _$ToolDTOFromJson(Map<String, dynamic> json) => ToolDTO(
-      json['id'] as String,
-      json['userId'] as String?,
-      json['workspaceId'] as String?,
-      json['name'] as String?,
-      json['description'] as String?,
-      (json['schemaType'] as num?)?.toInt(),
-      json['schemaStr'] as String?,
-      json['apiKey'] as String?,
-      json['apiKeyType'] as String?,
-      json['shareFlag'] as bool?,
-      json['createTime'] as String?,
-      json['updateTime'] as String?,
-      json['autoAgent'] as bool?,
+      json['id'] as String? ?? '',
+      json['name'] as String? ?? '',
+      json['description'] as String? ?? '',
+      (json['schemaType'] as num?)?.toInt() ?? 0,
+      json['schemaStr'] as String? ?? '',
+      json['apiKey'] as String? ?? '',
+      json['apiKeyType'] as String? ?? '',
+      json['shareFlag'] as bool? ?? false,
+      json['autoAgent'] as bool? ?? false,
       (json['functionList'] as List<dynamic>?)
           ?.map((e) => FunctionDto.fromJson(e as Map<String, dynamic>))
           .toList(),
+      json['similarId'] as String?,
+      (json['operate'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$ToolDTOToJson(ToolDTO instance) => <String, dynamic>{
       'id': instance.id,
-      'userId': instance.userId,
-      'workspaceId': instance.workspaceId,
       'name': instance.name,
       'description': instance.description,
       'schemaType': instance.schemaType,
@@ -36,8 +32,8 @@ Map<String, dynamic> _$ToolDTOToJson(ToolDTO instance) => <String, dynamic>{
       'apiKey': instance.apiKey,
       'apiKeyType': instance.apiKeyType,
       'shareFlag': instance.shareFlag,
-      'createTime': instance.createTime,
-      'updateTime': instance.updateTime,
       'autoAgent': instance.autoAgent,
       'functionList': instance.functionList,
+      'similarId': instance.similarId,
+      'operate': instance.operate,
     };

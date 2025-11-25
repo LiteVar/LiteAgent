@@ -8,14 +8,16 @@ import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.entity.DatasetDocument;
 import com.litevar.agent.base.entity.DocumentSegment;
+import com.litevar.agent.base.entity.UploadFile;
 import com.litevar.agent.base.enums.DatasetSourceType;
 import com.litevar.agent.base.enums.EmbedStatus;
 import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.vo.DocumentCreateForm;
-import com.litevar.agent.rest.springai.document.SimpleDocumentSplitter;
+import com.litevar.agent.rest.springai.document.DocumentSplitter;
+import com.litevar.agent.rest.springai.document.DocumentSplitterFactory;
+import com.litevar.agent.rest.vector.MilvusService;
 import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
-import com.mongoplus.conditions.update.LambdaUpdateChainWrapper;
 import com.mongoplus.model.PageResult;
 import com.mongoplus.service.impl.ServiceImpl;
 import kotlin.collections.ArrayDeque;
@@ -23,7 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -31,6 +35,9 @@ import org.springframework.stereotype.Service;
 import java.net.MalformedURLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -43,6 +50,15 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
     private DatasetService datasetService;
     @Autowired
     private SegmentService segmentService;
+    @Autowired
+    private UploadFileService uploadFileService;
+    @Autowired
+    private FileSummaryService fileSummaryService;
+    @Autowired
+    private MilvusService milvusService;
+    @Autowired
+    @Qualifier("asyncTaskExecutor")
+    private Executor asyncTaskExecutor;
 
     /**
      * Creates a new document.
@@ -63,12 +79,17 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
         document = getById(document.getId());
 
         List<Document> segments = splitDocument(form, false, datasetId, document.getId());
-        List<DocumentSegment> documentSegments = segmentService.embedSegments(dataset.getWorkspaceId(), datasetId, document.getId(), segments);
+        List<DocumentSegment> documentSegments = segmentService.embedSegments(
+            dataset.getWorkspaceId(), datasetId, document.getId(), document.getFileId(), segments
+        );
 
         document.setWordCount(documentSegments.stream().mapToInt(DocumentSegment::getWordCount).sum());
         document.setTokenCount(documentSegments.stream().mapToInt(DocumentSegment::getTokenCount).sum());
         document.setEmbedStatus(EmbedStatus.SUCCESS.getValue());
         saveOrUpdate(document);
+
+        //摘要
+        fileSummaryService.summarizeDocument(datasetId, document);
 
         return document;
     }
@@ -81,6 +102,16 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
      */
     public DatasetDocument getDocument(String id) {
         return getById(id);
+    }
+
+    public String getDocumentSummary(String documentId) {
+        DatasetDocument document = Optional.ofNullable(getById(documentId)).orElseThrow();
+        Dataset dataset = datasetService.getDataset(document.getDatasetId());
+        if (StrUtil.isBlank(dataset.getSummaryCollectionName())) {
+            return "";
+        }
+
+        return milvusService.getSummaryText(dataset.getSummaryCollectionName(), documentId).orElse("");
     }
 
     /**
@@ -116,24 +147,13 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
     }
 
     /**
-     * Deletes a document by its ID.
-     *
-     * @param id the ID of the document to delete
-     */
-    public void deleteDocument(String id) {
-        removeById(id);
-        segmentService.deleteSegmentsByDocumentId(id);
-    }
-
-    /**
      * Deletes documents by dataset ID.
      *
      * @param datasetId the ID of the dataset
      */
     public void deleteDocumentsByDatasetId(String datasetId) {
-        LambdaUpdateChainWrapper<DatasetDocument> wrapper = this.lambdaUpdate()
-            .eq(DatasetDocument::getDatasetId, datasetId);
-        this.remove(wrapper);
+        List<DatasetDocument> list = this.lambdaQuery().eq(DatasetDocument::getDatasetId, datasetId).list();
+        deleteDocuments(list);
     }
 
     /**
@@ -146,9 +166,16 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
 
         boolean flag = !document.getEnableFlag();
         document.setEnableFlag(flag);
+        document.setNeedSummary(Boolean.TRUE);
         saveOrUpdate(document);
 
-        segmentService.toggleEnableFlagByDocument(id, flag);
+        List<DocumentSegment> segmentList = segmentService.lambdaQuery()
+                .eq(DocumentSegment::getDocumentId, id).list();
+
+        segmentService.toggleEnableFlag(segmentList, flag);
+
+        //如果有摘要,也要同步该文档摘要的enable字段
+        milvusService.toggleEnableFlag("summary_" + document.getDatasetId(), List.of(id), flag);
     }
 
     /**
@@ -177,7 +204,12 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
             }
         }
         if (form.getDataSourceType().equalsIgnoreCase(DatasetSourceType.FILE.getValue())) {
-            //TODO
+            UploadFile uploadFile = uploadFileService.getById(form.getFileId());
+            Resource fileResource = new FileSystemResource(uploadFile.getMarkdownPath());
+            TikaDocumentReader documentReader = new TikaDocumentReader(fileResource);
+            List<Document> docList = documentReader.get();
+            docList.stream().forEach(d -> d.getMetadata().remove("source"));
+            documents.addAll(docList);
         }
 
         documents.forEach(document -> {
@@ -196,7 +228,8 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
             }
         });
 
-        List<Document> segments = new SimpleDocumentSplitter(form.getSeparator(), form.getChunkSize()).split(documents);
+        DocumentSplitter splitter = DocumentSplitterFactory.createDelimiterMerging(form.getChunkSize(), 0, form.getSeparator());
+        List<Document> segments = splitter.split(documents.get(0));
 
         if (previewFlag) {
             return segments.stream().limit(5).collect(Collectors.toList());
@@ -206,8 +239,30 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
     }
 
     public void batchDeleteDocuments(List<String> documentIds) {
-        removeBatchByIds(documentIds);
-        segmentService.deleteSegmentsByDocumentIds(documentIds);
+        if (documentIds.isEmpty()) {
+            return;
+        }
+        List<DatasetDocument> documentList = this.getByIds(documentIds);
+
+        deleteDocuments(documentList);
+    }
+
+    private void deleteDocuments(List<DatasetDocument> docList) {
+        if (docList.isEmpty()) {
+            return;
+        }
+        List<String> docIds = docList.stream().map(DatasetDocument::getId).toList();
+        this.removeBatchByIds(docIds);
+        segmentService.deleteSegmentsByDocumentIds(docIds);
+
+        //删除文档,如果有摘要,也要删除
+        milvusService.removeEmbeddings("summary_" + docList.get(0).getDatasetId(), docIds);
+
+        docList.forEach(doc -> {
+            if (StrUtil.isNotBlank(doc.getFileId())) {
+                uploadFileService.deleteFileById(doc.getFileId());
+            }
+        });
     }
 
     public DatasetDocument renameDocument(String documentId, String name) {
@@ -216,6 +271,26 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
         document.setName(name);
         updateById(document);
         return document;
+    }
+
+    public void summarizeNeedSummaryDocuments(String datasetId) {
+        List<DatasetDocument> documents = this.lambdaQuery()
+                .eq(DatasetDocument::getDatasetId, datasetId)
+                .eq(DatasetDocument::getEnableFlag, Boolean.TRUE)
+                .eq(DatasetDocument::getNeedSummary, Boolean.TRUE)
+                .list();
+
+        if (documents.isEmpty()) {
+            return;
+        }
+
+        documents.forEach(document ->
+                CompletableFuture.runAsync(() -> fileSummaryService.summarizeDocument(datasetId, document), asyncTaskExecutor)
+                        .exceptionally(ex -> {
+                            log.error("文档摘要失败, datasetId={}, documentId={}", datasetId, document.getId(), ex);
+                            return null;
+                        })
+        );
     }
 
 }

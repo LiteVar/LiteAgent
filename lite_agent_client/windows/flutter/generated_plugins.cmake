@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
   connectivity_plus
+  desktop_drop
   record_windows
   screen_retriever
   url_launcher_windows

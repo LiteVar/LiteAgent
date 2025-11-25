@@ -12,11 +12,12 @@ import org.springframework.stereotype.Component;
 @Data
 @Component
 public class LitevarProperties {
-    @Value("${litevar.public.ip}")
-    private String publicIp;
-    @Value("${litevar.public.port}")
-    private Integer publicPort;
-    @Value("${litevar.temp.path}")
-    private String tempPath;
+    @Value("${litevar.upload.path}")
+    private String uploadPath;
 
+    @Value("${external.api.url}")
+    private String externalApiUrl;
+
+    @Value("${file.save-path}")
+    private String iconPath;
 }

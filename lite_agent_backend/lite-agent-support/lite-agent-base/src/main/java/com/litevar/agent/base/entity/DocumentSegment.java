@@ -40,6 +40,10 @@ public class DocumentSegment {
     @MongoIndex
     private String documentId;
     /**
+     * 文件id
+     */
+    private String fileId;
+    /**
      * 向量数据库里的对应segment id
      */
     @MongoIndex

@@ -5,7 +5,7 @@ import 'package:lite_agent_client/models/dto/account.dart';
 import 'package:lite_agent_client/models/dto/workspace.dart';
 import 'package:lite_agent_client/server/api_server/workspace_server.dart';
 import 'package:lite_agent_client/utils/event_bus.dart';
-import 'package:lite_agent_client/utils/shared_preferences_uitl.dart';
+import 'package:lite_agent_client/utils/shared_preferences_util.dart';
 
 import '../server/api_server/account_server.dart';
 

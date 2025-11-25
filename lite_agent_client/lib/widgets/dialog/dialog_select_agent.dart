@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lite_agent_client/models/local/agent.dart';
 import 'package:lite_agent_client/repositories/agent_repository.dart';
 import 'package:lite_agent_client/widgets/common_widget.dart';
 
 import '../../models/dto/agent.dart';
 
 class SelectAgentDialog extends StatelessWidget {
-  final void Function(AgentDTO agent) onStartChatConfirm;
+  final void Function(AgentModel agent) onStartChatConfirm;
 
   SelectAgentDialog({super.key, required this.onStartChatConfirm});
 
@@ -17,15 +18,16 @@ class SelectAgentDialog extends StatelessWidget {
 
   var currentSecondaryTab = TAB_SEC_ALL.obs;
 
-  var currentAgentList = <AgentDTO>[].obs;
-  final Map<String, List<AgentDTO>> _agentListMap = <String, List<AgentDTO>>{};
+  var currentAgentList = <AgentModel>[].obs;
+  final _agentListMap = <String, List<AgentModel>>{};
 
   Future<void> initData() async {
-    _agentListMap[TAB_SEC_ALL] = (await agentRepository.getAgentDTOListFromBox());
-    _agentListMap[TAB_SEC_ALL]?.addAll(await agentRepository.getCloudAgentList(0));
-    _agentListMap[TAB_SEC_SYSTEM] = (await agentRepository.getCloudAgentList(1));
-    _agentListMap[TAB_SEC_SHARE] = (await agentRepository.getCloudAgentList(2));
-    _agentListMap[TAB_SEC_MINE] = (await agentRepository.getCloudAgentList(3));
+    _agentListMap[TAB_SEC_ALL] ??= [];
+    _agentListMap[TAB_SEC_ALL]?.addAll((await agentRepository.getAgentListFromBox()));
+    _agentListMap[TAB_SEC_ALL]?.addAll(await agentRepository.getCloudAgentListAndTranslate(0));
+    _agentListMap[TAB_SEC_SYSTEM] = (await agentRepository.getCloudAgentListAndTranslate(1));
+    _agentListMap[TAB_SEC_SHARE] = (await agentRepository.getCloudAgentListAndTranslate(2));
+    _agentListMap[TAB_SEC_MINE] = (await agentRepository.getCloudAgentListAndTranslate(3));
     switchSecondaryTab(TAB_SEC_ALL);
   }
 
@@ -98,9 +100,9 @@ class SelectAgentDialog extends StatelessWidget {
     });
   }
 
-  Container _buildAgentItem(AgentDTO agent) {
-    var iconPath = agent.icon ?? "";
-    var description = agent.description ?? "";
+  Container _buildAgentItem(AgentModel agent) {
+    var iconPath = agent.iconPath;
+    var description = agent.description;
     if (description.contains("\n")) {}
     return Container(
         margin: const EdgeInsets.all(10),

@@ -58,4 +58,18 @@ public class ToolVO {
      * 是否支持auto agent使用
      */
     private Boolean autoAgent = Boolean.FALSE;
+
+    //=========== 以下字段为导入时用到
+
+    /**
+     * 相同的数据id
+     */
+    private String similarId;
+
+    /**
+     * 数据操作类型
+     *
+     * @see com.litevar.agent.base.enums.OperateTypeEnum
+     */
+    private Integer operate = 0;
 }

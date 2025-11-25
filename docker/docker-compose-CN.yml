@@ -46,7 +46,7 @@ services:
       - mongo
       - redis
     ports:
-      - "8086:8086"
+      - "8086:8080"
 
   nginx:
     image: crpi-7i3xk868tuahj8mk.cn-shenzhen.personal.cr.aliyuncs.com/lv_public/nginx:latest
