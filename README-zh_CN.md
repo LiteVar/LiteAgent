@@ -6,9 +6,9 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 
 ## 程序说明
 
-- [Web端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README_zh-CN.md): 用于管理和配置agent、工具、大模型、知识库以及用户等。
-- [桌面端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README-zh_CN.md): 用于管理agent、工具、大模型等。
-- [后端](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README-zh_CN.md)：web、desktop和sdk的后端服务。
+- [Web端](lite_agent_web/README_zh-CN.md): 用于管理和配置agent、工具、大模型、知识库以及用户等。
+- [桌面端](lite_agent_client/README-zh_CN.md): 用于管理agent、工具、大模型等。
+- [后端](lite_agent_backend/README-zh_CN.md)：web、desktop和sdk的后端服务。
 - [SDK](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk): C#/LabVIEW/TypeScript/Dart/Java sdk，帮助开发者快速集成LiteAgent。
 
 ## 特性
@@ -98,6 +98,8 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 ```
 cd docker 
 docker compose up -d
+# 若遇网络问题，可尝试使用如下命令：
+# docker compose -f docker-compose-CN.yml up -d
 ```
 
 ### 4. 配置初始化账号

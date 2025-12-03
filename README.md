@@ -5,9 +5,9 @@ English · [中文](README-zh_CN.md)
 LiteAgent is an open-source AI Agent platform designed for industrial applications, enabling users to quickly build and deploy AI Agent applications. It supports integration with various models and tools, providing web, desktop, and backend services suitable for diverse industrial scenarios.
 
 ## Program description
-  - [Web](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_web/README.md): manage agent, tool, model, knowledge base and user, etc.
-  - [Desktop](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_client/README.md): manage agent, tool, model, etc.
-  - [Backend](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_backend/README.md): service and api for web, desktop and sdk.
+  - [Web](lite_agent_web/README.md): manage agent, tool, model, knowledge base and user, etc.
+  - [Desktop](lite_agent_client/README.md): manage agent, tool, model, etc.
+  - [Backend](lite_agent_backend/README.md): service and api for web, desktop and sdk.
   - [SDK](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk): C#/LabVIEW/TypeScript/Dart/Java sdk, to help developers quickly integrate LiteAgent.
 
 ## Features

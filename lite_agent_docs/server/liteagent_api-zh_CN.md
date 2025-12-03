@@ -2,7 +2,7 @@
 
 [English](liteagent_api_en.md) · 中文
 
-版本：`1.0.0`
+版本：`2.0.0`
 
 ## 目录
 - HTTP API
@@ -56,8 +56,8 @@ https://api.liteagent.cn/liteAgent/v1
 
 ```json
   {
-  "version": "0.0.0"
-}
+      "version": "0.0.0"
+  }
 ```
 
 ### 2. 初始化Agent会话
@@ -111,12 +111,12 @@ POST /initSession
 ##### Body参数
 `application/json`
 
-| 字段名               | 类型        | 说明                                                                                                                                                                                |
-|-------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `content`         | `array`   | 消息内容列表，数组中每个元素为 `object`                                                                                                                                                          |
-| `content.type`    | `string`  | 消息类型，可选为 `text` `imageUrl`                                                                                                                                                        |
-| `content.message` | `string`  | 消息内容，例如："给我一个随机数"; <br/>如果消息类型为`imageUrl`，message的String可选为：<br/>1. 图片链接："https://example.com/path/to/image.png" ，且确保公网可访问<br/>2. base64格式："data:image/jpeg;base64,{图片的base64编码}" |
-| `isChunk`         | `boolean` | （可选）用于订阅 LiteAgent返回消息的方式，默认为`false`                                                                                                                                              |
+| 字段名               | 类型        | 说明                                                                                                                                                                                                                     |
+|-------------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `content`         | `array`   | 消息内容列表，数组中每个元素为 `object`                                                                                                                                                                                               |
+| `content.type`    | `string`  | 消息类型，可选为 `text` `imageUrl` `execute`                                                                                                                                                                                   |
+| `content.message` | `string`  | 消息内容，例如："给我一个随机数"; <br/>如果消息类型为`imageUrl`，message的String可选为：<br/>1. 图片链接："https://example.com/path/to/image.png" ，且确保公网可访问<br/>2. base64格式："data:image/jpeg;base64,{图片的base64编码}"<br/> 如果消息为`execute`，message为`planId` |
+| `isChunk`         | `boolean` | （可选）用于订阅 LiteAgent返回消息的方式，默认为`false`                                                                                                                                                                                   |
 
 #### 请求示例
 
@@ -143,22 +143,24 @@ POST /chat?sessionId=1901883204734947328
 
 当`event`为`message`或`functionCall`时，`data`类型为`object`类型，`data`结构如下:
 
-| 字段                                   | 类型        | 说明                                                                                                                        |
-|--------------------------------------|-----------|---------------------------------------------------------------------------------------------------------------------------|
-| `sessionId`                          | `string`  | 会话id                                                                                                                      |
-| `taskId`                             | `string`  | 任务id                                                                                                                      |
-| `role`                               | `string`  | 角色，可选值包括： `developer`、`user`、`agent`、`assistant`、`dispatcher`、`subagent`、`reflection`、`tool`、`client`                     |
-| `to`                                 | `string`  | 消息发送的目标，可选值包括与`role`一致                                                                                                    |
-| `type`                               | `string`  | 消息类型，可能包含的值有:`text`、`imageUrl`、`contentList`、`toolCalls`、`dispatch`、`reflection`、`toolReturn`、`functionCall`、`taskStatus` |
-| `content`                            | `dynamic` | 见以下示例定义，详情定义见 [`type`在不同类型下的`content`结构](#1-type在不同类型下的content结构)                                                         |
-| `completions`                        | `object`  | （可选）大模型完成的详细信息，包含以下字段：                                                                                                    |
-| `completions.usage`                  | `object`  | token 使用信息                                                                                                                |
-| `completions.usage.promptTokens`     | `number`  | 提示符 token 数                                                                                                               |
-| `completions.usage.completionTokens` | `number`  | 生成 token 数                                                                                                                |
-| `completions.usage.totalTokens`      | `number`  | 总 token 数                                                                                                                 |
-| `completions.id`                     | `string`  | 大模型返回的消息 ID                                                                                                               |
-| `completions.model`                  | `string`  | 大模型名称，例如 gpt-4o-mini                                                                                                      |
-| `createTime`                         | `string`  | 消息创建时间，格式为 yyyy-MM-ddTHH:mm:ss.SSSZ                                                                                       |
+| 字段                                   | 类型        | 说明                                                                                                                                                      |
+|--------------------------------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `sessionId`                          | `string`  | 会话id                                                                                                                                                    |
+| `taskId`                             | `string`  | 任务id                                                                                                                                                    |
+| `parentTaskId`                       | `string`  | 父任务id，若来自根任务，则此为`null`                                                                                                                                  |
+| `agentId`                            | `string`  | 如果来自于已编辑好的Agent，则此处为对应Agent的Id，如果是动态过程生成的Agent，则为`null`                                                                                                 |
+| `role`                               | `string`  | 角色，可选值包括： `developer`、`user`、`agent`、`assistant`、`dispatcher`、`subagent`、`reflection`、`tool`、`client`                                                   |
+| `to`                                 | `string`  | 消息发送的目标，可选值包括与`role`一致                                                                                                                                  |
+| `type`                               | `string`  | 消息类型，可能包含的值有:`text`、`imageUrl`、`contentList`、`toolCalls`、`dispatch`、`reflection`、`toolReturn`、`functionCall`、`taskStatus`、`reasoningContent`、`planning` |
+| `content`                            | `dynamic` | 见以下示例定义，详情定义见 [`type`在不同类型下的`content`结构](#1-type在不同类型下的content结构)                                                                                       |
+| `completions`                        | `object`  | （可选）大模型完成的详细信息，包含以下字段：                                                                                                                                  |
+| `completions.usage`                  | `object`  | token 使用信息                                                                                                                                              |
+| `completions.usage.promptTokens`     | `int`     | 提示符 token 数                                                                                                                                             |
+| `completions.usage.completionTokens` | `int`     | 生成 token 数                                                                                                                                              |
+| `completions.usage.totalTokens`      | `int`     | 总 token 数                                                                                                                                               |
+| `completions.id`                     | `string`  | 大模型返回的消息 ID                                                                                                                                             |
+| `completions.model`                  | `string`  | 大模型名称，例如 gpt-4o-mini                                                                                                                                    |
+| `createTime`                         | `string`  | 消息创建时间，格式为 yyyy-MM-ddTHH:mm:ss.SSSZ                                                                                                                     |
 
 #### `event`为`message`的`data`示例
 
@@ -216,7 +218,7 @@ POST /chat?sessionId=1901883204734947328
     "createTime": "2023-06-18T15:45:30.000+0800"
   }
   ```
-
+  
 - `dispatcher`分发指令到`subagent`
     ```json
   {
@@ -269,6 +271,49 @@ POST /chat?sessionId=1901883204734947328
   }
   ```
 
+深度思考：`type`为`reasoningContent`
+  ```json
+  {
+    "sessionId":"1901883204734947328",
+    "taskId":"1901883415867822080",
+    "role":"assistant",
+    "to":"agent",
+    "type": "reasoningContent",
+    "content": "<Reasoning Text>",
+    "createTime": "2023-06-18T15:45:30.000+0800"
+  }
+  ```
+
+规划：`type`为`planning`
+  ```json
+  {
+    "sessionId":"1901883204734947328",
+    "taskId":"1901883415867822080",
+    "role":"assistant",
+    "to":"agent",
+    "type": "planning",
+    "content": {
+      "planId": "<Plan ID>",
+      "plans": [
+        {
+          "name": "<plan Name>",
+          "model": {"id":"xxx_modelId","name":"model name"},
+          "prompt": "<Aim, Demand...>",
+          "tools": [
+            {
+              "id": "xxx_toolId",
+              "name": "tool name",
+              "desc": "tool desc"
+            }
+          ],
+          "subPlans": [...]
+        }
+      ]
+    },
+    "createTime": "2023-06-18T15:45:30.000+0800"
+  }
+  ```
+
 - 当`isChunk`=`false`，LLM返回的结果
   ```json
   {
@@ -315,10 +360,10 @@ POST /chat?sessionId=1901883204734947328
   "taskId":"1901883415867822080",
   "role":"assistant",
   "to":"agent",
-  "type": "text",
+  "type": "functionCall",
   "content": {
     "id": "<大模型返回的 `function calling` 的id>",
-    "function": "createItem",
+    "name": "createItem",
     "arguments": {
       "item": "test",
       "itemId": "0"
@@ -330,22 +375,24 @@ POST /chat?sessionId=1901883204734947328
 
 当`isChunk`=`true`时，LLM的消息返回`event`为`chunk`，`role`为`agent` `assistant`或`subagent`。`data`类型为`object`类型，`data`结构如下:
 
-| 字段                                   | 类型       | 说明                                        |
-|--------------------------------------|----------|-------------------------------------------|
-| `sessionId`                          | `string` | 会话id                                      |
-| `taskId`                             | `string` | 任务id                                      |
-| `role`                               | `string` | 角色，可选值包括： `agent`、`assistant`、`subagent`、 |
-| `to`                                 | `string` | 消息目标，可选值包括与`role`一致                       |
-| `type`                               | `string` | 消息类型，可能包含的值有:`text`                       |
-| `part`                               | `string` | LLM返回信息的片段                                |
-| `completions`                        | `object` | （可选）大模型完成的详细信息，包含以下字段：                    |
-| `completions.usage`                  | `object` | token 使用信息                                |
-| `completions.usage.promptTokens`     | `number` | 提示符 token 数                               |
-| `completions.usage.completionTokens` | `number` | 生成 token 数                                |
-| `completions.usage.totalTokens`      | `number` | 总 token 数                                 |
-| `completions.id`                     | `string` | 大模型返回的消息 ID                               |
-| `completions.model`                  | `string` | 大模型名称，例如 gpt-4o-mini                      |
-| `createTime`                         | `string` | 消息创建时间，格式为 yyyy-MM-ddTHH:mm:ss.SSSZ       |
+| 字段                                   | 类型       | 说明                                                      |
+|--------------------------------------|----------|---------------------------------------------------------|
+| `sessionId`                          | `string` | 会话id                                                    |
+| `taskId`                             | `string` | 任务id                                                    |
+| `parentTaskId`                       | `string` | 父任务id，若来自根任务，则此为`null`                                  |
+| `agentId`                            | `string` | 如果来自于已编辑好的Agent，则此处为对应Agent的Id，如果是动态过程生成的Agent，则为`null` |
+| `role`                               | `string` | 角色，可选值包括： `agent`、`assistant`、`subagent`、               |
+| `to`                                 | `string` | 消息目标，可选值包括与`role`一致                                     |
+| `type`                               | `string` | 消息类型，可能包含的值有:`text`                                     |
+| `part`                               | `string` | LLM返回信息的片段                                              |
+| `completions`                        | `object` | （可选）大模型完成的详细信息，包含以下字段：                                  |
+| `completions.usage`                  | `object` | token 使用信息                                              |
+| `completions.usage.promptTokens`     | `number` | 提示符 token 数                                             |
+| `completions.usage.completionTokens` | `number` | 生成 token 数                                              |
+| `completions.usage.totalTokens`      | `number` | 总 token 数                                               |
+| `completions.id`                     | `string` | 大模型返回的消息 ID                                             |
+| `completions.model`                  | `string` | 大模型名称，例如 gpt-4o-mini                                    |
+| `createTime`                         | `string` | 消息创建时间，格式为 yyyy-MM-ddTHH:mm:ss.SSSZ                     |
 
 #### `data`为`chunk`示例：
 
@@ -357,6 +404,19 @@ POST /chat?sessionId=1901883204734947328
     "role":"assistant",
     "to":"agent",
     "type": "text",
+    "part": "您的",
+    "createTime": "2023-06-18T15:45:30.000+0800"
+  }
+  ```
+  
+- `chunk`的推理过程片段示例
+  ```json
+  {
+    "sessionId":"1901883204734947328",
+    "taskId":"1901883415867822080",
+    "role":"assistant",
+    "to":"agent",
+    "type": "reasoningContent",
     "part": "您的",
     "createTime": "2023-06-18T15:45:30.000+0800"
   }
@@ -436,7 +496,7 @@ POST /chat?sessionId=1901883204734947328
 
 **状态码**: `200 OK`
 
-**响应体**:
+**响应体**: 
 
 无
 
@@ -468,22 +528,24 @@ GET /history?sessionId=1901883204734947328
 
 **响应体**: `array`类型，对应的`ojbect`为：
 
-| 字段名                                  | 类型       | 说明                                                                                                          |
-|--------------------------------------|----------|-------------------------------------------------------------------------------------------------------------|
-| `sessionId`                          | `string` | 会话 ID，用于标识对应会话                                                                                              |
-| `taskId`                             | `string` | 任务 ID，识别该任务                                                                                                 |
-| `role`                               | `string` | 消息来源，可能的值包括：`developer`、`user`、`agent`、`assistant`、`dispatcher`、`subagent`、`reflection`、`tool`、`client`     |
-| `to`                                 | `string` | 消息目标，可能的值与`role`一致                                                                                          |
-| `type`                               | `string` | 消息类型，可能的值包括：`text`、`imageUrl`、`contentList`、`toolCalls`、`dispatch`、`reflection`、`toolReturn`、`functionCall` |
-| `message`                            | `any`    | 消息内容，具体类型需根据 `type` 字段解析                                                                                    |
-| `completions`                        | `object` | 大模型完成的详细信息，包含以下字段：                                                                                          |
-| `completions.usage`                  | `object` | Token 使用信息                                                                                                  |
-| `completions.usage.promptTokens`     | `number` | 提示符 token 数                                                                                                 |
-| `completions.usage.completionTokens` | `number` | 生成 token 数                                                                                                  |
-| `completions.usage.totalTokens`      | `number` | 总 token 数                                                                                                   |
-| `completions.id`                     | `string` | 大模型返回的消息 ID                                                                                                 |
-| `completions.model`                  | `string` | 大模型名称，例如 gpt-3.5-turbo                                                                                      |
-| `createTime`                         | `string` | 消息创建时间，格式为 yyyy-MM-ddTHH:mm:ss.SSSZ                                                                         |
+| 字段名                                  | 类型       | 说明                                                                                                                             |
+|--------------------------------------|----------|--------------------------------------------------------------------------------------------------------------------------------|
+| `sessionId`                          | `string` | 会话 ID，用于标识对应会话                                                                                                                 |
+| `taskId`                             | `string` | 任务 ID，识别该任务                                                                                                                    |
+| `parentTaskId`                       | `string` | 父任务id，若来自根任务，则此为`null`                                                                                                         |
+| `agentId`                            | `string` | 如果来自于已编辑好的Agent，则此处为对应Agent的Id，如果是动态过程生成的Agent，则为`null`                                                                        |
+| `role`                               | `string` | 消息来源，可能的值包括：`developer`、`user`、`agent`、`assistant`、`dispatcher`、`subagent`、`reflection`、`tool`、`client`                        |
+| `to`                                 | `string` | 消息目标，可能的值与`role`一致                                                                                                             |
+| `type`                               | `string` | 消息类型，可能的值包括：`text`、`imageUrl`、`contentList`、`toolCalls`、`dispatch`、`reflection`、`toolReturn`、`functionCall`、`reasoningContent` |
+| `message`                            | `any`    | 消息内容，具体类型需根据 `type` 字段解析                                                                                                       |
+| `completions`                        | `object` | 大模型完成的详细信息，包含以下字段：                                                                                                             |
+| `completions.usage`                  | `object` | Token 使用信息                                                                                                                     |
+| `completions.usage.promptTokens`     | `number` | 提示符 token 数                                                                                                                    |
+| `completions.usage.completionTokens` | `number` | 生成 token 数                                                                                                                     |
+| `completions.usage.totalTokens`      | `number` | 总 token 数                                                                                                                      |
+| `completions.id`                     | `string` | 大模型返回的消息 ID                                                                                                                    |
+| `completions.model`                  | `string` | 大模型名称，例如 gpt-3.5-turbo                                                                                                         |
+| `createTime`                         | `string` | 消息创建时间，格式为 yyyy-MM-ddTHH:mm:ss.SSSZ                                                                                            |
 
 #### 响应示例
 
@@ -602,12 +664,13 @@ GET /clear?sessionId=1901883204734947328
 
 ### 1. `type`在不同类型下的`content`结构
 
-- `type`为`text`或`imageUrl`
+- `type`为`text`或`imageUrl`或`reasoningContent`
 
-| `type`     | content数据类型 | 说明  |
-|------------|-------------|-----|
-| `text`     | `string`    | 纯文本 |
-| `imageUrl` | `string`    | 纯文本 |
+| `type`             | content数据类型 | 说明  |
+|--------------------|-------------|-----|
+| `text`             | `string`    | 纯文本 |
+| `imageUrl`         | `string`    | 纯文本 |
+| `reasoningContent` | `string`    | 纯文本 |
 
 - `type`为`toolCalls`，类型为`array`，元素结构为：
 
@@ -685,3 +748,5 @@ GET /clear?sessionId=1901883204734947328
 - `"exception"`: 处理过程中发生异常
 - `"toolsStart"`: 准备提交Tools执行
 - `"toolsDone"`: Tools执行完毕
+- `"subAgentStart`: 准备提交SubAgent执行
+- `"subAgentDone"`: SubAgent执行完毕
