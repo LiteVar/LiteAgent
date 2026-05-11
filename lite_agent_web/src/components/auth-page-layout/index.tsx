@@ -1,6 +1,6 @@
 import { useMemo, ReactNode, FC } from 'react';
 import govIcon from '@/assets/login/gov.png';
-import bgImage from '@/assets/login/bg.png';
+import Bg from '@/assets/common/bg';
 
 const LINK_CLASS = 'text-[#9AA7B3] no-underline hover:text-blue-500';
 
@@ -16,12 +16,12 @@ const AuthPageLayout: FC<AuthLayoutProps> = ({ children }) => {
   }, []);
 
   return (
-    <div
-      className="min-h-screen flex justify-center items-center"
-      style={{ backgroundImage: `url(${bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-    >
-      <div className="w-[510px]">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-2xl sm:px-10">
+    <div className="min-h-screen flex justify-center items-center relative overflow-hidden">
+      <div className="absolute inset-0 -z-10">
+        <Bg/>
+      </div>
+      <div className="w-[420px]">
+        <div className="backdrop-blur-[2px] bg-white/60 border border-solid border-white py-10 px-6 rounded-[32px] shadow-sm">
           {children}
         </div>
       </div>

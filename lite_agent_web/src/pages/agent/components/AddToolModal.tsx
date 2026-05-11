@@ -65,10 +65,10 @@ const AddToolModal: React.FC<AddToolModalProps> = ({
       setCurrentTabKey(TAB_ALL);
       refreshToolList();
 
-      return true;
+      return ResponseCode.S_OK;
     } else {
-      message.error('解析失败');
-      return false;
+      message.error(res?.data?.message);
+      return res?.data?.code || ResponseCode.FA_HTTP_500;
     }
   }, [agentInfo]);
 
@@ -145,7 +145,7 @@ const AddToolModal: React.FC<AddToolModalProps> = ({
             {tool.functionList?.map((func) => (
               <div 
                 key={func.functionId} 
-                className='flex items-center justify-between'
+                className='flex items-center justify-between hover:bg-gray-100 p-2 rounded-md'
               >
                 <div>
                   <div className="text-[16px] text-[#333]">
@@ -174,6 +174,7 @@ const AddToolModal: React.FC<AddToolModalProps> = ({
 
   return (
     <Modal
+      zIndex={100}
       centered
       title="添加工具"
       open={visible}
@@ -186,12 +187,12 @@ const AddToolModal: React.FC<AddToolModalProps> = ({
         maxHeight: '70vh' 
       }}}
     >
-       <div className="flex justify-between items-center mb-4 toolTab">
+       <div className="flex justify-between items-center toolTab">
         <Tabs 
           defaultActiveKey="0" 
           className="flex-grow" 
           items={items} 
-          onChange={onChange} 
+          onChange={onChange}
           activeKey={currentTabKey}
         />
         <Button 
@@ -202,8 +203,9 @@ const AddToolModal: React.FC<AddToolModalProps> = ({
           新建工具
         </Button>
       </div>
-      <div className="flex-grow overflow-y-auto p-2">
+      <div className="flex-grow overflow-y-auto">
         <Collapse 
+          className="toolCollapse [&_.ant-collapse-header]:p-0"
           defaultActiveKey={['1']} 
           expandIconPosition="end" 
           ghost 

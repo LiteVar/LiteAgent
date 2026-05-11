@@ -1,5 +1,7 @@
 package com.litevar.agent.openai.completion;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.litevar.agent.base.dto.TokenReportDTO;
 import com.litevar.agent.openai.completion.message.Message;
 import com.litevar.agent.openai.tool.ToolSpecification;
 import lombok.Data;
@@ -61,4 +63,10 @@ public class CompletionRequestParam {
      * 可以调用的工具,最多支持128个
      */
     private List<ToolSpecification> tools;
+
+    /**
+     * token用量记录
+     */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private TokenReportDTO tokenReport;
 }

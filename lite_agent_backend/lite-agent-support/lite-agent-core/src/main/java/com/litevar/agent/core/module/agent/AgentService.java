@@ -66,12 +66,30 @@ public class AgentService extends ServiceImpl<Agent> {
             LlmModel ttsModel = modelService.findByIdNullable(agent.getTtsModelId());
             if (ttsModel == null) {
                 agent.setTtsModelId("");
+            } else {
+                ttsModel.setBaseUrl("");
+                ttsModel.setApiKey("");
+                vo.setTtsModel(ttsModel);
             }
         }
         if (StrUtil.isNotBlank(agent.getAsrModelId())) {
             LlmModel asrModel = modelService.findByIdNullable(agent.getAsrModelId());
             if (asrModel == null) {
                 agent.setAsrModelId("");
+            } else {
+                asrModel.setApiKey("");
+                asrModel.setBaseUrl("");
+                vo.setAsrModel(asrModel);
+            }
+        }
+        if (StrUtil.isNotBlank(agent.getLlmModelId())) {
+            LlmModel model = modelService.findByIdNullable(agent.getLlmModelId());
+            if (model == null) {
+                agent.setLlmModelId("");
+            } else {
+                model.setApiKey("");
+                model.setBaseUrl("");
+                vo.setModel(model);
             }
         }
         vo.setAgent(agent);
@@ -129,23 +147,32 @@ public class AgentService extends ServiceImpl<Agent> {
 
         if (StrUtil.isNotBlank(agent.getLlmModelId())) {
             LlmModel model = modelService.findByIdNullable(agent.getLlmModelId());
-            vo.setModel(model);
             if (model == null) {
                 vo.getAgent().setLlmModelId("");
+            } else {
+                model.setBaseUrl("");
+                model.setApiKey("");
+                vo.setModel(model);
             }
         }
         if (StrUtil.isNotBlank(agent.getTtsModelId())) {
             LlmModel ttsModel = modelService.findByIdNullable(agent.getTtsModelId());
-            vo.setTtsModel(ttsModel);
             if (ttsModel == null) {
                 vo.getAgent().setTtsModelId("");
+            } else {
+                ttsModel.setApiKey("");
+                ttsModel.setBaseUrl("");
+                vo.setTtsModel(ttsModel);
             }
         }
         if (StrUtil.isNotBlank(agent.getAsrModelId())) {
             LlmModel asrModel = modelService.findByIdNullable(agent.getAsrModelId());
-            vo.setAsrModel(asrModel);
             if (asrModel == null) {
                 vo.getAgent().setAsrModelId("");
+            } else {
+                asrModel.setApiKey("");
+                asrModel.setBaseUrl("");
+                vo.setAsrModel(asrModel);
             }
         }
 
@@ -251,6 +278,9 @@ public class AgentService extends ServiceImpl<Agent> {
         //删除数据集关联
         baseMapper.remove(new LambdaUpdateChainWrapper<>(baseMapper, AgentDatasetRela.class)
                 .eq(AgentDatasetRela::getAgentId, id), AgentDatasetRela.class);
+
+        //删除 api key关联
+        agentApiKeyService.removeByColumn(AgentApiKey::getAgentId, id);
     }
 
     public Agent updateAgent(String id, AgentUpdateForm form) {
@@ -271,6 +301,15 @@ public class AgentService extends ServiceImpl<Agent> {
             if (form.getMaxTokens() > modelMaxToken) {
                 throw new ServiceException(ServiceExceptionEnum.MAX_TOKEN_LARGER);
             }
+        }
+        if (StrUtil.isNotBlank(form.getLlmModelId())) {
+            modelService.checkModelAvailable(form.getLlmModelId(), id);
+        }
+        if (StrUtil.isNotBlank(form.getTtsModelId())) {
+            modelService.checkModelAvailable(form.getTtsModelId(), id);
+        }
+        if (StrUtil.isNotBlank(form.getAsrModelId())) {
+            modelService.checkModelAvailable(form.getAsrModelId(), id);
         }
 
         if (ObjectUtil.isNotEmpty(form.getSequence())) {

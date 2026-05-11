@@ -4,30 +4,29 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.lang.Dict;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.litevar.agent.base.entity.Dataset;
-import com.litevar.agent.base.entity.DatasetDocument;
-import com.litevar.agent.base.entity.DatasetRetrieveHistory;
-import com.litevar.agent.base.entity.DocumentSegment;
+import com.litevar.agent.base.entity.*;
 import com.litevar.agent.base.response.PageModel;
+import com.litevar.agent.base.util.LlmContext;
 import com.litevar.agent.base.vo.OutMessage;
 import com.litevar.agent.base.vo.SegmentUpdateForm;
 import com.litevar.agent.base.vo.SegmentVO;
 import com.litevar.agent.rest.springai.embedding.EmbeddingService;
 import com.litevar.agent.rest.util.TikToken;
-import com.litevar.agent.rest.vector.MilvusService;
+import com.litevar.agent.rest.vector.QdrantVectorService;
 import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
 import com.mongoplus.model.PageResult;
 import com.mongoplus.service.impl.ServiceImpl;
-import io.milvus.v2.service.vector.response.SearchResp;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.Embedding;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Path;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 /**
@@ -36,6 +35,11 @@ import java.util.stream.IntStream;
 @Slf4j
 @Service
 public class SegmentService extends ServiceImpl<DocumentSegment> {
+    public static final Pattern MARKDOWN_IMAGE_PATTERN =
+            Pattern.compile("!\\[[^\\]]*\\]\\((?!https?://|data:|/)([^)\\s]+)(?:\\s+\"[^\"]*\")?\\)");
+    public static final Pattern HTML_IMAGE_PATTERN =
+            Pattern.compile("<img\\b[^>]*\\bsrc\\s*=\\s*([\"'])(?!https?://|data:|/)([^\"']+)\\1[^>]*>", Pattern.CASE_INSENSITIVE);
+
     @Autowired
     private DatasetService datasetService;
     @Autowired
@@ -44,9 +48,11 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
     private EmbeddingService embeddingService;
     @Autowired
     private DatasetRetrieveHistoryService retrieveHistoryService;
+    @Autowired
+    private UploadFileServiceV2 uploadFileServiceV2;
 
     @Autowired
-    private MilvusService milvusService;
+    private QdrantVectorService qdrantVectorService;
 
     /**
      * Creates a new segment.
@@ -59,14 +65,17 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
         DatasetDocument document = documentService.getById(documentId);
         Dataset dataset = datasetService.getDataset(document.getDatasetId());
 
-        JSONObject metadata = StrUtil.isNotBlank(form.getMetadata()) ? JSONUtil.parseObj(form.getMetadata()) : new JSONObject();
+        Map<String, Object> metadata = new HashMap<>();
+        if (StrUtil.isNotBlank(form.getMetadata())) {
+            metadata.putAll(JSONUtil.parseObj(form.getMetadata()));
+        }
         metadata.putIfAbsent("documentId", documentId);
         metadata.putIfAbsent("datasetId", dataset.getId());
 
         //embed segment
-        Document textSegment = Document.builder().text(form.getContent()).metadata(metadata.toBean(Map.class)).build();
+        Document textSegment = Document.builder().text(form.getContent()).metadata(metadata).build();
         Embedding embedding = embeddingService.embedText(form.getContent(), dataset.getEmbeddingModel());
-        String embeddingId = milvusService.insertEmbedding(dataset.getVectorCollectionName(), embedding, textSegment);
+        String embeddingId = qdrantVectorService.insertEmbedding(dataset.getVectorCollectionName(), embedding, textSegment);
 
         DocumentSegment segment = BeanUtil.toBean(form, DocumentSegment.class, CopyOptions.create().setIgnoreNullValue(true));
         segment.setUserId(document.getUserId());
@@ -75,7 +84,7 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
         segment.setDocumentId(documentId);
         segment.setWordCount(form.getContent().length());
         segment.setTokenCount(TikToken.countTokens(form.getContent()));
-        segment.setMetadata(metadata.toString());
+        segment.setMetadata(JSONUtil.toJsonStr(metadata));
         segment.setEmbeddingId(embeddingId);
         segment.setVectorCollectionName(dataset.getVectorCollectionName());
         save(segment);
@@ -89,11 +98,11 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
     }
 
     public List<DocumentSegment> embedSegments(
-        String workspaceId, String datasetId, String documentId, String fileId, List<Document> segments
+            String workspaceId, String datasetId, String documentId, String fileId, List<Document> segments
     ) {
         Dataset dataset = datasetService.getDataset(datasetId);
         List<Embedding> embeddings = embeddingService.embedSegments(segments, dataset.getEmbeddingModel());
-        List<String> embeddingIds = milvusService.insertEmbeddings(dataset.getVectorCollectionName(), embeddings, segments);
+        List<String> embeddingIds = qdrantVectorService.insertEmbeddings(dataset.getVectorCollectionName(), embeddings, segments);
 
         List<DocumentSegment> documentSegments = new ArrayList<>(segments.size());
 
@@ -135,6 +144,20 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
                 .orderByAsc(DocumentSegment::getId);
         PageResult<DocumentSegment> pageResult = this.page(wrapper, pageNo, pageSize);
 
+        DatasetDocument document = documentService.getDocument(documentId);
+        pageResult.getContentData().forEach(segment -> {
+            String content = segment.getContent();
+            if (StrUtil.isBlank(content)) {
+                return;
+            }
+
+            String updated = replaceImageUrls(content, document.getFileId(), MARKDOWN_IMAGE_PATTERN, 1);
+            updated = replaceImageUrls(updated, document.getFileId(), HTML_IMAGE_PATTERN, 2);
+            if (!content.equals(updated)) {
+                segment.setContent(updated);
+            }
+        });
+
         return new PageModel<>(pageNo, pageSize, pageResult.getTotalSize(), pageResult.getContentData());
     }
 
@@ -149,10 +172,13 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
         DocumentSegment segment = getById(id);
         Dataset dataset = datasetService.getDataset(segment.getDatasetId());
 
-        JSONObject metadata = StrUtil.isNotBlank(form.getMetadata()) ? JSONUtil.parseObj(form.getMetadata()) : new JSONObject();
+        Map<String, Object> metadata = new HashMap<>();
+        if (StrUtil.isNotBlank(form.getMetadata())) {
+            metadata.putAll(JSONUtil.parseObj(form.getMetadata()));
+        }
         metadata.putIfAbsent("documentId", segment.getDocumentId());
         metadata.putIfAbsent("datasetId", dataset.getId());
-        segment.setMetadata(metadata.toString());
+        segment.setMetadata(JSONUtil.toJsonStr(metadata));
 
         if (!StrUtil.equals(form.getContent(), segment.getContent())) {
 
@@ -166,12 +192,11 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
             segment.setVectorCollectionName(dataset.getVectorCollectionName());
 
             //remove old embedding
-            milvusService.removeEmbedding(dataset.getVectorCollectionName(), segment.getEmbeddingId());
+            qdrantVectorService.removeEmbedding(dataset.getVectorCollectionName(), segment.getEmbeddingId());
 
-            //embed new segment
-            Document newSegment = Document.builder().text(segment.getContent()).metadata(metadata.toBean(Map.class)).build();
+            Document newSegment = Document.builder().text(segment.getContent()).metadata(metadata).build();
             Embedding embedding = embeddingService.embedText(segment.getContent(), dataset.getEmbeddingModel());
-            String embeddingId = milvusService.insertEmbedding(dataset.getVectorCollectionName(), embedding, newSegment);
+            String embeddingId = qdrantVectorService.insertEmbedding(dataset.getVectorCollectionName(), embedding, newSegment);
 
             segment.setEmbeddingId(embeddingId);
 
@@ -199,7 +224,7 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
         documentService.updateById(document);
 
         // remove embeddings
-        milvusService.removeEmbeddings(segments.get(0).getVectorCollectionName(), segments.stream().map(DocumentSegment::getEmbeddingId).toList());
+        qdrantVectorService.removeEmbeddings(segments.get(0).getVectorCollectionName(), segments.stream().map(DocumentSegment::getEmbeddingId).toList());
 
         // remove segments
         this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
@@ -212,7 +237,7 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
      */
     public void deleteSegmentsByDatasetId(String datasetId) {
         LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
-            .eq(DocumentSegment::getDatasetId, datasetId);
+                .eq(DocumentSegment::getDatasetId, datasetId);
         List<DocumentSegment> segments = wrapper.list();
 
         if (segments.isEmpty()) {
@@ -220,14 +245,14 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
         }
 
         // drop collection
-        milvusService.dropCollection(segments.get(0).getVectorCollectionName());
+        qdrantVectorService.dropCollection(segments.get(0).getVectorCollectionName());
         // remove segments
         this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
     }
 
     public void deleteSegmentsByDocumentIds(List<String> documentIds) {
         LambdaQueryChainWrapper<DocumentSegment> wrapper = this.lambdaQuery()
-            .in(DocumentSegment::getDocumentId, documentIds);
+                .in(DocumentSegment::getDocumentId, documentIds);
         List<DocumentSegment> segments = wrapper.list();
 
         if (segments.isEmpty()) {
@@ -235,9 +260,9 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
         }
 
         // remove embeddings
-        milvusService.removeEmbeddings(
-            segments.get(0).getVectorCollectionName(),
-            segments.stream().map(DocumentSegment::getEmbeddingId).toList()
+        qdrantVectorService.removeEmbeddings(
+                segments.get(0).getVectorCollectionName(),
+                segments.stream().map(DocumentSegment::getEmbeddingId).toList()
         );
         // remove segments
         this.removeBatchByIds(segments.stream().map(DocumentSegment::getId).toList());
@@ -256,19 +281,20 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
 
         List<String> embeddingIds = segmentList.stream().map(DocumentSegment::getEmbeddingId).toList();
 
-        milvusService.toggleEnableFlag(segmentList.get(0).getVectorCollectionName(), embeddingIds, flag);
+        qdrantVectorService.toggleEnableFlag(segmentList.get(0).getVectorCollectionName(), embeddingIds, flag);
     }
 
     /**
      * retrieves segments base on similarity
      */
     public List<SegmentVO> retrieveSegments(
-        String agentId, List<String> datasetIds, String content
+            String agentId, List<String> datasetIds, String content, String userId
     ) {
-        return (List<SegmentVO>) retrieve(agentId, datasetIds, content).get("result");
+        return (List<SegmentVO>) retrieve(agentId, datasetIds, content, userId).get("result");
     }
 
-    public Dict retrieve(String agentId, List<String> datasetIds, String content) {
+    public Dict retrieve(String agentId, List<String> datasetIds, String content, String userId) {
+
         List<Dataset> datasetList = datasetService.getByIds(datasetIds);
         List<String> dsIds = datasetList.parallelStream().map(Dataset::getId).toList();
         if (dsIds.isEmpty()) {
@@ -279,64 +305,135 @@ public class SegmentService extends ServiceImpl<DocumentSegment> {
         List<DatasetRetrieveHistory> historyList = new ArrayList<>();
         List<SegmentVO> segmentVOS = new ArrayList<>();
 
-        for (Dataset dataset : datasetList) {
-            Embedding embedding = embeddingService.embedText(content, dataset.getEmbeddingModel());
+        LlmContext.set(new LlmContext.Context(userId, agentId));
 
-            DatasetRetrieveHistory history = retrieveHistoryService.createHistory(dataset.getId(), agentId, content);
-            historyList.add(history);
+        try {
+            for (Dataset dataset : datasetList) {
+                Embedding embedding = embeddingService.embedText(content, dataset.getEmbeddingModel());
 
-            List<String> summaryDocId = new ArrayList<>();
-            if (StrUtil.isNotBlank(dataset.getSummaryCollectionName())) {
-                //先查询摘要,过滤文档
-                List<SearchResp.SearchResult> summaryResult = milvusService.searchSummaryVector(
-                        dataset.getSummaryCollectionName(), embedding, dataset.getRetrievalTopK(), dataset.getRetrievalScoreThreshold());
-                if (!summaryResult.isEmpty()) {
-                    log.info("搜索{}摘要集合,命中片段数量:{}", dataset.getSummaryCollectionName(), summaryResult.size());
-                    //提取documentId
-                    summaryResult.forEach(i -> summaryDocId.add(i.getId().toString()));
-                } else {
-                    log.warn("搜索{}摘要集合,未命中片段,将不再继续搜索该知识库", dataset.getSummaryCollectionName());
-                    continue;
+                DatasetRetrieveHistory history = retrieveHistoryService.createHistory(dataset.getId(), agentId, content);
+                historyList.add(history);
+
+                List<String> summaryDocId = new ArrayList<>();
+                if (StrUtil.isNotBlank(dataset.getSummaryCollectionName())) {
+                    //先查询摘要,过滤文档
+                    List<String> summaryResult = qdrantVectorService.searchSummaryDocumentIds(
+                            dataset.getSummaryCollectionName(), embedding, dataset.getRetrievalTopK(), dataset.getRetrievalScoreThreshold());
+                    if (!summaryResult.isEmpty()) {
+                        log.info("搜索{}摘要集合,命中片段数量:{}", dataset.getSummaryCollectionName(), summaryResult.size());
+                        summaryDocId.addAll(summaryResult);
+                    } else {
+                        log.warn("搜索{}摘要集合,未命中片段,将不再继续搜索该知识库", dataset.getSummaryCollectionName());
+                        continue;
+                    }
+                }
+
+                Map<String, Double> result = qdrantVectorService.search(
+                        dataset.getVectorCollectionName(),
+                        embedding,
+                        dataset.getRetrievalTopK(),
+                        dataset.getRetrievalScoreThreshold(),
+                        summaryDocId);
+                if (!result.isEmpty()) {
+                    OutMessage.KnowledgeHistoryInfo info = new OutMessage.KnowledgeHistoryInfo();
+                    info.setId(history.getId());
+                    info.setDatasetName(dataset.getName());
+                    info.setDatasetId(dataset.getId());
+                    historyInfoList.add(info);
+
+                    List<DocumentSegment> segmentList = this.lambdaQuery()
+                            .eq(DocumentSegment::getDatasetId, dataset.getId())
+                            .in(DocumentSegment::getEmbeddingId, result.keySet())
+                            .eq(DocumentSegment::getEnableFlag, true).list();
+                    //update hit count
+                    segmentList.parallelStream().forEach(segment -> segment.setHitCount(segment.getHitCount() + 1));
+                    this.updateBatchByIds(segmentList);
+
+                    List<SegmentVO> voList = segmentList.parallelStream().map(segment -> {
+                        DatasetDocument document = documentService.getDocument(segment.getDocumentId());
+                        // replace image urls with signed urls
+                        String segmentContent = segment.getContent();
+                        String updated = replaceImageUrls(segmentContent, document.getFileId(), MARKDOWN_IMAGE_PATTERN, 1);
+                        updated = replaceImageUrls(updated, document.getFileId(), HTML_IMAGE_PATTERN, 2);
+                        if (!segmentContent.equals(updated)) {
+                            segment.setContent(updated);
+                        }
+
+                        SegmentVO vo = BeanUtil.copyProperties(segment, SegmentVO.class);
+                        vo.setScore(result.get(segment.getEmbeddingId()));
+                        vo.setDocumentName(document.getName());
+                        return vo;
+                    }).sorted(Comparator.comparing(SegmentVO::getScore).reversed()).toList();
+                    segmentVOS.addAll(voList);
+
+                    List<DatasetRetrieveHistory.RetrieveSegment> retrieveSegmentList = BeanUtil.copyToList(voList, DatasetRetrieveHistory.RetrieveSegment.class);
+                    history.setRetrieveSegmentList(retrieveSegmentList);
                 }
             }
-
-            Map<String, Double> result = milvusService.search(
-                    dataset.getVectorCollectionName(),
-                    embedding,
-                    dataset.getRetrievalTopK(),
-                    dataset.getRetrievalScoreThreshold(),
-                    summaryDocId);
-            if (!result.isEmpty()) {
-                OutMessage.KnowledgeHistoryInfo info = new OutMessage.KnowledgeHistoryInfo();
-                info.setId(history.getId());
-                info.setDatasetName(dataset.getName());
-                info.setDatasetId(dataset.getId());
-                historyInfoList.add(info);
-
-                List<DocumentSegment> segmentList = this.lambdaQuery()
-                        .eq(DocumentSegment::getDatasetId, dataset.getId())
-                        .in(DocumentSegment::getEmbeddingId, result.keySet())
-                        .eq(DocumentSegment::getEnableFlag, true).list();
-                //update hit count
-                segmentList.parallelStream().forEach(segment -> segment.setHitCount(segment.getHitCount() + 1));
-                this.updateBatchByIds(segmentList);
-
-                List<SegmentVO> voList = segmentList.parallelStream().map(segment -> {
-                    SegmentVO vo = BeanUtil.copyProperties(segment, SegmentVO.class);
-                    vo.setScore(result.get(segment.getEmbeddingId()));
-                    vo.setDocumentName(documentService.getDocument(segment.getDocumentId()).getName());
-                    return vo;
-                }).sorted(Comparator.comparing(SegmentVO::getScore).reversed()).toList();
-                segmentVOS.addAll(voList);
-
-                List<DatasetRetrieveHistory.RetrieveSegment> retrieveSegmentList = BeanUtil.copyToList(voList, DatasetRetrieveHistory.RetrieveSegment.class);
-                history.setRetrieveSegmentList(retrieveSegmentList);
+            if (!historyList.isEmpty()) {
+                retrieveHistoryService.saveBatch(historyList);
             }
-        }
-        if (!historyList.isEmpty()) {
-            retrieveHistoryService.saveBatch(historyList);
+        } finally {
+            LlmContext.remove();
         }
         return Dict.create().set("result", segmentVOS).set("history", historyInfoList);
+    }
+
+    public String replaceImageUrls(String content, String fileId, Pattern pattern, int urlGroup) {
+        if (StrUtil.isBlank(fileId)) {
+            return content;
+        }
+        UploadFileV2 uf = uploadFileServiceV2.getById(fileId);
+        if (uf == null || StrUtil.isBlank(uf.getMarkdownKey())) {
+            return content;
+        }
+
+        Matcher matcher = pattern.matcher(content);
+        StringBuffer updated = new StringBuffer();
+        boolean changed = false;
+        Path mdPath = Path.of(uf.getMarkdownKey()).getParent();
+
+        while (matcher.find()) {
+            String rawUrl = matcher.group(urlGroup);
+            String relativePath = normalizeRelativeImagePath(rawUrl);
+            if (StrUtil.isBlank(relativePath)) {
+                continue;
+            }
+
+            String imageKey = mdPath.resolve(relativePath).toString();
+            if (StrUtil.isBlank(imageKey)) {
+                continue;
+            }
+
+            String signedUrl = uploadFileServiceV2.generateSignFileUrl(imageKey);
+            String replaced = matcher.group(0).replace(rawUrl, signedUrl);
+            matcher.appendReplacement(updated, Matcher.quoteReplacement(replaced));
+            changed = true;
+        }
+
+        if (!changed) {
+            return content;
+        }
+        matcher.appendTail(updated);
+        return updated.toString();
+    }
+
+    private String normalizeRelativeImagePath(String rawUrl) {
+        if (StrUtil.isBlank(rawUrl)) {
+            return null;
+        }
+
+        String path = StrUtil.trim(rawUrl);
+        if (path.startsWith("<") && path.endsWith(">") && path.length() > 2) {
+            path = path.substring(1, path.length() - 1);
+        }
+        if (StrUtil.startWithAnyIgnoreCase(path, "http://", "https://", "data:") || path.startsWith("/")) {
+            return null;
+        }
+
+        path = path.replace('\\', '/');
+        path = StrUtil.removePrefix(path, "./");
+        return path;
     }
 
 }

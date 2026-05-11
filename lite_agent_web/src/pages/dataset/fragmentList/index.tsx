@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { List, Empty, Modal, Pagination, message } from 'antd';
+import { Button, Checkbox, List, Modal, Pagination, message } from 'antd';
+import EmptyState from '@/components/common/EmptyState';
 import FragmentListHeader from './components/FragmentListHeader';
 import FragmentModal from './components/FragmentModal';
 import FragmentItem from './components/FragmentItem';
@@ -20,6 +21,8 @@ import {
 } from '@/client';
 import ResponseCode from '@/constants/ResponseCode';
 import { handlePaginationAfterDelete } from '@/utils/paginationUtils';
+import { ExclamationCircleFilled, SearchOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 const FragmentList = () => {
   // 从路由获取初始值
@@ -45,12 +48,20 @@ const FragmentList = () => {
   const canEdit = datasetInfo?.canEdit;
   const canDelete = datasetInfo?.canDelete;
 
+  const navigate = useNavigate();
+
   // 新增：摘要弹窗相关状态
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [summary, setSummary] = useState('');
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [updating, setUpdating] = useState(false);
-  
+
+  const datasetId = useMemo(() => {
+    const path = window.location.pathname;
+    const id = path.split('/')[3];
+    return id;
+  }, []);
+
   // showSummary 改为动态状态，路由值作为默认值
   const [showSummary, setShowSummary] = useState(initialShowSummary);
 
@@ -282,6 +293,20 @@ const FragmentList = () => {
         message.success('更新成功');
         // 操作成功后更新 showSummary 状态
         updateShowSummaryStatus();
+      } else if (res.data?.code === ResponseCode.MODEL_CLOSED) {
+        Modal.confirm({
+          icon: <ExclamationCircleFilled style={{ color: '#40A5EE' }} />,
+          content: '当前摘要模型已停用，请切换为其他模型后重试。',
+          centered: true,
+          okText: '去设置',
+          cancelText: '取消',
+          okButtonProps: {
+            style: { backgroundColor: '#40A5EE', borderColor: '#40A5EE', color: '#fff', marginTop: '32px' },
+          },
+          onOk: () => {
+            navigate(`/dataset/${workspaceId}/${datasetId}/settings`);
+          },
+        });
       } else {
         message.error(res.data?.message || '更新文档摘要失败');
       }
@@ -291,24 +316,18 @@ const FragmentList = () => {
     } finally {
       setUpdating(false);
     }
-  }, [documentId, workspaceId, updateShowSummaryStatus]);
+  }, [documentId, workspaceId, updateShowSummaryStatus, navigate, datasetId]);
 
   return (
-    <div className="p-6">
+    <div className="h-[calc(100%-32px)] overflow-hidden bg-white/60 rounded-2xl p-4">
       <FragmentListHeader
         canEdit={canEdit!}
         canDelete={canDelete!}
-        selectAll={selectAll}
-        onSearch={handleSearch}
         onCreateNew={() => {
           setModalMode('create');
           setEditingFragment(null);
           setModalVisible(true);
         }}
-        selectedCount={selectedFragments.length}
-        onBatchDelete={handleBatchDelete}
-        onSelectAll={handleSelectAll}
-        total={data?.data?.total || 0}
         onViewSummary={handleViewSummary}
         onUpdateSummary={handleUpdateSummary}
         isUpdateingSummary={updating}
@@ -316,13 +335,59 @@ const FragmentList = () => {
         fileId={fileId}
       />
 
-      <div className="mt-6">
+      <div className="bg-white p-4 mt-4 rounded-2xl">
+        <div className="flex justify-between items-center py-3">
+          <div className="flex items-center gap-4 pl-2">
+            <Checkbox 
+              checked={selectAll} 
+              onChange={(e) => handleSelectAll(e.target.checked)}
+              className="custom-checkbox"
+            >
+              <span className="text-sm">全选</span>
+            </Checkbox>
+            {/* 灰色 竖的 分割线  */}
+            <span className="w-0.5 h-4 bg-gray-300"></span>
+            <span className="text-sm">共 {data?.data?.total || 0} 个片段</span>
+            
+            {selectedFragments.length > 0 && (
+              <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2">
+                <div className="w-1 h-1 bg-gray-300 rounded-full" />
+                <span className="text-sm text-[#40a5ee] font-medium">
+                  已选择 {selectedFragments.length} 项
+                </span>
+                {canDelete && (
+                  <Button 
+                    danger 
+                    type="text"
+                    size="small"
+                    onClick={handleBatchDelete}
+                    className="hover:!bg-red-50"
+                  >
+                    批量删除
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative group flex items-center w-64 h-10 px-3 rounded-xl bg-[#f2f3f5] border border-transparent transition-all">
+              <input
+                placeholder="搜索片段内容"
+                onChange={(e) => handleSearch(e.target.value)}
+                className="flex-1 bg-transparent outline-none text-sm text-gray-700  border-none"
+              />
+              <SearchOutlined className="text-gray-400 transition-colors text-base" />
+            </div>
+          </div>
+        </div>
+
         {fragments.length > 0 ? (
           <>
             <List
               loading={isLoading}
               dataSource={fragments}
-              className="max-h-[calc(100vh-350px)] overflow-y-auto"
+              className="max-h-[calc(100vh-366px)] overflow-y-auto"
               renderItem={(item, index) => (
                 <FragmentItem
                   item={item}
@@ -342,7 +407,7 @@ const FragmentList = () => {
             <div className="flex justify-end mt-4">
               <Pagination
                 total={data?.data?.total}
-                pageSize={10}
+                pageSize={pagination.pageSize}
                 current={pagination.current}
                 onChange={(page, pageSize) => {
                   setPagination({
@@ -354,7 +419,7 @@ const FragmentList = () => {
             </div>
           </>
         ) : (
-          <Empty />
+          <EmptyState text="暂无片段" className="mt-20" />
         )}
       </div>
 

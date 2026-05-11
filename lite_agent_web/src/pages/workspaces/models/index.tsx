@@ -1,6 +1,6 @@
 import { Table, Button, message, Popconfirm, Modal, Dropdown } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import ModelInfoModal from './components/ModelInfoModal';
 import ModelFormModal from './components/ModelFormModal';
 import { useQuery } from '@tanstack/react-query';
@@ -12,8 +12,7 @@ import {
   deleteV1ModelById,
   ModelVOUpdateAction,
   ModelDTO,
-  getV1ModelExportById,
-  postV1ModelImport,
+  getV1ModelExportById
 } from '@/client';
 import { useWorkspace } from '@/contexts/workspaceContext';
 import ResponseCode from '@/constants/ResponseCode';
@@ -21,7 +20,8 @@ import { UserType } from '@/types/User';
 import Header from '@/components/workspace/Header';
 import type { MenuProps } from 'antd';
 import FileExportModal from '@/components/workspace/FileExportModal';
-import { DownOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
+import { FilterAllIcon, FilterMyIcon, FilterSystemIcon } from '@/assets/agent/shop_filter_icons_svg';
 
 enum CreateModelType {
   CREATE = 'create',
@@ -33,16 +33,21 @@ export default function Modals() {
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
   const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [editingModel, setEditingModel] = useState<ModelVOAddAction | undefined>(undefined);
-  const [exportModel, setExportModel] = useState<ModelVOAddAction | undefined>(undefined);
+  const [exportModel, setExportModel] = useState<ModelDTO | undefined>(undefined);
   const [pageNo, setPageNo] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [searchValue, setSearchValue] = useState('');
+  const [tab, setTab] = useState<number>(0);
   const workspace = useWorkspace();
 
   const { data, refetch } = useQuery({
     ...getV1ModelListOptions({
       query: {
+        status: 1,
+        query: searchValue.trim(),
         pageNo: pageNo + 1,
         pageSize: pageSize,
+        tab: tab,
       },
       headers: {
         'Workspace-id': workspace?.id || '',
@@ -51,15 +56,32 @@ export default function Modals() {
     enabled: !!workspace,
   });
 
+  // 根据 tab 和搜索值过滤当前页数据
+  const filteredModels = useMemo(() => {
+    let models = data?.data?.list || [];
+    
+    // 在"全部"条件下，admin 创建的排在前面
+    if (tab === 0) {
+      models = [...models].sort((a, b) => {
+        const aIsAdmin = a.createUser === 'admin';
+        const bIsAdmin = b.createUser === 'admin';
+        if (aIsAdmin && !bIsAdmin) return -1;
+        if (!aIsAdmin && bIsAdmin) return 1;
+        return 0;
+      });
+    }
+    return models.map(item => ({ ...item, key: item.id }));
+  }, [data?.data?.list, tab]);
+
   const showInfoModal = (model: ModelVOAddAction) => {
     setIsInfoModalVisible(true);
     setEditingModel(model);
   };
 
-  const showExportModal = (event: any, model: ModelVOAddAction) => {
+  const showExportModal = (event: any, model: ModelVOAddAction | ModelDTO) => {
     event.stopPropagation();
     setIsExportModalVisible(true);
-    setExportModel(model);
+    setExportModel(model as ModelDTO);
   };
 
   const closeExportModal = () => {
@@ -108,8 +130,11 @@ export default function Modals() {
         });
         if (res?.data?.code === ResponseCode.S_OK) {
           message.success('创建模型成功');
-          refetch();
+          setPageNo(0);
           closeFormModal();
+          setTimeout(async () => {
+            refetch();
+          }, 100);
         } else {
           message.error(res?.data?.message);
         }
@@ -190,49 +215,62 @@ export default function Modals() {
     }
   },[]);
 
-  const columns: ColumnsType<ModelDTO> = [
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-    },
-    {
-      title: '连接别名',
-      dataIndex: 'alias',
-      key: 'alias',
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-    },
-    {
-      title: 'key值',
-      dataIndex: 'apiKey',
-      key: 'apiKey',
-      render: (text, record) => {
-        return record?.canEdit ? text : '******';
-      }
-    },
-    {
-      title: '创建者',
-      dataIndex: 'createUser',
-      key: 'createUser',
-    },
-    {
+  const columns: ColumnsType<ModelDTO> = useMemo(() => {
+    const baseColumns: ColumnsType<ModelDTO> = [
+      {
+        title: '名称',
+        dataIndex: 'name',
+        key: 'name',
+      },
+      {
+        title: '连接别名',
+        dataIndex: 'alias',
+        key: 'alias',
+      },
+      {
+        title: '类型',
+        dataIndex: 'type',
+        key: 'type',
+      },
+      {
+        title: 'key值',
+        dataIndex: 'apiKey',
+        key: 'apiKey'
+      },
+      {
+        title: '创建者',
+        dataIndex: 'createUser',
+        key: 'createUser',
+      },
+    ];
+
+    // 如果当前 tab 是"全部"，添加"来源"列
+    if (tab === 0) {
+      baseColumns.push({
+        title: '来源',
+        dataIndex: 'workspaceId',
+        key: 'source',
+        render: (workspaceId: string) => {
+          return workspaceId === '0' ? '系统' : '我的';
+        },
+      });
+    }
+
+    // 添加操作列
+    baseColumns.push({
       title: '操作',
       key: 'action',
       align: 'center',
       render: (_, record) => (
-        <>
+        <div className="flex justify-center gap-2">
           {record?.canEdit ? (
-            <Button type="link" onClick={(e) => showFormModal(e, record as any)} key={`edit-${record.id}`}>
+            <Button type="link" className="p-0 h-auto text-[#40A5EE]" onClick={(e) => showFormModal(e, record as any)} key={`edit-${record.id}`}>
               编辑
             </Button>
           ) : (
-            <span className="w-[60px] inline-block text-center">-</span>
+            <span className="w-[30px] inline-block text-center text-[#7C8B98]">-</span>
           )}
-          <Button type="link" onClick={event => showExportModal(event, record as any)} key={`edit-${record.id}`}>
+          <Button type="link" className="p-0 h-auto text-[#40A5EE]" onClick={event => showExportModal(event, record as any)} key={`export-${record.id}`}>
               导出
           </Button>
           {record?.canDelete && (
@@ -246,16 +284,18 @@ export default function Modals() {
               okText="确认"
               cancelText="取消"
             >
-              <Button onClick={(e) => e.stopPropagation()} type="link" danger key={`delete-${record.id}`}>
+              <Button onClick={(e) => e.stopPropagation()} type="link" danger className="p-0 h-auto border-none bg-transparent shadow-none" key={`delete-${record.id}`}>
                 删除
               </Button>
             </Popconfirm>
           )}
-          {!record?.canEdit && !record?.canDelete && '-'}
-        </>
+          {!record?.canEdit && !record?.canDelete && <span className="text-[#7C8B98]">-</span>}
+        </div>
       ),
-    },
-  ];
+    });
+
+    return baseColumns;
+  }, [tab, handleDelete]);
 
   const onImportFiles = useCallback(async (e: any) => {
     e.stopPropagation();
@@ -304,7 +344,10 @@ export default function Modals() {
         console.log('res', res)
         if (res?.code === ResponseCode.S_OK) {
           message.success('导入模型成功');
-          refetch();
+          setPageNo(0);
+          setTimeout(async () => {
+            refetch();
+          }, 100);
         } else {
           message.error(res?.message);
         }
@@ -315,6 +358,31 @@ export default function Modals() {
       message.error('导入模型失败');
     }
   }, [workspace, refetch]);
+
+  const handleSearch = useCallback(() => {
+    // 搜索时重置到第一页，React Query 会自动重新请求
+    setPageNo(0);
+  }, []);
+
+  const handleTabChange = (key: number) => {
+    setTab(key);
+    setPageNo(0); // 切换 tab 时重置到第一页，React Query 会自动重新请求
+  };
+
+  const filterOptions = [
+    {
+      key: 0, label: '全部',
+      Icon: FilterAllIcon,
+    },
+    {
+      key: 1, label: '系统',
+      Icon: FilterSystemIcon,
+    },
+    {
+      key: 2, label: '我的',
+      Icon: FilterMyIcon,
+    },
+  ];
   
 
   const createButton = useMemo(() => {
@@ -340,55 +408,90 @@ export default function Modals() {
   ];
 
     return (
-      <Dropdown menu={{ items }}>
-        <a onClick={(e) => e.preventDefault()}>
+      <Dropdown menu={{ items }} placement="bottomRight" arrow={{ pointAtCenter: true }}>
         <Button
-          icon={<DownOutlined />}
-          iconPosition='end'
+          icon={<PlusOutlined />}
+          iconPosition='start'
           type="primary"
           size='large'
+          className="rounded-xl bg-[#40A5EE] hover:!bg-[#40A5EE]/90 border-none shadow-md shadow-blue-200/50 flex items-center gap-2 h-10"
         >
           新建模型
         </Button>
-        </a>
-    </Dropdown>
+      </Dropdown>
     )
   }, [workspace, onImportFiles, showFormModal]);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full overflow-hidden">
       <Header
         title="模型管理"
         placeholder="搜索你的模型"
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        onSearch={handleSearch}
         showCreateButton={false}
-        showSearch={false}
+        showSearch={true}
         createButton={createButton}
       />
 
-      <Table
-        columns={columns}
-        dataSource={data?.data?.list || []}
-        className="px-8"
-        rowKey={(record) => record?.id || ''}
-        onRow={(record) => {
-          return {
-            onClick: () => {
-              if (record?.canRead) {
-                showInfoModal(record as ModelVOAddAction);
-              }
-            },
-          };
-        }}
-        pagination={{
-          current: pageNo + 1,
-          pageSize: pageSize,
-          total: Number(data?.data?.total || 10),
-          onChange: (page, pageSize) => {
-            setPageNo(page - 1);
-            setPageSize(pageSize);
-          },
-        }}
-      />
+      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-4">
+        <div className="flex justify-start items-center">
+          <div className="flex gap-2.5">
+            {filterOptions.map((option) => (
+              <button
+                key={option.key}
+                onClick={() => handleTabChange(option.key)}
+                className={`flex items-center gap-1 px-2 py-1.5 rounded-xl cursor-pointer border-none transition-all ${
+                  tab === option.key
+                    ? 'text-[#383F44] shadow-sm bg-white'
+                    : 'bg-transparent text-[#58636C] hover:bg-white/50'
+                }`}
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                }}
+              >
+                <span className="w-5 h-5 flex-none flex items-center justify-center">
+                  <option.Icon 
+                    active={tab === option.key} 
+                    color={tab === option.key ? '#383F44' : '#58636C'} 
+                  />
+                </span>
+                <span>{option.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-[calc(100%-48px)] bg-white/60 backdrop-blur-md rounded-2xl border border-white/80 shadow-sm overflow-hidden">
+          <Table
+            columns={columns}
+            dataSource={filteredModels}
+            rowKey={(record) => record?.id || ''}
+            onRow={(record) => {
+              return {
+                onClick: () => {
+                  if (record?.canRead) {
+                    showInfoModal(record as ModelVOAddAction);
+                  }
+                },
+              };
+            }}
+            className="[&_.ant-table]:bg-transparent [&_.ant-table-thead_th]:bg-transparent [&_.ant-table-thead_th]:text-[#1D4A6B] [&_.ant-table-thead_th]:font-semibold [&_.ant-table-row:hover_td]:bg-white/40"
+            pagination={{
+              current: pageNo + 1,
+              pageSize: pageSize,
+              total: Number(data?.data?.total || 0),
+              onChange: (page, pageSize) => {
+                setPageNo(page - 1);
+                setPageSize(pageSize);
+              },
+              className: "px-6 py-4 mb-0",
+            }}
+          />
+        </div>
+      </div>
 
       <ModelInfoModal visible={isInfoModalVisible} onClose={closeInfoModal} modelInfo={editingModel} />
       

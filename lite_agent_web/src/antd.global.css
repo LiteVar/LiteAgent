@@ -1,3 +1,20 @@
+/* 玻璃态通用样式 */
+.glass-morphism {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.glass-morphism-dark {
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Ant Design 基础样式覆盖 */
+
 .ant-pro-layout .ant-pro-sider-logo {
     justify-content: center;
 }
@@ -16,65 +33,111 @@
     align-items: center;
 }
 
-.dashboardDropdown .ant-dropdown-menu-item {
-    padding: 0!important;
-}
-
-.updatePassword .ant-form-item-explain-error {
-    margin-left: 100px;
-}
-
-.chatDrawerContainer .ant-drawer-content-wrapper {
-    width: auto!important;
-}
-
-.chatDrawerContainer .ant-drawer-body {
-    width: 508px;
-    display: flex;
-    justify-content: center;
-}
-
-.agentListTabs {
-    height: 100%;
-}
-
-.agentListTabs .ant-tabs-content-holder {
-    overflow: auto;
-    padding-bottom: 80px;
-}
-
-.agentActionWrapper {
-    position: relative;
-    padding: 0 2px;
-}
-
-.agentActionWrapper:before {
-    width: 100%;
-    height: 100%;
-}
-
+/* Modal 样式优化 - 适配 V3 设计 */
 .ant-modal-content {
   padding: 0 !important;
+  border-radius: 16px !important;
+  overflow: hidden;
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.05) !important;
 }
 
 .ant-modal-header {
   padding: 16px 24px !important;
-  background: #f5f5f5 !important;
+  background: #FFFFFF !important;
   margin-bottom: 0 !important;
+  border-bottom: none !important;
 }
 
-.ant-modal-body, .ant-modal-footer {
-  padding: 20px 24px !important;
+.ant-modal-body {
+  padding: 16px 24px !important;
 }
 
-.ant-typography-expand {
-    color: #2a82e4!important;
+.ant-modal-footer {
+  padding: 10px 16px !important;
+  border-top: none !important;
 }
 
-.ant-typography-collapse {
-    color: #2a82e4!important;
+.ant-modal-close {
+    top: 16px !important;
+    inset-inline-end: 16px !important;
 }
 
-.preview-source-modal .ant-modal-body {
-    padding: 0!important;
+/* Tabs 样式优化 - Dashboard Top Bar */
+.ant-tabs-nav:before {
+    border-bottom: none !important;
+}
+
+.ant-tabs-tab {
+    margin: 0 !important;
+    padding: 24px 16px 24px 0px !important;
+}
+
+.ant-tabs-tab-btn {
+    font-size: 18px !important;
+    font-weight: 500 !important;
+}
+
+/* Sidebar 样式微调 */
+.ant-layout-sider {
+    background: transparent !important;
+}
+
+.sidebar-content-expanded {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(4px);
+    border: 1px solid #FFFFFF;
+    border-radius: 16px;
+}
+
+.sidebar-content-collapsed {
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(4px);
+    border: 1px solid #FFFFFF;
+    border-radius: 16px;
+}
+
+/* 让 OTP 整体占满父容器宽度 */
+#registerOptInput {
+  display: flex;
+  width: 100%;
+  gap: 8px; 
+}
+
+#registerOptInput .ant-otp-input-wrapper {
+  flex: 1;          
+  text-align: center;
+}
+
+#registerOptInput .ant-otp-input-wrapper input {
+    font-size: 18px;  
+}
+
+/* Input 背景透明度处理 */
+.ant-input-affix-wrapper, .ant-input {
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(2px);
+}
+
+.ant-input-affix-wrapper-focused, .ant-input-focused {
+    background: rgba(255, 255, 255, 0.8) !important;
+}
+
+.modelGroup .ant-radio-button-wrapper {
+    border-inline-start-width: 1px !important;
+}
+
+.modelGroup .ant-radio-button-wrapper::before {
+    display: none;
+}
+
+/* Chrome / Safari / Edge */
+.hide-controls::-webkit-outer-spin-button,
+.hide-controls::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Firefox */
+.hide-controls {
+    -moz-appearance: textfield;
 }

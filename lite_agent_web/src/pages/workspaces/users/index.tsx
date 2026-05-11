@@ -9,6 +9,7 @@ import {useQuery} from "@tanstack/react-query";
 import {useUserInfo, useWorkspace} from "@/contexts/workspaceContext";
 import ResponseCode from "@/constants/ResponseCode";
 import Header from '@/components/workspace/Header';
+import { DownOutlined } from '@ant-design/icons';
 export default function Users () {
   const [searchValue, setSearchValue] = useState('');
   const [usernameValue, setUsernameValue] = useState('');
@@ -138,11 +139,13 @@ export default function Users () {
       title: '成员名称',
       dataIndex: 'name',
       key: 'name',
+      render: (name) => <span className="text-[#383F44] font-medium">{name}</span>
     },
     {
       title: '成员信息',
       dataIndex: 'email',
       key: 'email',
+      render: (email) => <span className="text-[#58636C]">{email}</span>
     },
     {
       title: '成员权限',
@@ -156,13 +159,17 @@ export default function Users () {
                 onClick: (e) => handleMenuClick(e, record.id!)
               }}
               disabled={record.role === UserType.Admin}
+              trigger={['click']}
             >
-              <Button className="-ml-4">
+              <Button className="rounded-xl border-[#E0E3E6] text-[#383F44] hover:text-[#40A5EE] hover:border-[#40A5EE] flex items-center gap-1">
                 {getRoleLabel(record.role!)}
+                {record.role !== UserType.Admin && <DownOutlined className="text-[10px] text-[#7C8B98]" />}
               </Button>
             </Dropdown>
           ) : (
-            <span>{getRoleLabel(record.role!)}</span>
+            <span className="text-[#58636C] px-4 py-1 bg-[#F2F3F5] rounded-lg inline-block text-xs">
+              {getRoleLabel(record.role!)}
+            </span>
           )}
         </>
 
@@ -171,7 +178,7 @@ export default function Users () {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full overflow-hidden">
       <Header
         title="成员管理"
         placeholder="搜索成员"
@@ -182,21 +189,29 @@ export default function Users () {
         createButtonText="添加成员"
         onCreateClick={showModal}
       />
-      <Table columns={columns} dataSource={data?.data?.list?.map(member => ({ ...member, key: member.id }))}
-             className='px-8'
-             rowKey={(record) => record?.id || ''}
-             pagination={
-               {
-                 current: pageNo,
-                 pageSize: pageSize,
-                 total: Number(data?.data?.total || 10),
-                 onChange: (page, pageSize) => {
-                   setPageNo(page);
-                   setPageSize(pageSize);
-                 }
-               }
-             }
-      />
+      
+      <div className="flex-1 overflow-y-auto px-4 pb-8">
+        <div className="h-full bg-white/60 backdrop-blur-md rounded-2xl border border-white/80 shadow-sm overflow-hidden">
+          <Table 
+            columns={columns} 
+            dataSource={data?.data?.list?.map(member => ({ ...member, key: member.id }))}
+            rowKey={(record) => record?.id || ''}
+            className="[&_.ant-table]:bg-transparent [&_.ant-table-thead_th]:bg-transparent [&_.ant-table-thead_th]:text-[#1D4A6B] [&_.ant-table-thead_th]:font-semibold [&_.ant-table-row:hover_td]:bg-white/40"
+            pagination={
+              {
+                current: pageNo,
+                pageSize: pageSize,
+                total: Number(data?.data?.total || 10),
+                onChange: (page, pageSize) => {
+                  setPageNo(page);
+                  setPageSize(pageSize);
+                },
+                className: "px-6 py-4 mb-0",
+              }
+            }
+          />
+        </div>
+      </div>
 
       <AddMemberModal
         visible={isModalVisible}

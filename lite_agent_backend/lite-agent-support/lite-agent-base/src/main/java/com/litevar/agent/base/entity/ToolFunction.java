@@ -39,7 +39,6 @@ public class ToolFunction {
     private String resource;
     /**
      * 请求方法:get,post,put,delete
-     * modbus: read,write
      */
     private String requestMethod;
     /**
@@ -54,9 +53,7 @@ public class ToolFunction {
      * 参数列表
      */
     private List<ParameterInfo> parameters = new ArrayList<>();
-    /**
-     * modbus协议server,path,return值的json字符串
-     */
+
     private String extra;
 
     @Data

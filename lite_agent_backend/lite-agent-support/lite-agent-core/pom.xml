@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.litevar.agent</groupId>
         <artifactId>lite-agent-support</artifactId>
-        <version>2.0.0</version>
+        <version>3.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -56,6 +56,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.qdrant</groupId>
+            <artifactId>client</artifactId>
+            <version>1.17.0</version>
         </dependency>
     </dependencies>
 

@@ -33,7 +33,7 @@ interface UseChatMessagesProps {
   agentInfo?: AgentDetailVO;
   scrollToBottom: () => void;
   scrollToThinkMessage: (expandThink?: boolean) => void;
-  adjustScrollAfterLoadMore: (oldScrollHeight: number) => void;
+  adjustScrollAfterLoadMore: () => void;
 }
 
 export const useChatMessages = ({
@@ -145,18 +145,17 @@ export const useChatMessages = ({
     [scrollToThinkMessage, scrollToBottom]
   );
 
-  // 更新消息状态
   const updateMessagesState = useCallback(
-    (messages: AgentMessage[], sessionId: string) => {
+    (messages: AgentMessage[], sessionId: string, enableSeparator: boolean) => {
       if (!sessionId) {
         actions.setMessagesMap({ [agentId]: { messages } });
       } else {
-        actions.prependMessages(agentId, messages, adjustScrollAfterLoadMore);
+        adjustScrollAfterLoadMore();
+        actions.prependMessages(agentId, messages);
       }
 
-      // 添加分割线
       setTimeout(() => {
-        if (messages.length > 0 && messages[messages.length - 1]?.role !== MessageRole.SEPARATOR) {
+        if (messages.length > 0 && messages[messages.length - 1]?.role !== MessageRole.SEPARATOR && enableSeparator) {
           actions.addSeparator(agentId);
         }
       }, CONFIG.SCROLL_DELAY);
@@ -168,7 +167,6 @@ export const useChatMessages = ({
   const fetchData = useCallback(
     async (expandThink = false) => {
       if (fetchDataLoading.current) return;
-      console.log('fetchData----');
 
       fetchDataLoading.current = true;
       const sessionId = loadMoreSessionId.current;
@@ -193,7 +191,7 @@ export const useChatMessages = ({
           const filteredMessages = filterMessages(chatMessages);
 
           handleThinkExpansion(filteredMessages, expandThink);
-          updateMessagesState(filteredMessages, sessionId);
+          updateMessagesState(filteredMessages, sessionId, expandThink);
         }
       } catch (error) {
         console.error('fetchData error:', error);

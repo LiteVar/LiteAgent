@@ -62,7 +62,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message: mes, onKnowledgeClic
   }, [onKnowledgeClick]);
 
   const renderToolReturn = useCallback(() => (
-    <div className="bg-gray-50 px-2 py-1 rounded-md">
+    <div className="bg-[#F2F3F5] px-2 py-1 mb-2 rounded-md">
       <p className="text-sm text-gray-500 mb-1">工具调用结果：{JSON.stringify(mes.content)}</p>
       <p className="text-sm text-gray-500">工具Id：{JSON.stringify(mes.toolCallId)}</p>
     </div>

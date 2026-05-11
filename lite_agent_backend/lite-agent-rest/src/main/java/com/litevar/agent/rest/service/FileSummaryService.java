@@ -1,10 +1,12 @@
 package com.litevar.agent.rest.service;
 
 import cn.hutool.core.util.StrUtil;
+import com.litevar.agent.base.dto.TokenReportDTO;
 import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.entity.DatasetDocument;
 import com.litevar.agent.base.entity.DocumentSegment;
 import com.litevar.agent.base.entity.LlmModel;
+import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.core.module.llm.ModelService;
 import com.litevar.agent.openai.RequestExecutor;
@@ -15,7 +17,7 @@ import com.litevar.agent.openai.completion.message.Message;
 import com.litevar.agent.openai.completion.message.UserMessage;
 import com.litevar.agent.rest.springai.embedding.EmbeddingService;
 import com.litevar.agent.rest.util.TikToken;
-import com.litevar.agent.rest.vector.MilvusService;
+import com.litevar.agent.rest.vector.QdrantVectorService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.Embedding;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +64,7 @@ public class FileSummaryService {
     @Autowired
     private EmbeddingService embeddingService;
     @Autowired
-    private MilvusService milvusService;
+    private QdrantVectorService qdrantVectorService;
     @Autowired
     private SegmentService segmentService;
     @Autowired
@@ -76,6 +78,7 @@ public class FileSummaryService {
         if (StrUtil.isBlank(dataset.getLlmModelId()) || !document.getEnableFlag() || !document.getNeedSummary()) {
             return;
         }
+        modelService.checkModelAvailable(dataset.getLlmModelId(), "");
         //1.将该文档下所有片段合并在一起
         String content = segmentService.lambdaQuery()
                 .projectDisplay(DocumentSegment::getContent)
@@ -84,27 +87,32 @@ public class FileSummaryService {
                 .list().stream()
                 .map(DocumentSegment::getContent).collect(Collectors.joining("\n\n"));
 
-        //2.生成摘要,如果文档内容少于1000字,直接拿该文档内容作为摘要
-        String summarize = content.length() > 1000
-                ? summarize(resolveModel(dataset.getLlmModelId()), document.getName(), content)
-                : content;
+        try {
+            //2.生成摘要,如果文档内容少于1000字,直接拿该文档内容作为摘要
+            String summarize = content.length() > 1000
+                    ? summarize(resolveModel(dataset.getLlmModelId()), document.getName(), content, document.getUserId())
+                    : content;
 
-        //3.embedding摘要内容
-        Embedding embedding = embeddingService.embedText(summarize, dataset.getEmbeddingModel());
+            //3.embedding摘要内容
+            Embedding embedding = embeddingService.embedText(summarize, dataset.getEmbeddingModel());
 
-        //4.insert embedding data
-        milvusService.insertSummaryEmbedding(
-                dataset.getSummaryCollectionName(),
-                embedding,
-                summarize,
-                document.getId()
-        );
+            //4.insert embedding data
+            qdrantVectorService.insertSummaryEmbedding(
+                    dataset.getSummaryCollectionName(),
+                    embedding,
+                    summarize,
+                    document.getId()
+            );
 
-        document.setNeedSummary(Boolean.FALSE);
-        documentService.updateById(document);
+            document.setNeedSummary(Boolean.FALSE);
+            documentService.updateById(document);
+        } catch (Exception ex) {
+            log.error("摘要更新失败:", ex);
+            throw new ServiceException(ServiceExceptionEnum.DOCUMENT_SUMMARY_UPDATE_FAILURE);
+        }
     }
 
-    private String summarize(LlmModel model, String title, String content) {
+    private String summarize(LlmModel model, String title, String content, String userId) {
         int tokenCount = TikToken.countTokens(content);
         List<String> chunks;
         if (tokenCount > MAX_TOKENS_PER_CHUNK) {
@@ -122,13 +130,13 @@ public class FileSummaryService {
         String summary = "";
         List<String> chunkResultList;
         if (chunks.size() == 1) {
-            chunkResultList = List.of(invokeToSummarize(model, chunks.get(0)));
+            chunkResultList = List.of(invokeToSummarize(model, chunks.get(0), userId));
         } else {
             String[] chunkResults = new String[chunks.size()];
             // 并发调用模型生成每个分片的摘要，同时通过索引写回数组以保持顺序
             List<CompletableFuture<Void>> futures = IntStream.range(0, chunks.size())
                     .mapToObj(index -> CompletableFuture.runAsync(() ->
-                            chunkResults[index] = invokeToSummarize(model, chunks.get(index)), asyncTaskExecutor))
+                            chunkResults[index] = invokeToSummarize(model, chunks.get(index), userId), asyncTaskExecutor))
                     .toList();
             futures.forEach(future -> {
                 try {
@@ -148,7 +156,7 @@ public class FileSummaryService {
             String aggregated = StrUtil.join("\n\n", chunkResultList);
             String message = StrUtil.format("标题:{},\n\n以下为各分片的摘要,请在严格遵循系统指令的前提下整合为最终摘要:\n\n{}",
                     title, aggregated);
-            summary = invokeToSummarize(model, message);
+            summary = invokeToSummarize(model, message, userId);
         } else {
             summary = chunkResultList.get(0);
         }
@@ -156,12 +164,14 @@ public class FileSummaryService {
         return summary;
     }
 
-    private String invokeToSummarize(LlmModel model, String content) {
+    private String invokeToSummarize(LlmModel model, String content, String userId) {
         List<Message> messages = List.of(DeveloperMessage.of(SUMMARY_SYSTEM_PROMPT), UserMessage.of(content));
 
         CompletionRequestParam param = new CompletionRequestParam();
         param.setMessages(messages);
         param.setModel(model.getName());
+        TokenReportDTO tokenReport = new TokenReportDTO(userId, model.getId(), "", "");
+        param.setTokenReport(tokenReport);
 
         CompletionResponse response = RequestExecutor.doRequest(param, model.getBaseUrl(), model.getApiKey());
 

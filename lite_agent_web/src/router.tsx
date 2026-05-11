@@ -19,8 +19,15 @@ const WorkspaceToolsPage = React.lazy(() => import('@/pages/workspaces/tools'));
 const WorkspaceModelsPage = React.lazy(() => import('@/pages/workspaces/models'));
 const WorkspaceUsersPage = React.lazy(() => import('@/pages/workspaces/users'));
 const WorkspaceDatasetsPage = React.lazy(() => import('@/pages/workspaces/datasets'));
+const WorkspacePluginConnectsPage = React.lazy(() => import('@/pages/workspaces/plugin-connects'));
+const WorkspacePluginConnectAnalyticsPage = React.lazy(() => import('@/pages/workspaces/plugin-connects/analytics'));
 const DatasetDetailPage = React.lazy(() => import('@/pages/dataset'));
 const ResetPasswordPage = React.lazy(() => import('@/pages/reset'));
+const AdminPage = React.lazy(() => import('@/pages/admin'));
+const AdminLayout = React.lazy(() => import('@/pages/admin/layout'));
+const AdminModelsPage = React.lazy(() => import('@/pages/admin/models'));
+const AdminPluginsPage = React.lazy(() => import('@/pages/admin/plugins'));
+const NavigatePage = React.lazy(() => import('@/pages/navigate'));
 
 export const routerConfig: RouteObject[] = [
   {
@@ -103,6 +110,14 @@ export const routerConfig: RouteObject[] = [
         ),
       },
       {
+        path: ROUTES.NAVIGATE,
+        element: (
+          <Suspense fallback={<div>Loading Navigate...</div>}>
+            <NavigatePage />
+          </Suspense>
+        ),
+      },
+      {
         path: ROUTES.AGENT,
         element: (
           <Suspense fallback={<div>Loading Agent...</div>}>
@@ -115,6 +130,14 @@ export const routerConfig: RouteObject[] = [
         element: (
           <Suspense fallback={<div>Loading Dataset...</div>}>
             <DatasetDetailPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: ROUTES.PLUGIN_CONNECT_ANALYTICS,
+        element: (
+          <Suspense fallback={<div>Loading Analytics...</div>}>
+            <WorkspacePluginConnectAnalyticsPage />
           </Suspense>
         ),
       },
@@ -170,6 +193,47 @@ export const routerConfig: RouteObject[] = [
             element: (
               <Suspense fallback={<div>Loading Workspace Datasets...</div>}>
                 <WorkspaceDatasetsPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: ROUTES.WORKSPACE_PLUGIN_CONNECTS,
+            element: (
+              <Suspense fallback={<div>Loading Workspace Plugin Connects...</div>}>
+                <WorkspacePluginConnectsPage />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+      {
+        path: ROUTES.ADMIN,
+        element: (
+          <Suspense fallback={<div>Loading Admin...</div>}>
+            <AdminPage />
+          </Suspense>
+        ),
+      },
+      {
+        element: (
+          <Suspense fallback={<div>Loading Admin Layout...</div>}>
+            <AdminLayout />
+          </Suspense>
+        ),
+        children: [
+          {
+            path: ROUTES.ADMIN_MODELS,
+            element: (
+              <Suspense fallback={<div>Loading Admin Models...</div>}>
+                <AdminModelsPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: ROUTES.ADMIN_PLUGINS,
+            element: (
+              <Suspense fallback={<div>Loading Admin Plugins...</div>}>
+                <AdminPluginsPage />
               </Suspense>
             ),
           },

@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useState } from 'react';
-import { Button, Modal, message, Input } from 'antd';
+import { Modal, message, Input, Form } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -12,7 +12,7 @@ import {
 import { getV1DatasetByDatasetIdDocumentsOptions } from '@/client/@tanstack/query.gen';
 import { useDatasetContext } from '@/contexts/datasetContext';
 import ResponseCode from '@/constants/ResponseCode';
-import emptyImage from '@/assets/dataset/no_knowledge_base.png';
+import EmptyState from '@/components/common/EmptyState';
 import { handlePaginationAfterDelete, Pagination } from '@/utils/paginationUtils';
 import DocumentTable from '../components/DocumentTable';
 
@@ -26,7 +26,7 @@ const DocumentList = () => {
     docId: null,
     currentName: '',
   });
-  const [newDocName, setNewDocName] = useState('');
+  const [renameForm] = Form.useForm();
   const navigate = useNavigate();
   const pathname = useLocation().pathname;
   const { workspaceId, datasetInfo } = useDatasetContext();
@@ -79,20 +79,17 @@ const DocumentList = () => {
   // 处理重命名
   const handleRename = (docId: string, currentName: string) => {
     setRenameModal({ visible: true, docId, currentName });
-    setNewDocName(currentName);
+    renameForm.setFieldsValue({ name: currentName });
   };
 
   // 确认重命名
   const handleRenameConfirm = async () => {
     try {
+      const values = await renameForm.validateFields();
       const { docId } = renameModal;
-      if (newDocName.trim() === '') {
-        message.error('请输入新的文档名称');
-        return;
-      }
       const res = await putV1DatasetDocumentsByDocumentIdRename({
         query: {
-          name: newDocName,
+          name: values.name,
         },
         path: { documentId: docId! },
         headers: {
@@ -102,12 +99,13 @@ const DocumentList = () => {
       if (res.data?.code === ResponseCode.S_OK) {
         message.success('重命名成功');
         setRenameModal({ visible: false, docId: null, currentName: '' });
+        renameForm.resetFields();
         refetch();
       } else {
         message.error('重命名失败，请重试');
       }
-    } catch (error) {
-      message.error('重命名失败，请重试');
+    } catch {
+      // validateFields 校验失败时 reject，表单内已展示错误信息
     }
   };
 
@@ -180,8 +178,12 @@ const DocumentList = () => {
     navigate(`${path}/createDocument`);
   };
 
+  useEffect(() => {
+    refetch();
+  }, []);
+
   return (
-    <div>
+    <div className='flex-1 h-full overflow-hidden'>
       <DocumentTable
         documents={documents}
         total={data?.data?.total || 0}
@@ -201,10 +203,7 @@ const DocumentList = () => {
       />
 
       {!isLoading && documents.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-full mt-40">
-          <img src={emptyImage} alt="empty" className="h-[330px]" />
-          <p className="text-gray-500">暂无文档</p>
-        </div>
+        <EmptyState text="暂无文档" className="mt-20" />
       )}
 
       {/* 重命名弹窗 */}
@@ -213,16 +212,24 @@ const DocumentList = () => {
         title="重命名文档"
         open={renameModal.visible}
         onOk={handleRenameConfirm}
-        onCancel={() => setRenameModal({ visible: false, docId: null, currentName: '' })}
+        onCancel={() => {
+          setRenameModal({ visible: false, docId: null, currentName: '' });
+          renameForm.resetFields();
+        }}
       >
-        <label className="text-sm font-medium">文档名称</label>
-        <Input
-          value={newDocName}
-          maxLength={60}
-          className="mt-2"
-          onChange={(e) => setNewDocName(e.target.value)}
-          placeholder="请输入新的文档名称"
-        />
+        <Form form={renameForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="文档名称"
+            rules={[
+              { required: true, message: '请输入文档名称' },
+              { validator: (_, value) => !value || value.trim() ? Promise.resolve() : Promise.reject(new Error('请输入文档名称')) },
+              { max: 60, message: '文档名称不能超过 60 个字符' },
+            ]}
+          >
+            <Input placeholder="请输入新的文档名称" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

@@ -20,6 +20,9 @@ const WorkspaceUsersPage = React.lazy(() => import('@/pages/workspaces/users'));
 const WorkspaceDatasetsPage = React.lazy(() => import('@/pages/workspaces/datasets'));
 const DatasetDetailPage = React.lazy(() => import('@/pages/dataset'));
 const ResetPasswordPage = React.lazy(() => import('@/pages/reset'));
+const RegisterPage = React.lazy(() => import('@/pages/register'));
+const UserAgreementPage = React.lazy(() => import('@/pages/register/UserAgreementPage'));
+const PrivacyPolicyPage = React.lazy(() => import('@/pages/register/PrivacyPolicyPage'));
 
 function App() {
   return (
@@ -96,6 +99,30 @@ function App() {
             element={
               <Suspense fallback={<div>Loading Reset Password...</div>}>
                 <ResetPasswordPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.REGISTER}
+            element={
+              <Suspense fallback={<div>Loading Register...</div>}>
+                <RegisterPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.USER_AGREEMENT}
+            element={
+              <Suspense fallback={<div>Loading User Agreement...</div>}>
+                <UserAgreementPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path={ROUTES.PRIVACY_POLICY}
+            element={
+              <Suspense fallback={<div>Loading Privacy Policy...</div>}>
+                <PrivacyPolicyPage />
               </Suspense>
             }
           />

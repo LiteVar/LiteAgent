@@ -12,6 +12,7 @@ import SideMenu from './components/SideMenu';
 import { useQuery } from '@tanstack/react-query';
 import { getV1DatasetByIdOptions, getV1ModelListOptions } from '@/client/@tanstack/query.gen';
 import { DatasetProvider } from '@/contexts/datasetContext';
+import Bg from '@/assets/common/bg';
 
 const DatasetDetails = () => {
   const navigate = useNavigate();
@@ -30,9 +31,11 @@ const DatasetDetails = () => {
   useEffect(() => {
     const path = window.location.pathname;
     if (path.includes('/test')) setSelectedTab('test');
-    if (path.includes('/settings')) setSelectedTab('settings');
-    if (path.includes('/apis')) setSelectedTab('apis');
-  }, []);
+    else if (path.includes('/settings')) setSelectedTab('settings');
+    else if (path.includes('/apis')) setSelectedTab('apis');
+    else if (path.includes('/fragments')) setSelectedTab('fragments');
+    else setSelectedTab('documents');
+  }, [window.location.pathname]);
 
   const handleTabChange = (key: string) => {
     setSelectedTab(key);
@@ -69,6 +72,11 @@ const DatasetDetails = () => {
     return modelsData?.data?.list || [];
   }, [modelsData]);
 
+  const currentLLMModel = useMemo(() => {
+    return models.find((m) => m.id === datasetInfo?.llmModelId);
+  }, [models, datasetInfo]);
+
+
   const contextValue = {
     workspaceId,
     datasetInfo,
@@ -77,27 +85,27 @@ const DatasetDetails = () => {
 
   return (
     <DatasetProvider value={contextValue}>
-      <div className="flex flex-col h-[100vh] overflow-hidden">
+      <div className="flex flex-col h-[100vh] overflow-hidden bg-[#F6FBFF]">
+        <div className="absolute inset-0 -z-1">
+          <Bg/>
+        </div>
         <Header datasetInfo={datasetInfo} />
-        <main className="flex-grow flex flex-1 overflow-hidden">
+        <main className="flex flex-1 overflow-hidden p-4 gap-4">
           <SideMenu
             canEdit={datasetInfo?.canEdit!}
             canDelete={datasetInfo?.canDelete!}
             selectedTab={selectedTab}
             onTabChange={handleTabChange}
           />
-          <div className="flex-1 bg-white rounded p-4 px-8 overflow-y-auto">
+          <div className="flex-1 flex flex-col backdrop-blur-md border border-white/80 rounded-2xl relative shadow-sm overflow-hidden">
             <Routes>
               <Route path="/" element={<DocumentList />} />
               <Route path="/fragments" element={<FragmentList />} />
               <Route path="/createDocument" element={<CreateDocument />} />
               <Route path="/test" element={<RetrievalTest />} />
               {datasetInfo?.canEdit && datasetInfo?.canDelete && (
-                <>
-                  <Route path="/settings" element={<Settings refetch={refetch} />} />
-                </>
+                <Route path="/settings" element={<Settings currentLLMModel={currentLLMModel} refetch={refetch} />} />
               )}
-
               <Route path="/apis" element={<Apis refetch={refetch} />} />
             </Routes>
           </div>

@@ -2,9 +2,21 @@
   border-bottom: none;
 }
 
+.toolTab .ant-tabs-tab-btn {
+  color: #7C8B98;
+  font-family: PingFang SC;
+  font-weight: 500;
+  font-style: Medium;
+  font-size: 14px!important;
+  leading-trim: NONE;
+  line-height: 22px;
+  letter-spacing: 0%;
+  text-align: center;
+
+}
+
 .toolTab .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
-  font-weight: bold;
-  color: inherit;
+  color: #383F44;
 }
 
 .toolTab .ant-tabs-ink-bar {
@@ -12,5 +24,17 @@
 }
 
 .agent-config .ant-collapse-header {
-  padding: 16px 0 !important;
+  padding: 0 !important;
+}
+
+/* ToolsList: 透明背景双保险，防止被 antd 默认样式覆盖 */
+.agent-tools-list.ant-list,
+.agent-tools-list .ant-list-items,
+.agent-tools-list .ant-list-item {
+  background: transparent !important;
+}
+
+.agent-tools-list .ant-list-item {
+  border-block-end: none !important;
+  padding: 0 !important;
 }

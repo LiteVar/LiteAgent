@@ -6,3 +6,8 @@ export const validateMaxLength = (maxLength: number, message: string) => {
     return Promise.resolve();
   };
 };
+
+export function maskPhone(phone: string) {
+  if (!phone) return "";
+  return phone.replace(/^(\d{3})\d{4}(\d{4})$/, "$1****$2");
+}

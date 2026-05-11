@@ -17,5 +17,7 @@ public interface ChatContext {
 
     List<Message> getTaskMessages(String contextId, String taskId);
 
-    void taskDone(String contextId, String taskId);
+    void taskDone(String sessionId, String agentId, String taskId);
+
+    boolean compressTask(String sessionId, String agentId, String taskId);
 }

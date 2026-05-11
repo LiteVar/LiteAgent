@@ -1,9 +1,11 @@
 import React from 'react';
-import { List, Avatar, Typography, Tooltip, Dropdown, Empty, Tag } from 'antd';
-import { FolderOutlined, EllipsisOutlined } from '@ant-design/icons';
+import { List, Card, Typography, Tooltip, Dropdown, Empty, Tag } from 'antd';
+import { EllipsisOutlined } from '@ant-design/icons';
+import DatasetIcon from '@/assets/dataset/dataset-logo.svg';
 import { DatasetsVO, Dataset } from '@/client';
 import emptyImage from '@/assets/dataset/no_knowledge_base.png';
 import { PaginationConfig } from 'antd/es/pagination';
+import { buildImageUrl } from '@/utils/buildImageUrl';
 
 const { Text, Title } = Typography;
 
@@ -50,76 +52,87 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = (props) => {
   ];
 
   return (
-    <List
-      grid={{
-        gutter: 16,
-        sm: 1,
-        md: 1,
-        lg: 2,
-        xl: 3,
-        xxl: 4,
-      }}
-      dataSource={knowledgeBases}
-      className="p-8 pt-4"
-      locale={{
-        emptyText: (
-          <div className="flex justify-center items-center h-full mt-40">
-            <Empty image={emptyImage} imageStyle={{ height: '330px' }} description={searchTerm ? '没有找到相关知识库' : '还没有知识库'} />
-          </div>
-        ),
-      }}
-      pagination={{
-        align: 'end',
-        current: pagination.current,
-        pageSize: pagination.pageSize,
-        total: total,
-        onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize }),
-      }}
-      renderItem={(item) => (
-        <List.Item
-          onClick={() => onOpen(item.id!)}
-          className={`cursor-pointer border border-gray-200 border-solid rounded-md hover:shadow-lg p-4 mb-4 transition-all`}
-        >
-          <List.Item.Meta
-            avatar={
-              <Avatar
-                shape="square"
-                // src={item.icon}
-                icon={<FolderOutlined />}
-                size={32}
-                className="bg-gray-100 text-black"
-              />
-            }
-            title={
-              <div className="flex items-center">
-                <div className="flex-1">
-                  <Title level={5} className="mb-0 mt-0 text-gray-800 flex items-center max-w-[160px]">
-                    <div className="truncate" title={item.name}>
-                      {item.name}
+    <div className="px-4 pb-8">
+      <List
+        className="[&_.ant-col]:h-full"
+        grid={{
+          gutter: 8,
+          xs: 1,
+          sm: 1,
+          md: 2,
+          lg: 3,
+          xl: 4,
+          xxl: 4,
+        }}
+        dataSource={knowledgeBases}
+        locale={{
+          emptyText: (
+            <div className="flex justify-center items-center py-20">
+              <Empty image={emptyImage} imageStyle={{ height: '200px' }} description={searchTerm ? '没有找到相关知识库' : '还没有知识库'} />
+            </div>
+          ),
+        }}
+        pagination={{
+          align: 'end',
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: total,
+          hideOnSinglePage: true,
+          onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize }),
+          className: "!mt-4"
+        }}
+        renderItem={(item) => (
+          <List.Item className="!mb-2 !flex h-[calc(100%-8px)]">
+            <Card
+              className="w-full h-full bg-white/60 backdrop-blur-sm border-white/80 rounded-xl hover:shadow-lg transition-all cursor-pointer overflow-hidden border"
+              bodyStyle={{ padding: '22px 16px' }}
+              onClick={() => onOpen(item.id!)}
+            >
+              <div className="flex h-full flex-col gap-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <div className="w-10 h-10 flex-shrink-0">
+                      <img
+                        src={item.icon ? buildImageUrl(item.icon!) : DatasetIcon}
+                        alt={item.name}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
                     </div>
-                  </Title>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[14px] font-medium text-[#383F44] truncate m-0" title={item.name}>
+                        {item.name}
+                      </h3>
+                    </div>
+                  </div>
+                  <Dropdown menu={{ items: menuItems(item) }} trigger={['click']}>
+                    <div 
+                      className="w-8 h-8 flex items-center justify-center text-[#94A0AB] hover:text-[#383F44] transition-colors rounded-lg hover:bg-white/40"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <EllipsisOutlined style={{ fontSize: '20px' }} />
+                    </div>
+                  </Dropdown>
                 </div>
-                <Dropdown menu={{ items: menuItems(item) }} trigger={['hover']}>
-                  <EllipsisOutlined className="text-gray-500 cursor-pointer px-5 pt-3 mb-3" />
-                </Dropdown>
+
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Tag className="m-0 border-none bg-white/60 rounded-lg px-2 text-[11px] text-[#58636C]">文件: {item.docCount}</Tag>
+                    <Tag className="m-0 border-none bg-white/60 rounded-lg px-2 text-[11px] text-[#58636C]">字数: {formatWordCount(item.wordCount || 0)}</Tag>
+                    <Tag className="m-0 border-none bg-white/60 rounded-lg px-2 text-[11px] text-[#58636C]">Agent: {item.agentCount}</Tag>
+                  </div>
+                  
+                  {item.description && <Tooltip title={item.description}>
+                    <p className="text-[12px] text-[#58636C] h-[40px] break-all line-clamp-2 leading-[20px] m-0">
+                      {item.description || '暂无描述'}
+                    </p>
+                  </Tooltip>}
+                </div>
               </div>
-            }
-            description={
-              <>
-                <div className="flex items-center text-xs text-gray-600 mt-2">
-                  <Tag>文件: {item.docCount}</Tag>
-                  <Tag>字数: {formatWordCount(item.wordCount || 0)}</Tag>
-                  <Tag>Agent: {item.agentCount}</Tag>
-                </div>
-                <Tooltip title={item.description}>
-                  <div className="text-sm text-gray-500 mt-3 line-clamp-3 min-h-16">{item.description}</div>
-                </Tooltip>
-              </>
-            }
-          />
-        </List.Item>
-      )}
-    />
+            </Card>
+          </List.Item>
+        )}
+      />
+    </div>
   );
 };
 

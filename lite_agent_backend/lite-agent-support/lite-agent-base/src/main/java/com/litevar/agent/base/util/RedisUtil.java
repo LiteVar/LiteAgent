@@ -52,6 +52,18 @@ public class RedisUtil {
         return redisTemplate.opsForList().range(key, 0, -1);
     }
 
+    public static Long rightPush(String key, Object value) {
+        return redisTemplate.opsForList().rightPush(key, value);
+    }
+
+    public static Long leftPush(String key, Object value) {
+        return redisTemplate.opsForList().leftPush(key, value);
+    }
+
+    public static Object leftPop(String key) {
+        return redisTemplate.opsForList().leftPop(key);
+    }
+
     public static Long getKeyTtl(String key) {
         return redisTemplate.getExpire(key, TimeUnit.SECONDS);
     }
@@ -98,5 +110,13 @@ public class RedisUtil {
 
     public static Object getHashValue(String key, String hashKey) {
         return redisTemplate.opsForHash().get(key, hashKey);
+    }
+
+    public static long increment(String key, long delta) {
+        return redisTemplate.opsForValue().increment(key, delta);
+    }
+
+    public static Boolean expire(String key, long ttl, TimeUnit unit) {
+        return redisTemplate.expire(key, ttl, unit);
     }
 }

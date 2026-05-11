@@ -11,7 +11,7 @@ public class MarkdownRenderer {
         for (int i = 0; i < doc.blocks.size(); i++) {
             Blocks.Block b = doc.blocks.get(i);
             if (b instanceof Blocks.HorizontalRule) {
-                sb.append("<!-- SPLITTING -->\n\n");
+                sb.append(" ");
                 continue;
             }
             if (b instanceof Blocks.Heading h) {
@@ -27,7 +27,7 @@ public class MarkdownRenderer {
                 renderList(sb, lb);
             }
             if (enableParagraphSplitting && i < doc.blocks.size() - 1 && shouldSplitAfterBlock(b)) {
-                sb.append("<!-- SPLITTING -->\n\n");
+                sb.append(" ");
             }
         }
         return sb.toString();

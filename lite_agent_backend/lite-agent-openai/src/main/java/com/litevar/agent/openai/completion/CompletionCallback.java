@@ -12,7 +12,7 @@ public interface CompletionCallback {
 
     void onError(String taskId, Throwable error);
 
-    void onCompleteResponse(String taskId, CompletionResponse response, boolean isStream);
+    void onCompleteResponse(String taskId, CompletionResponse response);
 
     void start(String taskId);
 }

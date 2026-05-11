@@ -1,7 +1,8 @@
 // 
-import React, { useState } from 'react';
+import React from 'react';
 import { Modal } from 'antd';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { linkRenderer } from '@/utils/markdownRenderer';
 
 interface PromptPreviewProps {
@@ -38,7 +39,7 @@ const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, onClose 
         <div
           className={`prose markdown w-full overflow-hidden`}
           dangerouslySetInnerHTML={{
-            __html: marked.parse(prompt || ''),
+            __html: DOMPurify.sanitize(marked.parse(prompt || '') as string)
           }}
         ></div>
       </div>

@@ -27,7 +27,7 @@ public class OutMessage {
      */
     private String role;
     /**
-     * 消息类型:text,imageUrl,functionCallList,toolReturn,flag,reflect,error,dispatch,agentStatus,knowledge,planning
+     * 消息类型:text,contentList,imageUrl,functionCallList,toolReturn,flag,reflect,error,dispatch,agentStatus,knowledge,planning
      */
     private String type;
     private Object content;
@@ -92,6 +92,8 @@ public class OutMessage {
     @Data
     public static class DistributeContent {
         private String cmd;
+        private String videoUrl;
+        private List<String> imageUrl;
         private String targetAgentId;
         private String dispatchId;
     }

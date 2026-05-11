@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button, Steps, Typography, Modal } from 'antd';
-import { ArrowLeftOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Steps, Typography, Modal } from 'antd';
+import { LeftOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { DatasetDocument } from '@/client';
 
@@ -28,6 +28,8 @@ const Header: React.FC<HeaderProps> = ({
         content: '当前有未保存的数据，退出后将会丢失，确认要退出吗？',
         okText: '确认',
         cancelText: '取消',
+        okButtonProps: { className: 'rounded-lg' },
+        cancelButtonProps: { className: 'rounded-lg' },
         onOk: async () => {
           // 用户确认后，删除已上传的文件
           if (onBackWithCleanup) {
@@ -43,20 +45,26 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <div className="space-y-4 mb-4">
-      <div className="flex items-center justify-center">
-        <div className="flex items-center space-x-4">
-          <Button icon={<ArrowLeftOutlined />} onClick={handleBack} className="hover:bg-gray-100">
-            返回
-          </Button>
-          <div className="h-4 w-[1px] bg-gray-200" />
-          <Typography.Title level={4} style={{ margin: 0 }}>
+    <div className="mb-6">
+      <div>
+        <div className="flex items-center gap-4">
+          <div 
+            onClick={handleBack}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/80 border border-white/60 shadow-sm hover:bg-white cursor-pointer transition-all"
+          >
+            <LeftOutlined className="text-gray-600" />
+          </div>
+          <Typography.Title level={4} className="!m-0 !text-[#1D4A6B] !font-semibold !text-lg">
             新建文档
           </Typography.Title>
         </div>
-        <div className="flex-1 flex justify-center items-center">
-          <Steps current={currentStep} items={steps.map((item) => ({ title: item.title }))} 
-          className="max-w-2xl -ml-[100px]" />
+        
+        <div className="flex-1 flex justify-center">
+          <Steps 
+            current={currentStep} 
+            items={steps.map((item) => ({ title: item.title }))} 
+            className="max-w-2xl customSteps [&_.ant-steps-item-finish_.ant-steps-item-icon]:border [&_.ant-steps-item-finish_.ant-steps-item-icon]:border-blue-600 [&_.ant-steps-item-finish_.ant-steps-item-icon]:border-solid"
+          />
         </div>
       </div>
     </div>

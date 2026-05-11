@@ -19,7 +19,15 @@ public class ExternalSendMsgDTO {
 
     @Data
     public static class Content {
+        /**
+         * text,imageUrl,videoUrl,execute
+         */
         private String type;
+        /**
+         * type=imageUrl时,内容为url或fileId(通过上传chat文件接口得到)
+         * type=videoUrl时,内容为url或fileId(通过上传chat文件接口得到)
+         * type=execute时,内容为planId
+         */
         private String message;
     }
 }

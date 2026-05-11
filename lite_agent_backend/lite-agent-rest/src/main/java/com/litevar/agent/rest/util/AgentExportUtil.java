@@ -10,6 +10,7 @@ import com.litevar.agent.base.enums.ExecuteMode;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.core.module.agent.AgentService;
 import com.litevar.agent.core.module.llm.ModelService;
+import com.litevar.agent.core.module.storage.StorageServiceV2;
 import com.litevar.agent.core.module.tool.ToolFunctionService;
 import com.litevar.agent.core.module.tool.ToolService;
 import com.litevar.agent.rest.service.*;
@@ -20,17 +21,15 @@ import org.springframework.stereotype.Component;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * agent导出
@@ -67,7 +66,9 @@ public class AgentExportUtil {
     @Autowired
     private ToolService toolService;
     @Autowired
-    private UploadFileService uploadFileService;
+    private UploadFileServiceV2 uploadFileService;
+    @Autowired
+    private StorageServiceV2 storageService;
 
     public byte[] exportAgent(Agent agent, boolean plainText) throws IOException {
         Map<String, Agent> allSubAgents = new LinkedHashMap<>();
@@ -125,7 +126,7 @@ public class AgentExportUtil {
         }
         return Dict.create()
                 .set("agent", "LiteAgent")
-                .set("version", "2.0.0")
+                .set("version", "3.0.0")
                 .set("author", username)
                 .set("createTime", LocalDateTime.now().format(METADATA_TIME_FORMATTER));
     }
@@ -171,9 +172,9 @@ public class AgentExportUtil {
                 .filter(StrUtil::isNotBlank)
                 .collect(Collectors.toSet());
 
-        Map<String, UploadFile> uploadFileMap = fileIds.isEmpty() ?
+        Map<String, UploadFileV2> uploadFileMap = fileIds.isEmpty() ?
                 Collections.emptyMap() :
-                uploadFileService.getByIds(fileIds).stream().collect(Collectors.toMap(UploadFile::getId, uploadFile -> uploadFile));
+                uploadFileService.getByIds(fileIds).stream().collect(Collectors.toMap(UploadFileV2::getId, uploadFile -> uploadFile));
 
         Map<String, byte[]> knowledgeFolder = new HashMap<>();
         datasetMap.forEach((datasetId, dataset) -> {
@@ -246,39 +247,24 @@ public class AgentExportUtil {
 
     private void exportDocumentImages(String docBasePath,
                                       Set<String> docFileIds,
-                                      Map<String, UploadFile> uploadFileMap,
+                                      Map<String, UploadFileV2> uploadFileMap,
                                       Map<String, byte[]> knowledgeFolder) {
         if (ObjectUtil.isEmpty(docFileIds)) {
             return;
         }
         for (String fileId : docFileIds) {
-            UploadFile uploadFile = uploadFileMap.get(fileId);
-            if (uploadFile == null || StrUtil.isBlank(uploadFile.getMarkdownPath())) {
+            UploadFileV2 uploadFile = uploadFileMap.get(fileId);
+            if (uploadFile == null || StrUtil.isBlank(uploadFile.getMarkdownKey())) {
                 continue;
             }
-            Path markdownPath = Path.of(uploadFile.getMarkdownPath());
-            Path markdownDir = markdownPath.getParent();
-            if (markdownDir == null) {
-                continue;
-            }
-            Path imagesDir = markdownDir.resolve("imgs");
-            if (!Files.isDirectory(imagesDir)) {
-                continue;
-            }
-            try (Stream<Path> imageStream = Files.walk(imagesDir)) {
-                List<Path> imageFiles = imageStream
-                        .filter(Files::isRegularFile)
-                        .toList();
-                for (Path imageFile : imageFiles) {
-                    Path relativePath = imagesDir.relativize(imageFile);
-                    String relativeName = relativePath.toString().replace('\\', '/');
-                    String zipEntryName = docBasePath + IMAGES_DIR + relativeName;
-                    byte[] bytes = Files.readAllBytes(imageFile);
-                    knowledgeFolder.put(zipEntryName, bytes);
-                }
-            } catch (IOException e) {
-                log.warn("导出imgs目录失败, fileId={}, imagesDir={}", fileId, imagesDir, e);
-            }
+            String srcDirKey = Path.of(uploadFile.getMarkdownKey()).getParent().normalize().toString();
+            String imageKeyPrefix = Path.of(srcDirKey, IMAGES_DIR).normalize().toString();
+
+            Map<String, byte[]> imageMap = storageService.downloadDir(imageKeyPrefix);
+            imageMap.forEach((imageName, imageBytes) -> {
+                String zipEntryName = docBasePath + IMAGES_DIR + imageName;
+                knowledgeFolder.put(zipEntryName, imageBytes);
+            });
         }
     }
 

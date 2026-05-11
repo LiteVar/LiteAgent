@@ -10,6 +10,7 @@ const { TextArea } = Input;
 interface OpenToolSpecFormProps {
   form: FormInstance;
   onValuesChange?: (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => void;
+  onSchemaChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
 }
 
 interface OpenToolSpecData {
@@ -19,7 +20,7 @@ interface OpenToolSpecData {
   schema: string;
 }
 
-const OpenToolSpecForm: React.FC<OpenToolSpecFormProps> = ({ form, onValuesChange }) => {
+const OpenToolSpecForm: React.FC<OpenToolSpecFormProps> = ({ form, onValuesChange, onSchemaChange }) => {
   const [loading, setLoading] = useState(false);
   
   // 从表单字段获取当前的数据来源
@@ -232,9 +233,11 @@ const OpenToolSpecForm: React.FC<OpenToolSpecFormProps> = ({ form, onValuesChang
           >
           <TextArea
             rows={8}
-            maxLength={20000}
             placeholder="请输入 OpenTool Spec 文稿（OpenTool Spec 定义）"
-            onChange={e => handleFieldChange(e, 'schema')}
+            onChange={e => {
+              handleFieldChange(e, 'schema');
+              onSchemaChange?.(e);
+            }}
           />
         </Form.Item>
         </>

@@ -27,7 +27,7 @@ const AutoAgentBaseSet: React.FC<AgentSettingsProps> = ({ agentInfo, setAgentInf
         });
       }
     },
-    [agentInfo, setAgentInfo]
+    [agentInfo, setAgentInfo, modelList]
   );
 
   return (
@@ -36,16 +36,16 @@ const AutoAgentBaseSet: React.FC<AgentSettingsProps> = ({ agentInfo, setAgentInf
       <div className="mb-6">
         <Text className="text-base mb-2" strong>系统模型</Text>
         <div className="text-base text-gray-500 mb-2">负责规划的大语言模型，统筹所有信息</div>
-        <div className="flex">
+        <div className="flex items-center gap-2">
           <Select
             disabled={readonly}
             variant="filled"
             onChange={onChangeAgentModel}
-            value={agentInfo?.agent?.llmModelId}
-            className="w-full mt-2"
+            value={(agentInfo?.model?.status === 2 && agentInfo?.model?.id === agentInfo?.agent?.llmModelId) ? '' : agentInfo?.agent?.llmModelId}
+            className="flex-1 custom-select"
             placeholder="请选择大模型"
           >
-            {modelList?.map((model) => (
+            {modelList.filter((model) => model.status === 1)?.map((model) => (
               <Select.Option key={model.id} value={model.id}>
                 {model.alias}
               </Select.Option>
@@ -63,6 +63,10 @@ const AutoAgentBaseSet: React.FC<AgentSettingsProps> = ({ agentInfo, setAgentInf
             readonly={readonly}
           />
         </div>
+        {(agentInfo?.model?.status === 2 && agentInfo?.model?.id === agentInfo?.agent?.llmModelId) && <div className="text-red-500 text-xs mt-2 flex items-center">
+          <div className='text-ellipsis overflow-hidden whitespace-nowrap'>{agentInfo?.model?.alias || agentInfo?.model?.name}</div>
+          <div className='flex-none'>，模型已停用，请重新选择并保存、发布</div>
+        </div>}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Button } from 'antd';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { linkRenderer } from '@/utils/markdownRenderer';
 import { copyToClipboard } from '@/utils/clipboard';
 
@@ -42,7 +43,7 @@ const PreviewSourceModal: React.FC<PreviewSourceModalProps> = ({
         <div
           className={`flex-1 prose markdown overflow-hidden overflow-y-auto px-6`}
           dangerouslySetInnerHTML={{
-            __html: marked.parse(markdown || ''),
+            __html: DOMPurify.sanitize(marked.parse(markdown || '') as string)
           }}
         ></div>
         <div className="flex-none flex justify-between items-center border-0 border-t border-t-gray-200 border-solid py-4 mx-6">

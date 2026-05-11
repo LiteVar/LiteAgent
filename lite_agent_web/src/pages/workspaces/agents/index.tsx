@@ -1,18 +1,19 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Tabs, Card, Tag, message, Image, TabsProps, Empty, Dropdown, Button } from 'antd';
+import { Card, Tag, message, Empty, Dropdown, Button } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import CreateAgentModal from './components/CreateAgentModal';
 import ImportAgentPage from './ImportAgentPage';
 import { AgentCreateForm, AgentDTO, postV1AgentAdd } from '@/client';
 import { getV1AgentAdminListOptions } from '@/client/@tanstack/query.gen';
 import { useQuery } from '@tanstack/react-query';
-import placeholderIcon from '@/assets/login/logo_black.png';
 import { useWorkspace } from '@/contexts/workspaceContext';
 import { UserType } from '@/types/User';
 import { buildImageUrl } from '@/utils/buildImageUrl';
 import Header from '@/components/workspace/Header';
 import type { MenuProps } from 'antd';
-import { DownOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
+import { FilterAllIcon, FilterMyIcon, FilterSystemIcon } from '@/assets/agent/shop_filter_icons_svg';
+import AgentIconSvg from '@/assets/common/agent_icon_svg';
 
 enum CreateAgentType {
   CREATE = 'create',
@@ -51,24 +52,20 @@ export default function Agents() {
     );
   }, [agentListResult?.data, searchValue]);
 
-  const items: TabsProps['items'] = [
+  const filterOptions = [
     {
-      key: '0',
-      label: '全部',
+      key: 0, label: '全部',
+      Icon: FilterAllIcon,
     },
     {
-      key: '1',
-      label: '系统',
+      key: 1, label: '系统',
+      Icon: FilterSystemIcon,
     },
     {
-      key: '3',
-      label: '我的',
+      key: 3, label: '我的',
+      Icon: FilterMyIcon,
     },
   ];
-
-  const onChange = (key: string) => {
-    setTab(Number(key));
-  };
 
   const showModal = () => {
     setIsModalVisible(true);
@@ -90,7 +87,6 @@ export default function Agents() {
   const handleOk = useCallback(
     async (values: AgentCreateForm) => {
       console.log('New Agent:', values);
-      // 这里可以添加创建Agent的逻辑
       const res = await postV1AgentAdd({ body: values, headers: { 'Workspace-id': workspace?.id || '' } });
       if (res.error) {
         message.error('agent创建失败');
@@ -143,13 +139,14 @@ export default function Agents() {
       <Dropdown menu={{ items }}>
         <a onClick={(e) => e.preventDefault()}>
           <Button
-            icon={<DownOutlined />}
-            iconPosition='end'
+            className="rounded-xl bg-[#40A5EE] hover:!bg-[#40A5EE]/90 border-none shadow-md shadow-blue-200/50 flex items-center gap-2 h-10"
+            icon={<PlusOutlined />}
+            iconPosition='start'
             type="primary"
-            size='large'
+            size="large"
           >
             新建Agent
-          </Button> 
+          </Button>
         </a>
       </Dropdown>
     )
@@ -166,7 +163,7 @@ export default function Agents() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col">
       <Header
         title="Agents管理"
         placeholder="搜索你的Agent"
@@ -177,70 +174,104 @@ export default function Agents() {
         createButton={createButton}
       />
 
-      <div className="flex justify-between items-center px-8">
-        <Tabs defaultActiveKey="0" className="flex-grow" items={items} onChange={onChange} />
+      <div className="flex gap-2.5 px-4">
+        {filterOptions.map((option) => (
+          <button
+            key={option.key}
+            onClick={() => setTab(option.key)}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-xl cursor-pointer border-none transition-all ${
+              tab === option.key
+                ? 'text-[#383F44] shadow-sm bg-white'
+                : 'bg-transparent text-[#58636C] hover:bg-white/50'
+            }`}
+            style={{
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            <span className="w-5 h-5 flex-none flex items-center justify-center">
+              <option.Icon 
+                active={tab === option.key} 
+                color={tab === option.key ? '#383F44' : '#58636C'} 
+              />
+            </span>
+            <span>{option.label}</span>
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-8 pb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 px-4 pb-8 pt-4">
         {filteredAgents?.map((agent) => (
           <Card
             key={agent.id}
-            className="hover:shadow-md transition-shadow"
+            className="bg-white/60 backdrop-blur-sm border-white/80 rounded-xl hover:shadow-lg transition-all cursor-pointer overflow-hidden border"
+            bodyStyle={{ padding: '22px 16px' }}
             onClick={() => navigateToAgent(agent.id!)}
           >
-            <div className="flex">
-              <div className='w-[86%]'>
-                <div className="flex items-center">
-                  <div className='w-10'>
-                    {agent.icon && (
-                      <Image
-                        preview={false}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <div className="w-10 h-10 flex-shrink-0 bg-white rounded-lg flex items-center justify-center border border-white/80 overflow-hidden shadow-sm">
+                    {agent.icon ? (
+                      <img
                         src={buildImageUrl(agent.icon!)}
-                        alt={`图标`}
-                        width={32}
-                        height={32}
-                        className="mr-4 rounded"
+                        alt={agent.name}
+                        className="w-full h-full object-cover"
                       />
-                    )}
-                    {!agent.icon && (
-                      <div className="mr-4 rounded w-8 h-8 flex items-center justify-center bg-[#f5f5f5]">
-                        <img
-                          src={placeholderIcon}
-                          alt={`图标`}
-                          width={16}
-                          height={16}
-                        />
-                      </div>
+                    ) : (
+                      <AgentIconSvg seed={agent.id} />
                     )}
                   </div>
-                  <h3
-                    title={agent.name}
-                    className="text-lg font-semibold m-2 truncate"
-                  >
+                  <h3 className="text-[14px] font-medium text-[#383F44] truncate" title={agent.name}>
                     {agent.name}
                   </h3>
                 </div>
-
-              </div>
-              <div className=" flex items-center justify-end">
                 {agent?.status === 0 && (
-                  <Tag color="gold" className="!mt-2">
+                  <Tag color="gold" className="m-0 border-none rounded-full px-2 text-[10px]">
                     未发布
                   </Tag>
                 )}
               </div>
+              
+              <div className="space-y-2">
+                <p className="text-[12px] text-[#58636C] h-[40px] break-all line-clamp-2 leading-[20px]">
+                  {agent.description || '暂无描述'}
+                </p>
+                
+                <div className="flex items-center justify-between mt-auto">
+                  {!agent.autoAgentFlag ? (
+                    <div className="flex items-center gap-2 text-[12px] text-[#94A0AB]">
+                      <span className="w-2 h-2 bg-[#94A0AB] rounded-full" />
+                      <span className="truncate max-w-[100px]">{agent.createUser}</span>
+                      <span>创建</span>
+                    </div>
+                  ) : (
+                    <div className="text-[12px] text-[#58636C]">
+                      类型： Auto Muti Agent
+                    </div>
+                  )}
+                  
+                  <Button 
+                    className="border-[#40A5EE] text-[#40A5EE] rounded-lg h-8 px-4 text-[12px] hover:bg-[#40A5EE] hover:text-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigateToAgent(agent.id!);
+                    }}
+                  >
+                    详情
+                  </Button>
+                </div>
+              </div>
             </div>
-            {!!agent.autoAgentFlag && <p className='text-base text-gray-500 my-2'>类型：Auto Multi Agent</p>}
-            <p className="text-gray-500 my-2 h-16 line-clamp-3">{agent.description}</p>
-            {!agent.autoAgentFlag && <p style={{ marginBottom: 0 }} className='flex items-center text-gray-500 w-fit max-w-full'>
-              <span className='w-2 h-2 bg-gray-500 rounded-full mr-2 flex-none'></span>
-              <span className='flex-1 line-clamp-1 break-all'>{agent.createUser}</span>
-              <span className='ml-2 flex-none'>创建</span>
-            </p>}
           </Card>
         ))}
       </div>
-      {filteredAgents.length === 0 && <Empty description="暂无数据" />}
+      
+      {filteredAgents.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Empty description="暂无数据" />
+        </div>
+      )}
       <CreateAgentModal visible={isModalVisible} onCancel={handleCancel} onOk={handleOk} />
     </div>
   );

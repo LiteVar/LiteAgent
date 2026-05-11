@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from 'antd';
 import { ChatPlanningProps, PlanningTask } from '@/types/chat';
+import { ChatMessageItem } from '@/hooks/chat/useChatSSE';
 
 const ChatPlanningChildren: React.FC<{ childrens: PlanningTask[]; letterIndex?: boolean }> = ({
   childrens,
@@ -61,7 +62,11 @@ const ChatPlanning: React.FC<ChatPlanningProps> = (props) => {
   const onContinuePlanning = async (event: React.MouseEvent) => {
     event.stopPropagation();
     setDisabled(true);
-    await onSendMessage('execute', message.content.planId);
+    const messages: ChatMessageItem[] = [{
+      type: 'execute',
+      message: message.content.planId, // planId
+    }];
+    await onSendMessage(messages);
   };
 
   return (

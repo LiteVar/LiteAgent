@@ -1,17 +1,26 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import { Tabs, Card, message, Empty, Skeleton } from 'antd';
-import type { TabsProps } from 'antd';
+import { Card, message, Empty, Skeleton } from 'antd';
 import CreateToolModal from "./components/CreateToolModal";
 import ToolInfoModal from "./components/ToolInfoModal";
-import {useQuery} from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query';
 import {getV1ToolListOptions} from "@/client/@tanstack/query.gen";
-import {postV1ToolAdd, ToolDTO, deleteV1ToolById, ToolProvider, putV1ToolUpdate, getV1ToolExportById} from '@/client';
+import {
+  postV1ToolAdd,
+  ToolDTO,
+  deleteV1ToolById,
+  ToolProvider,
+  putV1ToolUpdate,
+  getV1ToolExportById,
+  ToolVOAddAction,
+  ToolVOUpdateAction,
+} from '@/client';
 import {useWorkspace} from "@/contexts/workspaceContext";
 import {UserType} from "@/types/User";
 import ResponseCode from "@/constants/ResponseCode";
 import ToolIcon from './components/tool-icon';
 import Header from '@/components/workspace/Header';
 import FileExportModal from '@/components/workspace/FileExportModal';
+import { FilterAllIcon, FilterMyIcon, FilterSystemIcon } from '@/assets/agent/shop_filter_icons_svg';
 
 export default function Tools() {
   const [searchValue, setSearchValue] = useState('');
@@ -21,19 +30,24 @@ export default function Tools() {
   const [editingTool, setEditingTool] = useState<ToolDTO | ToolProvider | undefined>(undefined);
   const [exportTool, setExportTool] = useState<ToolDTO | ToolProvider | undefined>(undefined);
   const [toolInfo, setToolInfo] = useState<ToolDTO | undefined>(undefined);
-  const [tab, setTab] = useState('0');
+  const [tab, setTab] = useState<number>(0);
   const workspace = useWorkspace()
+  const toolListQuery = useMemo(
+    () =>
+      getV1ToolListOptions({
+        query: {
+          name: '',
+          tab: Number(tab),
+        },
+        headers: {
+          'Workspace-id': workspace?.id || '',
+        },
+      }),
+    [tab, workspace?.id]
+  );
 
   const {data, isLoading, refetch} = useQuery({
-    ...getV1ToolListOptions({
-      query: {
-        name: "", // 这里似乎搜索似乎不需要去更新，前端手动筛选即可。toolNameValue || undefined
-        tab: Number(tab)
-      },
-      headers: {
-        'Workspace-id': workspace?.id || '',
-      },
-    })
+    ...toolListQuery,
   })
 
   const tools = useMemo(() => data?.data || [], [data]);
@@ -59,7 +73,7 @@ export default function Tools() {
     setEditingTool(undefined);
   };
 
-  const showExportModal = (event: any, model: ToolDTO | ToolProvider) => {
+  const showExportModal = (event: React.MouseEvent, model: ToolDTO | ToolProvider) => {
     event.stopPropagation();
     setIsExportModalVisible(true);
     setExportTool(model);
@@ -88,15 +102,22 @@ export default function Tools() {
     setToolInfo(undefined);
   }
 
-  const handleOk = useCallback(async (id: string, values: any) => {
+  const handleOk = useCallback(async (id: string, values: ToolVOAddAction | ToolVOUpdateAction) => {
     let res;
     if (id) {
-      res = await putV1ToolUpdate({body: {id, ...values}, headers: {'Workspace-id': workspace?.id || ''}});
+      res = await putV1ToolUpdate({body: {...values as ToolVOUpdateAction, id}, headers: {'Workspace-id': workspace?.id || ''}});
     } else {
-      res = await postV1ToolAdd({body: values, headers: {'Workspace-id': workspace?.id || ''}});
+      res = await postV1ToolAdd({body: values as ToolVOAddAction, headers: {'Workspace-id': workspace?.id || ''}});
     }
     if (res?.data?.code === ResponseCode.S_OK) {
-      await refetch()
+      const refetchResult = await refetch();
+      if (id) {
+        const listPayload = refetchResult.data as { data?: ToolDTO[] } | undefined;
+        const nextTool = listPayload?.data?.find((t) => t.id === id);
+        if (nextTool) {
+          setToolInfo((prev) => (prev?.id === id ? { ...prev, ...nextTool } : prev));
+        }
+      }
       message.success(`${editingTool ? '更新' : '创建'}工具成功`);
       setIsModalVisible(false);
       setEditingTool(undefined);
@@ -144,27 +165,23 @@ export default function Tools() {
     }
   }, []);
 
-  const items: TabsProps['items'] = [
+  const filterOptions = [
     {
-      key: '0',
-      label: '全部',
+      key: 0, label: '全部',
+      Icon: FilterAllIcon,
     },
     {
-      key: '1',
-      label: '系统',
+      key: 1, label: '系统',
+      Icon: FilterSystemIcon,
     },
     {
-      key: '3',
-      label: '我的',
+      key: 3, label: '我的',
+      Icon: FilterMyIcon,
     },
   ];
 
-  const onChange = (key: string) => {
-    setTab(key);
-  };
-
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col">
       <Header
         title="工具管理"
         placeholder="搜索你的工具"
@@ -176,41 +193,71 @@ export default function Tools() {
         onCreateClick={() => showEditingToolModal(undefined)}
       />
 
-      <div className="flex justify-between items-center px-8">
-        <Tabs defaultActiveKey="0" className="flex-grow" items={items} onChange={onChange} />
+      <div className="flex gap-2.5 px-4">
+        {filterOptions.map((option) => (
+            <button
+              key={option.key}
+              onClick={() => setTab(option.key)}
+              className={`flex items-center gap-1 px-2 py-1.5 rounded-xl cursor-pointer border-none transition-all ${
+                tab === option.key
+                  ? 'text-[#383F44] shadow-sm bg-white'
+                  : 'bg-transparent text-[#58636C] hover:bg-white/50'
+              }`}
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              <span className="w-5 h-5 flex-none flex items-center justify-center">
+                <option.Icon 
+                  active={tab === option.key} 
+                  color={tab === option.key ? '#383F44' : '#58636C'} 
+                />
+              </span>
+              <span>{option.label}</span>
+            </button>
+          ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-8 pb-8 auto-rows-fr">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 px-4 pb-8 pt-4 auto-rows-fr">
         {filteredTools.map(tool => (
-          <Card key={tool.id} className="hover:shadow-md transition-shadow h-full" onClick={() => showInfoModal(tool)}>
-            <div className="flex flex-col h-full justify-between">
+          <Card 
+            key={tool.id} 
+            className="bg-white/60 backdrop-blur-sm border-white/80 rounded-xl hover:shadow-lg transition-all cursor-pointer overflow-hidden border h-full"
+            bodyStyle={{ padding: '22px 16px', height: '100%' }}
+            onClick={() => showInfoModal(tool)}
+          >
+            <div className="flex flex-col h-full justify-between gap-4">
               <div>
-                <div className="flex items-center">
-                  <ToolIcon iconName={tool.icon} />
-                  <h3 className="text-lg font-semibold m-2">{tool.name}</h3>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 flex-shrink-0 bg-white rounded-lg flex items-center justify-center border border-white/80 overflow-hidden shadow-sm">
+                    <ToolIcon iconName={tool.icon} />
+                  </div>
+                  <h3 className="text-[14px] font-medium text-[#383F44] truncate">{tool.name}</h3>
                 </div>
-                <p className="h-10 text-gray-500 my-2 line-clamp-3">
-                  {tool.description || ' '}
+                <p className="text-[12px] text-[#58636C] h-[40px] break-all line-clamp-2 leading-[20px] mt-4">
+                  {tool.description || '暂无描述'}
                 </p>
               </div>
-              <p style={{ marginBottom: 0 }} className="flex items-center text-gray-500 w-fit max-w-full">
-                <span className="w-2 h-2 bg-gray-500 rounded-full mr-2 flex-none"></span>
-                <span className="flex-1 line-clamp-1 break-all">{tool.createUser}</span>
-                <span className="ml-2 flex-none">创建</span>
-              </p>
+              <div className="flex items-center gap-2 text-[12px] text-[#94A0AB] mt-auto">
+                <span className="w-2 h-2 bg-[#94A0AB] rounded-full flex-none" />
+                <span className="truncate flex-1 min-w-0">{tool.createUser} 创建</span>
+              </div>
             </div>
           </Card>
         ))}
       </div>
 
-      {
-        filteredTools.length === 0 && !isLoading && (
-          <Empty className="mt-10" description="暂无数据" />
-        )
-      }
-      {isLoading &&
-        <Skeleton />
-      }
+      {filteredTools.length === 0 && !isLoading && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Empty description="暂无数据" />
+        </div>
+      )}
+      {isLoading && (
+        <div className="px-8 mt-4">
+          <Skeleton active />
+        </div>
+      )}
 
       <CreateToolModal
         visible={isModalVisible}
@@ -230,8 +277,7 @@ export default function Tools() {
         showExportModal={showExportModal}
       />
 
-    <FileExportModal title="工具" visible={isExportModalVisible && !!exportTool?.id} id={exportTool?.id} onClose={closeExportModal} onOk={onExportFile} />
-
+      <FileExportModal title="工具" visible={isExportModalVisible && !!exportTool?.id} id={exportTool?.id} onClose={closeExportModal} onOk={onExportFile} />
     </div>
   );
 }

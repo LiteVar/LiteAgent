@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
-import { Button, Divider, Select, message, Collapse } from 'antd';
-import { SettingTwoTone } from '@ant-design/icons';
+import { Divider, Select, message, Collapse } from 'antd';
 
 import { AgentDetailVO } from '@/client';
 import { AgentType } from '@/types/chat';
@@ -36,7 +35,7 @@ const AgentSet: React.FC<AgentSetProps> = ({
         },
       });
     },
-    [agentInfo]
+    [agentInfo, setAgentInfo]
   );
 
   const onModeChange = useCallback(
@@ -49,24 +48,25 @@ const AgentSet: React.FC<AgentSetProps> = ({
         },
       });
     },
-    [agentInfo]
+    [agentInfo, setAgentInfo]
   );
 
   return (
-    <div className="">
-      <Divider />
+    <div className="border-t border-white/20 mt-4">
       <Collapse ghost>
         <Panel 
-          header={<span className="text-base font-medium">执行策略</span>} 
+          className='[&_.ant-collapse-content-box]:px-0'
+          header={<span className="text-base font-medium text-[#383F44]">执行策略</span>} 
           key="1"
         >
-          <div className="space-y-4">
-            <div className="flex justify-between space-x-4">
-              <label className="mr-4 w-20 text-sm">Agent类型</label>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-[#7C8B98]">Agent类型</label>
               <Select
                 defaultValue={0}
                 value={agentInfo.agent?.type}
-                className="flex-1"
+                className="w-full custom-select [&_.ant-select-selector]:bg-white"
+                style={{ height: 32 }}
                 onChange={onTypeChange}
               >
                 <Option value={AgentType.NORMAL}>普通</Option>
@@ -75,11 +75,12 @@ const AgentSet: React.FC<AgentSetProps> = ({
               </Select>
             </div>
 
-            <div className="flex justify-between space-x-4">
-              <label className="mr-4 w-20 text-sm">执行模式</label>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-[#7C8B98]">执行模式</label>
               <Select
                 defaultValue={0}
-                className="flex-1"
+                className="w-full custom-select [&_.ant-select-selector]:bg-white"
+                style={{ height: 32 }}
                 onChange={onModeChange}
                 value={agentInfo.agent?.mode}
               >
@@ -94,5 +95,7 @@ const AgentSet: React.FC<AgentSetProps> = ({
     </div>
   );
 };
+
+
 
 export default AgentSet;

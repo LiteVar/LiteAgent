@@ -17,6 +17,12 @@ export const ROUTES = {
   WORKSPACE_MODELS: '/workspaces/:workspaceId/models',
   WORKSPACE_USERS: '/workspaces/:workspaceId/users',
   WORKSPACE_DATASETS: '/workspaces/:workspaceId/datasets',
+  ADMIN: '/admin',
+  ADMIN_MODELS: '/admin/models',
+  ADMIN_PLUGINS: '/admin/plugins',
+  WORKSPACE_PLUGIN_CONNECTS: '/workspaces/:workspaceId/plugin-connects',
+  PLUGIN_CONNECT_ANALYTICS: '/plugin-connect-analytics/:connectorId',
   RESET_PASSWORD: '/reset',
+  NAVIGATE: '/navigate',
   ERROR: '*',
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { marked } from 'marked';
 import 'highlight.js/styles/github.css';
 import AgentIcon from './AgentIcon';
@@ -12,6 +12,9 @@ import ChatResultProcess from './ChatResultProcess';
 import { Loading3QuartersOutlined } from '@ant-design/icons';
 import { useTTS } from '@/hooks/useTTS';
 import { ChatMessageProps } from '@/types/chat';
+import { postV1ChatStop } from '@/client';
+import ResponseCode from '@/constants/ResponseCode';
+import ChatRequestProcess from './ChatRequestProcess';
 
 // 添加类型定义
 interface PlanningTask {
@@ -33,12 +36,14 @@ marked.setOptions({
 
 const ChatMessage: React.FC<ChatMessageProps> = (props) => {
   const {
+    agentId,
     message,
     agentIcon,
     isLastMessage,
     onRetry,
     onShowThinkMessage,
     ttsModelId = '',
+    ttsStreamSupported = false,
     onSendMessage,
     lastThinkMessage,
     isLastThinkMessage,
@@ -96,41 +101,36 @@ const ChatMessage: React.FC<ChatMessageProps> = (props) => {
 
   // 使用TTS hook
   const { ttsStatus, onTtsClick } = useTTS({
+    agentId,
     ttsModelId,
     getMessageContent,
     playAudio: message.playAudio,
+    supportStream: ttsStreamSupported,
   });
 
-  useEffect(() => {
-    const handleCopyClick = async (event: Event) => {
-      const target = event.target as HTMLElement;
-      if (target.classList.contains('copy-btn')) {
-        const codeWrapper = target.closest('.code-block-wrapper');
-        const code = codeWrapper?.querySelector('code')?.textContent;
-        if (code) {
-          await copyToClipboard(code!);
-          target.textContent = '已复制';
-          setTimeout(() => {
-            target.textContent = '复制';
-          }, 2000);
-        }
+  const handleCodeCopyClick = useCallback(async (event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.classList.contains('copy-btn')) {
+      const codeWrapper = target.closest('.code-block-wrapper');
+      const code = codeWrapper?.querySelector('code')?.textContent;
+      if (code) {
+        await copyToClipboard(code);
+        target.textContent = '已复制';
+        setTimeout(() => {
+          target.textContent = '复制';
+        }, 2000);
       }
-    };
-
-    document.addEventListener('click', handleCopyClick);
-    return () => {
-      document.removeEventListener('click', handleCopyClick);
-    };
+    }
   }, []);
 
-  const handleCopy = useCallback(async () => {
+  const handleCopy = useCallback(async (event: React.MouseEvent<HTMLSpanElement>, text?: string) => {
+    event?.stopPropagation();
     try {
-      const copyText = getMessageContent();
+      const copyText = text || getMessageContent();
 
       setTimeout(async () => {
         await copyToClipboard(copyText);
         setCopied(true);
-        Toast.success('复制成功');
       }, 200);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -141,28 +141,22 @@ const ChatMessage: React.FC<ChatMessageProps> = (props) => {
     }
   }, [getMessageContent]);
 
+  const handleStop = useCallback(async (taskId: string) => {
+    const res = await postV1ChatStop({
+      query: {
+        taskId: taskId,
+      },
+    });
+    if (res?.data?.code === ResponseCode.S_OK) {
+      // Toast.success('暂停成功');
+    } else {
+      Toast.error('暂停失败');
+    }
+  }, []);
+
   if (message.role === MessageRole.USER) {
-    return (
-      <div className="mb-8" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
-        <div className="min-h-8 text-message flex w-full items-start flex-row-reverse gap-2 whitespace-normal break-words">
-          <div
-            className="relative max-w-[70%] whitespace-pre-wrap break-words rounded-3xl px-5 py-2.5 bg-[#f4f4f4]"
-          >
-            {message.content}
-          </div>
-        </div>
-        <div className="mt-2 flex justify-end">
-          <MessageActions
-            onCopy={handleCopy}
-            show={isLastMessage || isHovered}
-            copied={copied}
-            onRetry={onRetry}
-            retryDisabled={message.type !== 'error'}
-          />
-        </div>
-      </div>
-    );
-  } else if (
+    return <ChatRequestProcess requestProcessMessages={message} isHovered={isHovered} setIsHovered={setIsHovered} onRetry={onRetry} onStop={handleStop} onCopy={handleCopy} copied={copied} isLastMessage={isLastMessage} />;
+  }else if (
     (message.role === MessageRole.ASSISTANT && message.type === TaskMessageType.TEXT) ||
     (message.role === MessageRole.AGENT && message.type === TaskMessageType.ERROR)
   ) {
@@ -177,7 +171,7 @@ const ChatMessage: React.FC<ChatMessageProps> = (props) => {
         <div className="flex-shrink-0 flex flex-col relative items-end">
           <AgentIcon agentIcon={agentIcon} />
         </div>
-        <div className="group/conversation-turn relative flex w-full min-w-0 flex-col agent-turn">
+        <div className="group/conversation-turn relative flex w-full min-w-0 flex-col agent-turn" onClick={handleCodeCopyClick}>
           {message.thoughtProcessMessages && message.thoughtProcessMessages.length > 0 && (
             <div
               onClick={(event) => onShowThinkMessage(event, message)}
@@ -270,6 +264,7 @@ const MemoizedChatMessage = React.memo(ChatMessage, (prevProps, nextProps) => {
     prevProps.agentIcon === nextProps.agentIcon &&
     prevProps.isLastMessage === nextProps.isLastMessage &&
     prevProps.ttsModelId === nextProps.ttsModelId &&
+    prevProps.ttsStreamSupported === nextProps.ttsStreamSupported &&
     prevProps.isLastThinkMessage === nextProps.isLastThinkMessage
   );
 });

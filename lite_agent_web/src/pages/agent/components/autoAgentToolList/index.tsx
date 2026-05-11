@@ -78,6 +78,7 @@ const AutoAgentToolsList: React.FC<ToolsListProps> = ({ workspaceId, readonly })
 			<Divider />
 			<Collapse ghost>
 				<Panel
+					className='[&_.ant-collapse-content-box]:px-0'
 					header={<span className='text-base font-medium'>工具</span>}
 					collapsible='header'
 					key='1'
@@ -110,13 +111,13 @@ const AutoAgentToolsList: React.FC<ToolsListProps> = ({ workspaceId, readonly })
 										<List.Item.Meta
 											avatar={<ToolIcon iconName={func.icon} />}
 											title={
-												<div className='line-clamp-1'>
+												<div className='break-all line-clamp-1'>
 													<span className='mr-1'>
 														{`${func.functionName}${toUpperCaseWord(func.requestMethod)}`}
 													</span>
 												</div>
 											}
-											description={<div className='w-full line-clamp-3'>{func.functionDesc}</div>}
+											description={<div className='w-full break-all line-clamp-3'>{func.functionDesc}</div>}
 										/>
 									</List.Item>
 								)}
@@ -129,7 +130,7 @@ const AutoAgentToolsList: React.FC<ToolsListProps> = ({ workspaceId, readonly })
 									type='link'
 									onClick={() => setShowAll(!showAll)}
 									icon={showAll ? <UpOutlined /> : <DownOutlined />}
-									iconPosition='end'
+									className="text-[#40A5EE] hover:text-[#40A5EE]/80"
 								>
 									{showAll ? '收起' : '更多'}
 								</Button>

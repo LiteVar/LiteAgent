@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Button, Card, Checkbox, Space } from 'antd';
+import React, { useMemo } from 'react';
+import { Button, Checkbox } from 'antd';
 import { DocumentSegment } from '@/client';
 interface FragmentItemProps {
   item: DocumentSegment;
@@ -28,7 +28,6 @@ const FragmentItem: React.FC<FragmentItemProps> = ({
   onDelete,
   onToggleFreeze,
 }) => {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
    const fragmentIndex = useMemo(() => {
     return String(index + 1 + (pagination.current - 1) * pagination.pageSize).padStart(2, '0');
    }, [index, pagination]);
@@ -52,57 +51,94 @@ const FragmentItem: React.FC<FragmentItemProps> = ({
   };
 
   return (
-    <Card
-      className="mb-3 hover:shadow-md transition-shadow"
-      styles={{
-        body: {
-          padding: '16px 24px',
-        },
-      }}
-      onMouseEnter={() => (canEdit || canDelete) && setHoveredId(item.id!)}
-      onMouseLeave={() => setHoveredId(null)}
+    <div
+      className={`
+        relative mb-2 p-3 rounded-2xl transition-all duration-200 group border border-solid
+        ${selected 
+          ? 'bg-blue-50/50 border-blue-200 shadow-sm' 
+          : 'bg-white/40 border-gray-200 hover:bg-white/60 hover:shadow-md'}
+      `}
     >
-      <div className="flex items-start">
-        <Checkbox checked={selected} onChange={(e) => onSelect(e.target.checked)} className="mt-1 mr-4" />
-        <div className="flex-1" onClick={() => onEdit(item.id!, true, fragmentIndex)}>
-          <Space>
-            <div className="text-gray-700 mb-3 text-sm">
-              片段
-              {fragmentIndex}
+      <div className="flex items-start gap-4">
+        <Checkbox 
+          checked={selected} 
+          onChange={(e) => onSelect(e.target.checked)} 
+          className="custom-checkbox" 
+        />
+        
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
+          <div
+            className="flex items-center gap-4 mt-1 cursor-pointer"
+            onClick={() => onEdit(item.id!, true, fragmentIndex)}
+          >
+            <span className="text-xs text-gray-600">片段{fragmentIndex}</span>
+            <div className="flex items-center gap-1.5 text-gray-500 text-xs">
+              <span className="font-medium">字数:</span>
+              <span>{item.content?.length || 0}</span>
             </div>
-            <div className="text-gray-700 mb-3 text-sm">字数：{item.content?.length}</div>
-            <div className="text-gray-700 mb-3 text-sm">
-              状态：
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-medium text-gray-500">状态:</span>
               {item.enableFlag ? (
-                <span className="text-green-500 text-sm">已激活</span>
+                <span className="text-green-600 font-medium">已激活</span>
               ) : (
-                <span className="text-gray-300 text-sm">已冻结</span>
+                <span className="text-yellow-600 font-medium">已冻结</span>
               )}
             </div>
-          </Space>
-          <div className="text-gray-700 mb-3 text-sm line-clamp-2">{highlightSearchText(item.content!)}</div>
-        </div>
-        {hoveredId === item.id && (
-          <div className="absolute right-6 top-4 space-x-1 bg-white shadow-sm rounded-md px-2 py-1">
-            {canEdit && (
-              <>
-                <Button type="link" size="small" onClick={() => onEdit(item.id!, false, fragmentIndex)}>
-                  编辑
-                </Button>
-                <Button type="link" size="small" onClick={() => onToggleFreeze(item.id!)}>
-                  {item.enableFlag ? '冻结' : '激活'}
-                </Button>
-              </>
-            )}
-            {canDelete && (
-              <Button type="link" size="small" danger onClick={() => onDelete(item.id!)}>
-                删除
-              </Button>
-            )}
           </div>
-        )}
+
+          <div className="flex items-start justify-between gap-4 min-w-0">
+            <div
+              className="flex-1 min-w-0 text-[#383F44] text-sm leading-relaxed break-all line-clamp-2 bg-white/30 rounded-xl border border-white/40 group-hover:bg-white/50 transition-colors cursor-pointer"
+              onClick={() => onEdit(item.id!, true, fragmentIndex)}
+            >
+              {highlightSearchText(item.content!)}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {canEdit && (
+                <>
+                  <Button
+                    type="link"
+                    size="small"
+                    className="text-[#40a5ee] font-medium !px-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(item.id!, false, fragmentIndex);
+                    }}
+                  >
+                    编辑
+                  </Button>
+                  <Button
+                    type="link"
+                    size="small"
+                    className={`font-medium !px-0 ${item.enableFlag ? 'text-[#40a5ee]' : '!text-green-500'}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFreeze(item.id!);
+                    }}
+                  >
+                    {item.enableFlag ? '冻结' : '激活'}
+                  </Button>
+                </>
+              )}
+              {canDelete && (
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  className="font-medium !px-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(item.id!);
+                  }}
+                >
+                  删除
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-    </Card>
+    </div>
   );
 };
 

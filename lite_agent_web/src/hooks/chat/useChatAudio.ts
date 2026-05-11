@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { message } from 'antd';
-import { AgentDetailVO, getV1ChatAudioSpeech } from '@/client';
+import { AgentDetailVO, postV1ChatAudioSpeech } from '@/client';
 
 interface UseChatAudioProps {
   agentInfo?: AgentDetailVO;
@@ -19,7 +19,7 @@ export const useChatAudio = ({ agentInfo }: UseChatAudioProps) => {
       try {
         const modelId = agentInfo?.agent?.ttsModelId || '';
 
-        const res = await getV1ChatAudioSpeech({
+        const res = await postV1ChatAudioSpeech({
           query: {
             modelId,
             content: text,

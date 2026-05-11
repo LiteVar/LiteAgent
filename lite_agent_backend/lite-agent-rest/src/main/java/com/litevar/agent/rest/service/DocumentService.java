@@ -8,15 +8,19 @@ import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.entity.DatasetDocument;
 import com.litevar.agent.base.entity.DocumentSegment;
-import com.litevar.agent.base.entity.UploadFile;
+import com.litevar.agent.base.entity.UploadFileV2;
 import com.litevar.agent.base.enums.DatasetSourceType;
 import com.litevar.agent.base.enums.EmbedStatus;
+import com.litevar.agent.base.enums.ServiceExceptionEnum;
+import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.vo.DocumentCreateForm;
+import com.litevar.agent.core.module.llm.ModelService;
+import com.litevar.agent.core.module.storage.StorageServiceV2;
 import com.litevar.agent.rest.springai.document.DocumentSplitter;
 import com.litevar.agent.rest.springai.document.DocumentSplitterFactory;
-import com.litevar.agent.rest.vector.MilvusService;
+import com.litevar.agent.rest.vector.QdrantVectorService;
 import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
 import com.mongoplus.model.PageResult;
 import com.mongoplus.service.impl.ServiceImpl;
@@ -24,15 +28,17 @@ import kotlin.collections.ArrayDeque;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
+import org.springframework.core.io.AbstractResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,14 +57,18 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
     @Autowired
     private SegmentService segmentService;
     @Autowired
-    private UploadFileService uploadFileService;
+    private UploadFileServiceV2 uploadFileService;
     @Autowired
     private FileSummaryService fileSummaryService;
     @Autowired
-    private MilvusService milvusService;
+    private QdrantVectorService qdrantVectorService;
     @Autowired
     @Qualifier("asyncTaskExecutor")
     private Executor asyncTaskExecutor;
+    @Autowired
+    private StorageServiceV2 storageService;
+    @Autowired
+    private ModelService modelService;
 
     /**
      * Creates a new document.
@@ -70,6 +80,13 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
     public DatasetDocument createDocument(String datasetId, DocumentCreateForm form) throws MalformedURLException {
         String userId = LoginContext.currentUserId();
         Dataset dataset = datasetService.getDataset(datasetId);
+        boolean duplicateDocName = this.lambdaQuery()
+                .eq(DatasetDocument::getName, form.getName())
+                .eq(DatasetDocument::getDatasetId, datasetId).count() > 0;
+        if (duplicateDocName) {
+            throw new ServiceException(ServiceExceptionEnum.DOCUMENT_NAME_DUPLICATE);
+        }
+        modelService.checkModelAvailable(dataset.getLlmModelId(), "");
 
         DatasetDocument document = BeanUtil.toBean(form, DatasetDocument.class, CopyOptions.create().setIgnoreNullValue(true));
         document.setUserId(userId);
@@ -111,7 +128,7 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
             return "";
         }
 
-        return milvusService.getSummaryText(dataset.getSummaryCollectionName(), documentId).orElse("");
+        return qdrantVectorService.getSummaryText(dataset.getSummaryCollectionName(), documentId).orElse("");
     }
 
     /**
@@ -175,7 +192,11 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
         segmentService.toggleEnableFlag(segmentList, flag);
 
         //如果有摘要,也要同步该文档摘要的enable字段
-        milvusService.toggleEnableFlag("summary_" + document.getDatasetId(), List.of(id), flag);
+        qdrantVectorService.toggleSummaryEnableFlagByDocumentIds(
+                "summary_" + document.getDatasetId(),
+                List.of(id),
+                flag
+        );
     }
 
     /**
@@ -190,11 +211,7 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
         List<Document> documents = new ArrayDeque<>();
 
         if (form.getDataSourceType().equalsIgnoreCase(DatasetSourceType.INPUT.getValue())) {
-            Resource textResource = new ByteArrayResource(form.getContent().getBytes());
-            TikaDocumentReader documentReader = new TikaDocumentReader(textResource);
-            List<Document> docList = documentReader.get();
-            docList.stream().forEach(d -> d.getMetadata().remove("source"));
-            documents.addAll(docList);
+            documents.add(new Document(form.getContent()));
         }
         if (form.getDataSourceType().equalsIgnoreCase(DatasetSourceType.HTML.getValue())) {
             for (String url : form.getHtmlUrl()) {
@@ -204,8 +221,25 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
             }
         }
         if (form.getDataSourceType().equalsIgnoreCase(DatasetSourceType.FILE.getValue())) {
-            UploadFile uploadFile = uploadFileService.getById(form.getFileId());
-            Resource fileResource = new FileSystemResource(uploadFile.getMarkdownPath());
+            UploadFileV2 uploadFile = uploadFileService.getById(form.getFileId());
+            String markdownKey = uploadFile.getMarkdownKey();
+            String markdownFilename = Path.of(markdownKey).getFileName().toString();
+            Resource fileResource = new AbstractResource() {
+                @Override
+                public String getDescription() {
+                    return "storage markdown resource: " + markdownKey;
+                }
+
+                @Override
+                public String getFilename() {
+                    return markdownFilename;
+                }
+
+                @Override
+                public InputStream getInputStream() {
+                    return storageService.readFileStream(markdownKey);
+                }
+            };
             TikaDocumentReader documentReader = new TikaDocumentReader(fileResource);
             List<Document> docList = documentReader.get();
             docList.stream().forEach(d -> d.getMetadata().remove("source"));
@@ -229,7 +263,7 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
         });
 
         DocumentSplitter splitter = DocumentSplitterFactory.createDelimiterMerging(form.getChunkSize(), 0, form.getSeparator());
-        List<Document> segments = splitter.split(documents.get(0));
+        List<Document> segments = documents.stream().map(splitter::split).flatMap(Collection::stream).toList();
 
         if (previewFlag) {
             return segments.stream().limit(5).collect(Collectors.toList());
@@ -256,11 +290,11 @@ public class DocumentService extends ServiceImpl<DatasetDocument> {
         segmentService.deleteSegmentsByDocumentIds(docIds);
 
         //删除文档,如果有摘要,也要删除
-        milvusService.removeEmbeddings("summary_" + docList.get(0).getDatasetId(), docIds);
+        qdrantVectorService.removeSummaryByDocumentIds("summary_" + docList.get(0).getDatasetId(), docIds);
 
         docList.forEach(doc -> {
             if (StrUtil.isNotBlank(doc.getFileId())) {
-                uploadFileService.deleteFileById(doc.getFileId());
+                uploadFileService.deleteFile(doc.getFileId());
             }
         });
     }

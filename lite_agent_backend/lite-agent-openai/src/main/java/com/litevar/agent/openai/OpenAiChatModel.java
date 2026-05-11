@@ -2,24 +2,16 @@ package com.litevar.agent.openai;
 
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.litevar.agent.base.dto.TokenReportDTO;
 import com.litevar.agent.openai.completion.*;
-import com.litevar.agent.openai.completion.message.AssistantMessage;
 import com.litevar.agent.openai.completion.message.Message;
-import com.litevar.agent.openai.util.JsonRepair;
 import com.litevar.agent.openai.util.SpringBeanUtil;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * @author uncle
@@ -28,30 +20,32 @@ import java.util.regex.Pattern;
 @Slf4j
 public class OpenAiChatModel {
     private static ChatContext messageContext;
-    private static final Pattern thinkPattern = Pattern.compile("<think>(.*?)</think>");
 
     /**
      * stream=true
      */
-    public static void generate(ChatModelRequest request, String taskId, List<Message> chatMessage, CompletionCallback callback) {
+    public static RequestExecutor.CallHandle<Void> generate(ChatModelRequest request, String taskId, List<Message> chatMessage,
+                                                            CompletionCallback callback, TokenReportDTO tokenReport) {
         List<Message> allMessage = getMessage(chatMessage, request.getContextId(), taskId);
 
-        CompletionRequestParam param = getParam(request, true);
+        CompletionRequestParam param = getParam(request, true, tokenReport);
         param.setMessages(allMessage);
 
         callback.start(taskId);
 
         CompletionStreamResponseBuilder responseBuilder = new CompletionStreamResponseBuilder();
         AtomicInteger thinkFlag = new AtomicInteger(0);
-        RequestExecutor.doStreamRequest(param, request.getBaseUrl(), request.getApiKey(), new RequestCallback() {
+        return RequestExecutor.doStreamRequest(param, request.getBaseUrl(), request.getApiKey(), new RequestCallback() {
             @Override
             public void onResponse(String response) {
                 try {
                     if (StrUtil.equals(response, "[DONE]")) {
 
                         CompletionResponse completionResponse = responseBuilder.build();
+                        //report token usage
+                        RequestExecutor.reportUsageIfPresent(tokenReport, completionResponse.getUsage());
                         afterResponse(completionResponse, chatMessage, request.getContextId(), taskId);
-                        callback.onCompleteResponse(taskId, completionResponse, true);
+                        callback.onCompleteResponse(taskId, completionResponse);
 
                     } else {
                         CompletionResponse partialResponse = ObjectMapperSingleton.getObjectMapper().readValue(response, CompletionResponse.class);
@@ -83,25 +77,14 @@ public class OpenAiChatModel {
     /**
      * stream=false
      */
-    public static CompletionResponse generate(ChatModelRequest request, String taskId, List<Message> chatMessage) {
+    public static RequestExecutor.CallHandle<CompletionResponse> generate(ChatModelRequest request, String taskId,
+                                                                          List<Message> chatMessage, TokenReportDTO tokenReport) {
         List<Message> allMessage = getMessage(chatMessage, request.getContextId(), taskId);
 
-        CompletionRequestParam param = getParam(request, false);
+        CompletionRequestParam param = getParam(request, false, tokenReport);
         param.setMessages(allMessage);
 
-        CompletionResponse response = RequestExecutor.doRequest(param, request.getBaseUrl(), request.getApiKey());
-        AssistantMessage assistantMessage = response.getChoices().get(0).getMessage();
-        if (StrUtil.isNotEmpty(assistantMessage.getContent())) {
-            String content = assistantMessage.getContent();
-            Matcher matcher = thinkPattern.matcher(content);
-            if (matcher.find()) {
-                //content字段包含<think></think>的情况
-                assistantMessage.setReasoningContent(matcher.group(1));
-                assistantMessage.setContent(content.replaceAll("<think>.*?</think>", ""));
-            }
-        }
-        afterResponse(response, chatMessage, request.getContextId(), taskId);
-        return response;
+        return RequestExecutor.doRequestAsync(param, request.getBaseUrl(), request.getApiKey(), response -> afterResponse(response, chatMessage, request.getContextId(), taskId));
     }
 
     private static void afterResponse(CompletionResponse response, List<Message> chatMessage, String contextId, String taskId) {
@@ -114,21 +97,6 @@ public class OpenAiChatModel {
                     //兼容国产大模型function-calling argument参数为空返回空字符的情况
                     log.error("function-calling argument为空,将arguments修复为空括号");
                     i.getFunction().setArguments("{}");
-                } else {
-                    try {
-                        validateJson(arguments);
-                    } catch (Exception e) {
-                        log.error("function-calling json解析异常,将对字符串进行修复:{}", arguments);
-                        try {
-                            String repairStr = JsonRepair.jsonrepair(arguments);
-                            log.info("修复完成:{}", repairStr);
-                            validateJson(repairStr);
-                            log.info("解析成功,将替换响应数据");
-                            i.getFunction().setArguments(repairStr);
-                        } catch (Exception ex) {
-                            log.error("修复失败", ex);
-                        }
-                    }
                 }
             });
         }
@@ -158,7 +126,7 @@ public class OpenAiChatModel {
         return allMessage;
     }
 
-    private static CompletionRequestParam getParam(ChatModelRequest request, boolean stream) {
+    private static CompletionRequestParam getParam(ChatModelRequest request, boolean stream, TokenReportDTO tokenReport) {
         CompletionRequestParam param = new CompletionRequestParam();
         param.setModel(request.getModel());
         param.setMaxCompletionTokens(request.getMaxCompletionTokens());
@@ -170,6 +138,7 @@ public class OpenAiChatModel {
             param.setStreamOptions(Map.of("include_usage", true));
         }
         param.setTools(request.getTools());
+        param.setTokenReport(tokenReport);
         return param;
     }
 
@@ -178,23 +147,5 @@ public class OpenAiChatModel {
             messageContext = SpringBeanUtil.getBean(ChatContext.class);
         }
         return messageContext;
-    }
-
-    private static void validateJson(String json) throws JsonProcessingException {
-        ObjectMapper mapper = ObjectMapperSingleton.getObjectMapper();
-        JsonFactory factory = mapper.getFactory();
-        try (JsonParser parser = factory.createParser(json)) {
-            parser.nextToken();
-            mapper.readTree(parser);
-
-            //检查是否还有多余的token
-            if (parser.nextToken() != null) {
-                throw new JsonProcessingException("JSON格式错误：包含多个根元素") {
-                };
-            }
-        } catch (IOException e) {
-            throw new JsonProcessingException("JSON格式错误：" + e.getMessage()) {
-            };
-        }
     }
 }

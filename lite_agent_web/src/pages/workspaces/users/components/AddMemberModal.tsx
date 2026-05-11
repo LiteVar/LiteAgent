@@ -78,28 +78,41 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ visible, onCancel, onOk
   return (
     <Modal
       centered
-      title="添加成员"
+      title={<span className="text-[#1D4A6B] font-medium text-lg">添加成员</span>}
       open={visible}
       onCancel={onCancel}
       footer={[
-        <Button key="cancel" onClick={onCancel}>
-          取消
-        </Button>,
-        <Button key="submit" type="primary" onClick={handleSubmit}>
-          添加
-        </Button>,
+        <div key="footer" className="flex justify-end gap-2">
+          <Button onClick={onCancel} className="rounded-xl h-[40px] px-6">
+            取消
+          </Button>
+          <Button type="primary" onClick={handleSubmit} className="rounded-xl h-[40px] px-6 bg-[#40A5EE]">
+            添加
+          </Button>
+        </div>
       ]}
+      styles={{
+        header: { padding: '16px 24px', borderBottom: '1px solid #F2F3F5', marginBottom: 0 },
+        body: { padding: '24px' },
+        footer: { padding: '10px 16px', borderTop: '1px solid #F2F3F5', marginTop: 0 },
+      }}
+      width={480}
     >
-      <div className="mt-8 mb-2">
-        <Select
-          className="w-full"
-          value={role}
-          onChange={handleRoleChange}
-        >
-          <Option value={UserType.Normal}>权限：普通成员</Option>
-          <Option value={UserType.Developer}>权限：开发者</Option>
-        </Select>
-        <div className="mt-3">
+      <div className="space-y-4">
+        <div>
+          <div className="text-[#383F44] font-medium mb-2">选择权限</div>
+          <Select
+            className="w-full rounded-lg [&_.ant-select-selector]:h-10 [&_.ant-select-selection-item]:flex [&_.ant-select-selection-item]:items-center"
+            value={role}
+            onChange={handleRoleChange}
+          >
+            <Option value={UserType.Normal}>权限：普通成员</Option>
+            <Option value={UserType.Developer}>权限：开发者</Option>
+          </Select>
+        </div>
+        
+        <div>
+          <div className="text-[#383F44] font-medium mb-2">邮箱账号</div>
           <Input
             value={inputValue}
             onChange={handleInputChange}
@@ -109,19 +122,27 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ visible, onCancel, onOk
               handleInputConfirm();
             }}
             placeholder="输入成员的邮箱账号进行添加，按 Enter 键确认"
+            className="rounded-lg h-10 border-[#E0E3E6]"
           />
+          {inputError && <div className="text-[#CC2D3A] text-xs mt-1">{inputError}</div>}
         </div>
-        {inputError && <div style={{ color: 'red', marginTop: 4 }}>{inputError}</div>}
-      </div>
-      <div style={{ marginBottom: 16 }}>
-        {emails.map(email => (
-          <Tag key={email} closable onClose={() => handleRemove(email)} style={{ marginBottom: 8 }}>
-            {email}
-          </Tag>
-        ))}
-      </div>
-      <div style={{ marginTop: 16, color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>
-        如果成员的邮箱账号未注册，系统将发送激活邮件到该成员邮箱
+
+        <div className="flex flex-wrap gap-2 min-h-[32px]">
+          {emails.map(email => (
+            <Tag 
+              key={email} 
+              closable 
+              onClose={() => handleRemove(email)}
+              className="bg-[#F2F3F5] border-none rounded-lg px-3 py-1 text-[#383F44] flex items-center gap-1 m-0"
+            >
+              {email}
+            </Tag>
+          ))}
+        </div>
+
+        <div className="text-[#7C8B98] text-sm leading-relaxed bg-[#F8FAFC] p-3 rounded-xl border border-[#F1F5F9]">
+          如果成员的邮箱账号未注册，系统将发送激活邮件到该成员邮箱
+        </div>
       </div>
     </Modal>
   );

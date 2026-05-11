@@ -13,7 +13,7 @@ type ChatAction =
   | { type: 'UPDATE_MESSAGE'; payload: { agentId: string; messageId: string; updates: Partial<AgentMessage> } }
   | { type: 'CLEAR_MESSAGES'; payload: string }
   | { type: 'ADD_SEPARATOR'; payload: { agentId: string; sessionId?: string } }
-  | { type: 'PREPEND_MESSAGES'; payload: { agentId: string; messages: AgentMessage[]; adjustScrollCallback?: (oldScrollHeight: number) => void } }
+  | { type: 'PREPEND_MESSAGES'; payload: { agentId: string; messages: AgentMessage[] } }
   | { type: 'HANDLE_END_EVENT'; payload: { agentId: string; messageId: string; ttsModelId?: string } }
   | { type: 'HANDLE_ERROR_EVENT'; payload: { agentId: string; messageId: string; data: SSEEventData } }
   | { type: 'COMPLEX_MESSAGE_UPDATE'; payload: { agentId: string; messageId: string; updater: (prev: AgentMessageMap) => AgentMessageMap } };
@@ -104,9 +104,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case 'PREPEND_MESSAGES': {
       const currentMessages = state.messagesMap[action.payload.agentId]?.messages || [];
-      const oldScrollHeight = document.querySelector('.chat-scroll-container')?.scrollHeight || 0;
-      
-      const newState = {
+      return {
         ...state,
         messagesMap: {
           ...state.messagesMap,
@@ -115,13 +113,6 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
           },
         },
       };
-      
-      // 如果有滚动调整回调，在下次渲染后调用
-      if (action.payload.adjustScrollCallback) {
-        setTimeout(() => action.payload.adjustScrollCallback!(oldScrollHeight), 0);
-      }
-      
-      return newState;
     }
 
     case 'HANDLE_END_EVENT': {
@@ -151,6 +142,13 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
         const newMessages = [...messages];
         newMessages[messageIndex] = updatedMessage;
+
+        const taskId = newMessages[messageIndex].taskId;
+        newMessages.forEach((msg: AgentMessage, msgIndex: number) => {
+          if (msg.taskId === taskId && msg.role === MessageRole.USER) {
+            newMessages[msgIndex].responding = false;
+          }
+        });
 
         return {
           ...state,
@@ -273,8 +271,8 @@ export const useChatReducer = () => {
       dispatch({ type: 'ADD_SEPARATOR', payload: { agentId, sessionId } });
     }, []),
 
-    prependMessages: useCallback((agentId: string, messages: AgentMessage[], adjustScrollCallback?: (oldScrollHeight: number) => void) => {
-      dispatch({ type: 'PREPEND_MESSAGES', payload: { agentId, messages, adjustScrollCallback } });
+    prependMessages: useCallback((agentId: string, messages: AgentMessage[]) => {
+      dispatch({ type: 'PREPEND_MESSAGES', payload: { agentId, messages } });
     }, []),
 
     handleEndEvent: useCallback((agentId: string, messageId: string, ttsModelId?: string) => {

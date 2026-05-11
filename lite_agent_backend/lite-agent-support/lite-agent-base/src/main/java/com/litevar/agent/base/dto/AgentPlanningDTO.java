@@ -12,6 +12,7 @@ import java.util.List;
  */
 @Data
 public class AgentPlanningDTO {
+    private String id;
     /**
      * 规则内容(agent名字)
      */
@@ -30,7 +31,16 @@ public class AgentPlanningDTO {
     /**
      * 子agent
      */
+    @Deprecated
     private List<AgentPlanningDTO> children;
+
+    private List<Dependencies> dependencies;
+
+    @Data
+    public static class Dependencies {
+        private String id;
+        private String name;
+    }
 
     @Data
     public static class PlanModel {
@@ -54,10 +64,6 @@ public class AgentPlanningDTO {
          * tool name
          */
         private String name;
-        /**
-         * tool desc
-         */
-        private String desc;
     }
 
     @Data

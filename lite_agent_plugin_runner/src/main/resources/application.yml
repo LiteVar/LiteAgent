@@ -1,0 +1,16 @@
+
+runner:
+  data-dir: ./data
+  upload-dir: ./uploads
+  security:
+    time-window-seconds: 10
+
+logging:
+  level:
+    com.github.dockerjava: DEBUG
+    com.github.dockerjava.transport: DEBUG
+spring:
+  servlet:
+    multipart:
+      max-file-size: 1024MB
+      max-request-size: 1024MB

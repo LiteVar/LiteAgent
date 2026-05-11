@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Skeleton, Modal, message } from 'antd';
 import KnowledgeBaseList from './components/KnowledgeBaseList';
 import CreateKnowledgeBaseModal from './components/CreateKnowledgeBaseModal';
@@ -6,12 +6,13 @@ import ExternalKnowledgeBaseModal from './components/ExternalKnowledgeBaseModal'
 import { useWorkspace } from '@/contexts/workspaceContext';
 import { UserType } from '@/types/User';
 import { useNavigate } from 'react-router-dom';
-import { getV1DatasetListOptions, getV1ModelListOptions } from '@/client/@tanstack/query.gen';
+import { getV1DatasetListOptions } from '@/client/@tanstack/query.gen';
 import { useQuery } from '@tanstack/react-query';
 import { deleteV1DatasetById } from '@/client';
 import ResponseCode from '@/constants/ResponseCode';
 import { PaginationConfig } from 'antd/es/pagination';
 import Header from '@/components/workspace/Header';
+import type { DatasetsVO } from '@/client/types.gen';
 
 const DatasetIndex: React.FC = () => {
   const [searchValue, setSearchValue] = useState<string>('');
@@ -24,6 +25,7 @@ const DatasetIndex: React.FC = () => {
     current: 1,
     pageSize: 12,
   });
+  const [knowledgeBases, setKnowledgeBases] = useState<DatasetsVO[]>([]);
 
   const { data, isLoading, refetch } = useQuery({
     ...getV1DatasetListOptions({
@@ -39,28 +41,15 @@ const DatasetIndex: React.FC = () => {
     enabled: !!workspace?.id,
   });
 
-  const { data: models } = useQuery({
-    ...getV1ModelListOptions({
-      headers: {
-        'Workspace-id': workspace?.id!,
-      },
-      query: {
-        pageNo: 0,
-        pageSize: 100000000,
-      },
-    }),
-    enabled: !!workspace?.id,
-  });
-
-  const knowledgeBases = useMemo(() => {
-    return data?.data?.list || [];
-  }, [data]);
+  useEffect(() => {
+    setKnowledgeBases(data?.data?.list || []);
+  }, [data?.data?.list]);
 
   const handleSearch = useCallback(() => {
     setSearchTerm(searchValue);
     setPagination({
       current: 1,
-      pageSize: 10,
+      pageSize: 12,
     });
   }, [searchValue]);
 
@@ -87,6 +76,7 @@ const DatasetIndex: React.FC = () => {
           },
         });
         if (res.data?.code === ResponseCode.S_OK) {
+          setKnowledgeBases((prev) => prev.filter((item) => item.id !== id));
           message.success('删除成功');
           refetch();
         } else {
@@ -97,9 +87,9 @@ const DatasetIndex: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6 h-full">
       <Header
-        title="知识库管理"
+        title="知识库"
         placeholder="搜索你的知识库"
         searchValue={searchValue}
         onSearchChange={setSearchValue}
@@ -121,12 +111,15 @@ const DatasetIndex: React.FC = () => {
         />
       )}
 
-      {isLoading && <Skeleton />}
+      {isLoading && (
+        <div className="px-8 mt-4">
+          <Skeleton active />
+        </div>
+      )}
 
       {showCreateKnowledgeBaseModal && (
         <CreateKnowledgeBaseModal
           refresh={refetch}
-          models={models?.data?.list || []}
           visible={showCreateKnowledgeBaseModal}
           onCancel={() => setShowCreateKnowledgeBaseModal(false)}
         />

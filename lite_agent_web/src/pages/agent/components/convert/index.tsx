@@ -1,5 +1,5 @@
 import { FC, useState, useMemo, useCallback } from 'react';
-import { Checkbox, Select, Collapse, Divider } from 'antd';
+import { Checkbox, Select, Collapse } from 'antd';
 import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import type { SelectProps } from 'antd';
@@ -66,13 +66,21 @@ const Convert: FC<ConvertProps> = ({
 
   const handleTtsEnableChange = useCallback((e: CheckboxChangeEvent) => {
     const checked = e.target.checked;
-    checked ? onTtsEnableChange?.(selectedTtsModel) : onTtsEnableChange?.('');
-  }, [selectedTtsModel]);
+    if (checked) {
+      onTtsEnableChange?.(selectedTtsModel);
+      return;
+    }
+    onTtsEnableChange?.('');
+  }, [selectedTtsModel, onTtsEnableChange]);
 
   const handleAsrEnableChange = useCallback((e: CheckboxChangeEvent) => {
     const checked = e.target.checked;
-    checked ? onAsrEnableChange?.(selectedAsrModel) : onAsrEnableChange?.('');
-  }, [selectedAsrModel]);
+    if (checked) {
+      onAsrEnableChange?.(selectedAsrModel);
+      return;
+    }
+    onAsrEnableChange?.('');
+  }, [selectedAsrModel, onAsrEnableChange]);
 
   const handleTtsModelChange = useCallback((value: string) => {
     setSelectedTtsModel(value);
@@ -89,77 +97,89 @@ const Convert: FC<ConvertProps> = ({
   }, [asrModelId, onAsrEnableChange]);
 
   return (
-    <div className="convert-container">
-      <Divider />
+    <div className="border-t border-white/20 mt-4">
       <Collapse ghost>
         <Panel
-          header={<span className="text-base font-medium">语音与文本转化配置</span>}
+          className='[&_.ant-collapse-content-box]:px-0'
+          header={<span className="text-base font-medium text-[#383F44]">语音配置</span>}
           key="1"
         >
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <div className="text-gray-500">
-                <ExclamationCircleOutlined className='mr-2' />
-                开启文字转语音后，AI回复的信息中将显示语音播放功能
-                <br />
-                开启语音转文字后，可以使用麦克风进行语音输入
+          <div className="flex flex-col gap-2">
+            <div className="flex items-start gap-2 text-xs text-[#7C8B98] leading-relaxed">
+              <ExclamationCircleOutlined className="mt-0.5" />
+              <span>开启文字转语音后，Ai回复的信息中将显示语音播放功能。开启语音转文字后，可以使用麦克风进行语音输入</span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {/* TTS Section */}
+              <div className="rounded-xl p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="text-sm font-medium text-[#1D4A6B]">文字转语音 (TTS)</div>
+                  {!readonly && (
+                    <Checkbox
+                      checked={!!ttsModelId}
+                      onChange={handleTtsEnableChange}
+                      disabled={!selectedTtsModel}
+                      className="custom-checkbox [&_.ant-checkbox-inner]:rounded-sm [&_.ant-checkbox-inner]:bg-[#F5F5F5] [&_.ant-checkbox-inner]:border-[#D9D9D9] [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-[#1677FF] [&_.ant-checkbox-checked_.ant-checkbox-inner]:!border-[#1677FF] [&_.ant-checkbox-wrapper:hover_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-[#1677FF] [&_.ant-checkbox-wrapper:hover_.ant-checkbox-checked_.ant-checkbox-inner]:!border-[#1677FF]"
+                    >
+                      开启
+                    </Checkbox>
+                  )}
+                </div>
+                {!readonly ? (
+                  <Select
+                    placeholder="请选择 TTS 模型"
+                    className="w-full custom-select [&_.ant-select-selector]:bg-[#F5F5F5]"
+                    style={{ height: 32 }}
+                    options={ttsModels}
+                    value={selectedTtsModel || undefined}
+                    onChange={handleTtsModelChange}
+                  />
+                ) : (
+                  <div className="text-xs text-[#7C8B98]">
+                    {ttsModelId ? audioModelList.find(m => m.id === ttsModelId)?.alias : '未开启'}
+                  </div>
+                )}
+              </div>
+
+              {/* ASR Section */}
+              <div className="rounded-xl p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="text-sm font-medium text-[#1D4A6B]">语音转文字 (ASR)</div>
+                  {!readonly && (
+                    <Checkbox
+                      checked={!!asrModelId}
+                      onChange={handleAsrEnableChange}
+                      disabled={!selectedAsrModel}
+                      className="custom-checkbox [&_.ant-checkbox-inner]:rounded-sm [&_.ant-checkbox-inner]:bg-[#F5F5F5] [&_.ant-checkbox-inner]:border-[#D9D9D9] [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-[#1677FF] [&_.ant-checkbox-checked_.ant-checkbox-inner]:!border-[#1677FF] [&_.ant-checkbox-wrapper:hover_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-[#1677FF] [&_.ant-checkbox-wrapper:hover_.ant-checkbox-checked_.ant-checkbox-inner]:!border-[#1677FF]"
+                    >
+                      开启
+                    </Checkbox>
+                  )}
+                </div>
+                {!readonly ? (
+                  <Select
+                    placeholder="请选择 ASR 模型"
+                    className="w-full custom-select [&_.ant-select-selector]:bg-[#F5F5F5]"
+                    style={{ height: 32 }}
+                    options={asrModels}
+                    value={selectedAsrModel || undefined}
+                    onChange={handleAsrModelChange}
+                  />
+                ) : (
+                  <div className="text-xs text-[#7C8B98]">
+                    {asrModelId ? audioModelList.find(m => m.id === asrModelId)?.alias : '未开启'}
+                  </div>
+                )}
               </div>
             </div>
-
-            <div className={`flex py-4 border-b ${readonly ? '' : 'justify-between items-center'}`}>
-              <div className="text-base">文字转语音（TTS）</div>
-              {!readonly && <Checkbox
-                checked={!!ttsModelId}
-                onChange={handleTtsEnableChange}
-                disabled={!selectedTtsModel || readonly}
-              >
-                开启
-              </Checkbox>}
-              {readonly && <div className='ml-9'>
-                <div className="text-base flex-none">{ttsModelId ? "已开启" : "未开启"}</div>
-                {!!ttsModelId && <div className="text-sm mt-2 text-black/25">{audioModelList?.filter(model => model.id === ttsModelId)[0]?.alias}</div>}
-              </div>}
-            </div>
-
-            {!readonly && <div className="py-4">
-              <Select
-                placeholder="请选择 TTS 模型"
-                style={{ width: '100%' }}
-                options={ttsModels}
-                value={selectedTtsModel || undefined}
-                onChange={handleTtsModelChange}
-              />
-            </div>}
-
-            <div className={`flex py-4 border-b ${readonly ? '' : 'justify-between items-center'}`}>
-              <div className="text-base">语音转文字（ASR）</div>
-              {!readonly && <Checkbox
-                checked={!!asrModelId}
-                onChange={handleAsrEnableChange}
-                disabled={!selectedAsrModel || readonly}
-              >
-                开启
-              </Checkbox>}
-              {readonly && <div className='ml-9'>
-                <div className="text-base flex-none">{asrModelId ? "已开启" : "未开启"}</div>
-                {!!asrModelId && <div className="text-sm mt-2 text-black/25">{audioModelList?.filter(model => model.id === asrModelId)[0]?.alias}</div>}
-              </div>}
-            </div>
-
-            {!readonly && <div className="py-4">
-              <Select
-                placeholder="请选择 ASR 模型"
-                style={{ width: '100%' }}
-                options={asrModels}
-                value={selectedAsrModel || undefined}
-                onChange={handleAsrModelChange}
-              />
-            </div>}
           </div>
         </Panel>
       </Collapse>
     </div>
   );
 };
+
+
 
 export default Convert;

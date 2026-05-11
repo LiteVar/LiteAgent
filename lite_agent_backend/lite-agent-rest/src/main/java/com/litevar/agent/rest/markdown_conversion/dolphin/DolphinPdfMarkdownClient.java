@@ -1,5 +1,6 @@
 package com.litevar.agent.rest.markdown_conversion.dolphin;
 
+import cn.hutool.core.util.ObjectUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,10 @@ public class DolphinPdfMarkdownClient {
     private final WebClient baseWebClient;
     private final DolphinPdfMdProperties properties;
     private final AtomicReference<WebClient> cachedClient = new AtomicReference<>();
+
+    public boolean isConfigured() {
+        return ObjectUtil.isAllNotEmpty(properties.getBaseUrl(), properties.getToken());
+    }
 
     public Path convert(Path pdfPath, Path outputDir, Consumer<String> statusCallback) throws Exception {
         Objects.requireNonNull(pdfPath, "pdfPath must not be null");

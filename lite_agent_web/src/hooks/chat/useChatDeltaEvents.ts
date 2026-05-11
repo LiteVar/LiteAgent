@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { debounce, cloneDeep } from 'lodash';
+import { debounce } from 'lodash';
 import { MessageRole, TaskMessageType } from '@/types/Message';
 import {
   AgentMessage,
@@ -53,14 +53,15 @@ const updateThoughtProcessMessages = (
   } else if (messages.length > 0) {
     const agentSwitchIndex = messages.findIndex(msg => msg.type === TaskMessageType.AGENT_SWITCH && msg.taskId === agentMessage.taskId);
     if (agentSwitchIndex !== -1) {
-      messages[agentSwitchIndex].messages = messages[agentSwitchIndex].messages || [];
+      messages[agentSwitchIndex] = { ...messages[agentSwitchIndex] } as AgentMessage;
+      messages[agentSwitchIndex].messages = [...(messages[agentSwitchIndex].messages || [])];
       const thinkMessageIndex = messages[agentSwitchIndex].messages.findIndex(msg => msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.THINK);
       if (thinkMessageIndex != -1) {
         for (let i = messages[agentSwitchIndex].messages.length - 1; i >= 0; i--) {
           if (
             (messages[agentSwitchIndex].messages[i].role === MessageRole.ASSISTANT && messages[i].type === TaskMessageType.THINK)
           ) {
-            messages[i].content = agentMessage?.content;
+            messages[agentSwitchIndex].messages[i] = { ...messages[agentSwitchIndex].messages[i], content: agentMessage?.content } as AgentMessage;
             break;
           }
         }
@@ -73,7 +74,7 @@ const updateThoughtProcessMessages = (
           (messages[i].role === MessageRole.ASSISTANT && messages[i].type === TaskMessageType.THINK) ||
           messages[i].role === MessageRole.AGENT
         ) {
-          messages[i].content = agentMessage?.content;
+          messages[i] = { ...messages[i], content: agentMessage?.content } as AgentMessage;
           break;
         }
       }
@@ -97,7 +98,7 @@ const updateResultProcessMessages = (
         (messages[i].role === MessageRole.ASSISTANT && messages[i].type === TaskMessageType.TEXT) ||
         messages[i].role === MessageRole.AGENT
       ) {
-        messages[i].content = agentMessage?.content;
+        messages[i] = { ...messages[i], content: agentMessage?.content } as AgentMessage;
         break;
       }
     }
@@ -118,10 +119,18 @@ const updateMessages = (
   const index = prevMessages.findIndex(
     (msg) => msg.id === id && msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.TEXT
   );
-  const newMsgs = cloneDeep(prevMessages);
+  const newMsgs = [...prevMessages];
 
   if (index !== -1) {
-    newMsgs[index].responding = true;
+    newMsgs[index] = { ...newMsgs[index], responding: true } as AgentMessage;
+    newMsgs[index].thoughtProcessMessages = [...(newMsgs[index].thoughtProcessMessages || [])] as AgentMessage[];
+    newMsgs[index].resultProcessMessages = [...(newMsgs[index].resultProcessMessages || [])] as AgentMessage[];
+    const taskId = newMsgs[index].taskId;
+    newMsgs.forEach((msg: AgentMessage, msgIndex: number) => {
+      if (msg.taskId === taskId && msg.role === MessageRole.USER) {
+        newMsgs[msgIndex] = { ...newMsgs[msgIndex], responding: true } as AgentMessage;
+      }
+    });
 
     if (type === TaskMessageType.THINK) {
       if ((agentMessage.parentTaskId && agentMessage.taskId) || agentMessage.agentId !== newMsgs[index].agentId) {
@@ -129,18 +138,18 @@ const updateMessages = (
           (msg) => msg.type === TaskMessageType.AGENT_SWITCH && msg.taskId === agentMessage.taskId && msg.parentTaskId === agentMessage.parentTaskId
         );
         if (agentSwitchIndex != -1) {
+          newMsgs[index].thoughtProcessMessages[agentSwitchIndex] = { ...newMsgs[index].thoughtProcessMessages[agentSwitchIndex] } as AgentMessage;
+          newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages = [...(newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages || [])];
           if (createNewMessage) {
-            newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages = newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages || [];
             newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages.push({ ...agentMessage, type: TaskMessageType.THINK } as AgentMessage);
           } else {
-            newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages = newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages || [];
             const thinkMessageIndex = newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages.findIndex(msg => msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.THINK);
             if (thinkMessageIndex != -1) {
               for (let i = newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages.length - 1; i >= 0; i--) {
                 if (
                   (newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages[i].role === MessageRole.ASSISTANT && newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages[i].type === TaskMessageType.THINK)
                 ) {
-                  newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages[i].content = agentMessage?.content;
+                  newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages[i] = { ...newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages[i], content: agentMessage?.content } as AgentMessage;
                   break;
                 }
               }
@@ -163,10 +172,11 @@ const updateMessages = (
           (msg) => msg.type === TaskMessageType.AGENT_SWITCH && msg.taskId === agentMessage.taskId && msg.parentTaskId === agentMessage.parentTaskId
         );
         if (agentSwitchIndex != -1) {
-          newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages = newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages || [];
+          newMsgs[index].thoughtProcessMessages[agentSwitchIndex] = { ...newMsgs[index].thoughtProcessMessages[agentSwitchIndex] } as AgentMessage;
+          newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages = [...(newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages || [])];
           const contentMessageIndex = newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages.findIndex(msg => msg.role === MessageRole.ASSISTANT && msg.type === TaskMessageType.TEXT);
           if (contentMessageIndex != -1) {
-            newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages[contentMessageIndex].content = agentMessage.content;
+            newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages[contentMessageIndex] = { ...newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages[contentMessageIndex], content: agentMessage.content } as AgentMessage;
           } else {
             newMsgs[index].thoughtProcessMessages[agentSwitchIndex].messages.push({ ...agentMessage, type: TaskMessageType.TEXT } as AgentMessage);
           }
@@ -193,10 +203,10 @@ const updateMessages = (
       agentId: jsonData.agentId,
       taskId: jsonData.taskId,
       parentTaskId: jsonData.parentTaskId,
-      thoughtProcessMessages: type === TaskMessageType.THINK ? [{ ...agentMessage, type }] : [],
-      resultProcessMessages: type === TaskMessageType.TEXT ? [{ ...agentMessage, type }] : [],
+      thoughtProcessMessages: type === TaskMessageType.THINK ? [{ ...agentMessage, type } as AgentMessage] : [],
+      resultProcessMessages: type === TaskMessageType.TEXT ? [{ ...agentMessage, type } as AgentMessage] : [],
       id,
-    };
+    } as AgentMessage;
   }
   return newMsgs;
 };
@@ -237,10 +247,9 @@ const performComplexMessageUpdate = (
   type: TaskMessageType,
   createNewMessage?: boolean
 ): void => {
-  const newAgentMessage = cloneDeep(agentMessage);
+  const newAgentMessage = { ...agentMessage };
   messageActions.complexMessageUpdate(agentId, id, (prev) => {
-    const msgsMap = cloneDeep(prev);
-    const msgs = cloneDeep(prev?.[agentId]?.messages || []);
+    const msgs = prev?.[agentId]?.messages || [];
     const newMsgs = updateMessages(
       agentSwitchRef,
       msgs,
@@ -250,10 +259,12 @@ const performComplexMessageUpdate = (
       id,
       createNewMessage
     );
-    msgsMap[agentId] = {
-      messages: newMsgs,
+    return {
+      ...prev,
+      [agentId]: {
+        messages: newMsgs,
+      },
     };
-    return msgsMap;
   });
 };
 
@@ -343,7 +354,7 @@ export const useChatDeltaEvents = (props: UseChatStreamDeltaEventProps): UseChat
 
   const handleDeltaEvent = useCallback(
     (jsonData: DeltaEventData, id: string, agentId: string) => {
-      if (filterEmptyContent(jsonData.part)) return;
+      // if (filterEmptyContent(jsonData.part)) return;
       const currentAgentStatus = agentStatusRef.current.find((item) => item.id === id);
       if (!currentAgentStatus) return;
 

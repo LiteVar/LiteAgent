@@ -13,6 +13,7 @@ enum ResponseCode {
     FA_HTTP_503 = 503,
     FA_HTTP_504 = 504,
     AGENT_NOT_FOUND = 30003,
+    MODEL_CLOSED = 30015,
 }
 
 export default ResponseCode;

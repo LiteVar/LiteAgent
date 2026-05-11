@@ -42,7 +42,7 @@ export type AgentMessage =  OutMessage & {
   req?: OutMessage & {
     tool?: ToolCall;
   };
-  res?: OutMessage;
+  res?: OutMessage[]; // 一个请求可以对应多个响应结果
   // 为了兼容 KnowledgeMessage 
   dispatchId?: string;
 }
@@ -74,7 +74,7 @@ export interface ToolMessage {
   req?: OutMessage & {
     tool?: ToolCall;
   };
-  res?: OutMessage;
+  res?: OutMessage[]; // 一个请求可以对应多个响应结果
   role?: MessageRole | string; // 兼容 OutMessage 的 role?: string
   createTime?: string;
   responding?: boolean; // 改为可选，兼容 AgentMessage

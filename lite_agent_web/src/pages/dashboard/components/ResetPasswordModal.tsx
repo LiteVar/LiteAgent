@@ -40,97 +40,101 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({ modalOpen, onMo
     };
 
     const onChangePassword = async (values: any) => {
-        Modal.confirm({
-            title: '修改密码',
-            content: '修改密码后，您将需要重新登录！',
-            okText: '确定',
-            cancelText: '取消',
-            centered: true,
-            onOk: async () => {
-                console.log('values', values);
-                const res = await putV1UserUpdatePwd({
-                    query: {
-                        originPwd: values.originPassword,
-                        newPwd: values.newPassword,
-                    },
-                });
-                if (res?.data?.code === ResponseCode.S_OK) {
-                    message.success('密码修改成功');
-                    removeAccessToken();
-                    navigate(ROUTES.LOGIN);
-                } else {
-                    message.error(res?.data?.message || '密码修改失败');
-                }
+        const res = await putV1UserUpdatePwd({
+            query: {
+                originPwd: values.originPassword,
+                newPwd: values.newPassword,
             },
         });
+        if (res?.data?.code === ResponseCode.S_OK) {
+            message.success('密码修改成功，请重新登录');
+            removeAccessToken();
+            navigate(ROUTES.LOGIN);
+        } else {
+            message.error(res?.data?.message || '密码修改失败');
+        }
     };
 
     return (
         <Modal
-            title="修改密码"
+            title={<span className="text-[18px] font-medium text-[#1D4A6B]">修改密码</span>}
             closable
             onCancel={onModalCancel}
-            className="!w-[538px]"
+            className="user-settings-modal"
+            width={460}
             maskClosable={false}
             open={modalOpen}
-            onClose={onModalCancel}
-            onOk={() => form.submit()}
             centered
+            footer={[
+                <Button 
+                    key="cancel" 
+                    onClick={onModalCancel}
+                    className="h-9 px-6 rounded-lg border-[#E0E3E6] text-[#383F44] hover:text-[#40A5EE] hover:border-[#40A5EE] transition-colors"
+                >
+                    取消
+                </Button>,
+                <Button 
+                    key="submit" 
+                    type="primary" 
+                    onClick={() => form.submit()}
+                    className="h-9 px-6 rounded-lg bg-[#40A5EE] border-none hover:bg-[#40A5EE]/90 transition-colors"
+                >
+                    确认
+                </Button>
+            ]}
         >
-            <div className="px-5 pt-6 flex flex-col items-center">
-                <div className="w-full updatePassword">
-                    <Form form={form} name="update_password" onFinish={onChangePassword}>
-                        <Form.Item
-                            name="originPassword"
-                            rules={[{ required: true, message: '请输入旧密码!' }]}
-                        >
-                            <div className="flex items-center">
-                                <div className="w-[88px] flex justify-end font-xs mr-3">
-                                    旧密码：
-                                </div>
-                                <Input
-                                    className="w-[266px] h-8 font-xs text-black/50 border border-solid border-[#DBDBDB] rounded-md px-[10px] py-[6px] outline-none"
-                                    type="password"
-                                    placeholder="请输入旧密码"
-                                />
-                            </div>
-                        </Form.Item>
-                        <Form.Item name="newPassword" rules={passwordRules}>
-                            <div className="flex items-center">
-                                <div className="w-[88px] flex justify-end font-xs mr-3">
-                                    新密码：
-                                </div>
-                                <Input
-                                    className="w-[266px] h-8 font-xs text-black/50 border border-solid border-[#DBDBDB] rounded-md px-[10px] py-[6px] outline-none"
-                                    type="password"
-                                    placeholder="请输入新密码"
-                                />
-                            </div>
-                        </Form.Item>
+            <div className="px-6 pt-6 pb-2">
+                <Form 
+                    form={form} 
+                    name="update_password" 
+                    onFinish={onChangePassword} 
+                    layout="horizontal" 
+                    colon={false}
+                    requiredMark={false}
+                >
+                    <Form.Item
+                        name="originPassword"
+                        label={<span className="w-[70px] inline-block text-right text-sm text-[#383F44] mr-4">旧密码</span>}
+                        rules={[{ required: true, message: '请输入旧密码!' }]}
+                        className="mb-5"
+                    >
+                        <Input.Password
+                            className="h-8 text-sm border-[#E0E3E6] rounded-lg hover:border-[#40A5EE] focus:border-[#40A5EE] transition-all py-1 px-2"
+                            placeholder="请输入旧密码"
+                        />
+                    </Form.Item>
+                    <Form.Item
+                        name="newPassword"
+                        label={<span className="w-[70px] inline-block text-right text-sm text-[#383F44] mr-4">新密码</span>}
+                        rules={passwordRules}
+                        className="mb-5"
+                    >
+                        <Input.Password
+                            className="h-8 text-sm border-[#E0E3E6] rounded-lg hover:border-[#40A5EE] focus:border-[#40A5EE] transition-all py-1 px-2"
+                            placeholder="请输入新密码"
+                        />
+                    </Form.Item>
 
-                        <Form.Item
-                            name="confirmPassword"
-                            rules={[
-                                { required: true, message: '请再次输入新密码!' },
-                                { validator: validateConfirmPassword },
-                            ]}
-                        >
-                            <div className="flex items-center">
-                                <div className="w-[88px] flex justify-end font-xs mr-3">
-                                    新密码确认：
-                                </div>
-                                <Input
-                                    className="w-[266px] h-8 font-xs text-black/50 border border-solid border-[#DBDBDB] rounded-md px-[10px] py-[6px] outline-none"
-                                    type="password"
-                                    placeholder="请再次输入新密码"
-                                />
-                            </div>
-                        </Form.Item>
-                    </Form>
-                </div>
+                    <Form.Item
+                        name="confirmPassword"
+                        label={<span className="w-[70px] inline-block text-right text-sm text-[#383F44] mr-4">确认密码</span>}
+                        rules={[
+                            { required: true, message: '请再次输入新密码!' },
+                            { validator: validateConfirmPassword },
+                        ]}
+                        className="mb-2"
+                    >
+                        <Input.Password
+                            className="h-8 text-sm border-[#E0E3E6] rounded-lg hover:border-[#40A5EE] focus:border-[#40A5EE] transition-all py-1 px-2"
+                            placeholder="请再次输入新密码"
+                        />
+                    </Form.Item>
+                </Form>
             </div>
         </Modal>
     );
+
+
 };
 
 export default ResetPasswordModal;

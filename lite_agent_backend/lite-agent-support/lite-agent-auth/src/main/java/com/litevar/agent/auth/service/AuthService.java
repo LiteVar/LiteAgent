@@ -7,6 +7,7 @@ import com.litevar.agent.base.entity.Account;
 import com.litevar.agent.base.enums.AccountStatus;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
+import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.vo.LoginUser;
 import com.mongoplus.mapper.BaseMapper;
 import com.mongoplus.support.SFunction;
@@ -42,5 +43,9 @@ public class AuthService {
 
         LoginUser loginUser = LoginUser.build(account.getId(), account.getName(), account.getEmail());
         return JwtUtil.createToken(loginUser);
+    }
+
+    public String refreshToken() {
+        return JwtUtil.createToken(LoginContext.me());
     }
 }

@@ -24,7 +24,7 @@ const ChatPage = () => {
 
   return (
     <PageLayout agentMap={agentMap}>
-      <div className="flex-1 h-[100vh] overflow-hidden">
+      <div className="flex-1 h-[calc(100vh-32px)] overflow-hidden pr-4 py-4">
         <Chat setAgentMap={setAgentMap} agentId={agentId} mode="prod" agentInfo={agentInfo}/>
       </div>
     </PageLayout>

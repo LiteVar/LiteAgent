@@ -20,4 +20,10 @@ public class LitevarProperties {
 
     @Value("${file.save-path}")
     private String iconPath;
+
+    @Value("${hub.url:}")
+    private String hubUrl;
+
+    @Value("${hub.key:}")
+    private String hubKey;
 }

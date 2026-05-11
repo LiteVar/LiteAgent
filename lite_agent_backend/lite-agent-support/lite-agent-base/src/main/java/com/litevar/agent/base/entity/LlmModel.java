@@ -61,15 +61,21 @@ public class LlmModel {
      */
     private String fieldMapping = "";
     /**
-     * 响应格式: wav, mp3, pcm...
-     * 默认wav
+     * 语音模型的响应格式,如:
+     * 音转文: text/srt/vtt/json...
+     * 文转音: pcm/wav/mp3/mpeg...
      */
-    private String responseFormat = "wav";
+    private String responseFormat = "";
 
     /**
-     * 限制最大token
+     * 限制一次响应最大输出token
      */
     private Integer maxTokens;
+
+    /**
+     * 模型上下文窗口大小
+     */
+    private Integer contextWindows;
 
     /**
      * 是否支持auto agent使用
@@ -84,6 +90,14 @@ public class LlmModel {
      * 是否支持深度思考
      */
     private Boolean deepThink = Boolean.FALSE;
+    /**
+     * 是否支持视觉识别(VL模型)
+     */
+    private Boolean vision = Boolean.FALSE;
+    /**
+     * 是否支持流式输出
+     */
+    private Boolean streamable = Boolean.FALSE;
 
     @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
@@ -95,4 +109,9 @@ public class LlmModel {
      */
     @CollectionLogic
     private String deleted = "0";
+
+    /**
+     * 模型状态: 0-待启用, 1-启用, 2-禁用
+     */
+    private Integer status = 0;
 }

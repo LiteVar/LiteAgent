@@ -7,6 +7,7 @@ import '@/assets/styles/chatMessages.css';
 import { ChatMessagesProps, AgentMessage } from '@/types/chat';
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({
+  agentId,
   onShowThinkMessage,
   messages,
   agentIcon,
@@ -14,6 +15,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   onRetry,
   asrLoading,
   ttsModelId,
+  ttsStreamSupported,
   onSendMessage,
   lastThinkMessage,
 }) => {
@@ -31,16 +33,18 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
         const isLastMessage = index === messages.length - 1;
         return (
           <ChatMessage
+            agentId={agentId}
             isLastThinkMessage={isLastThinkMessage}
             lastThinkMessage={lastThinkMessage}
             onShowThinkMessage={(event) => onShowThinkMessage(event, message)}
-            key={index}
+            key={message.id || `msg-${index}`}
             message={message}
             agentIcon={agentIcon}
             mode={mode}
             isLastMessage={isLastMessage}
             onRetry={() => onRetry(index)}
             ttsModelId={ttsModelId}
+            ttsStreamSupported={ttsStreamSupported}
             onSendMessage={onSendMessage}
           />
         )}
@@ -66,6 +70,7 @@ const MemoizedChatMessages = React.memo(ChatMessages, (prevProps, nextProps) => 
     prevProps.agentIcon === nextProps.agentIcon &&
     prevProps.asrLoading === nextProps.asrLoading &&
     prevProps.ttsModelId === nextProps.ttsModelId &&
+    prevProps.ttsStreamSupported === nextProps.ttsStreamSupported &&
     prevProps.mode === nextProps.mode
   );
 });

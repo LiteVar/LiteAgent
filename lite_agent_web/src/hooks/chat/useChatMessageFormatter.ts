@@ -20,21 +20,30 @@ export const useChatMessageFormatter = (): UseChatMessageFormatterReturn => {
 				const toolWithArgs: ToolCall = {
 					id: tool.id || '',
 					name: tool.name || 'unknown',
-					toolName: tool.toolName,
-					functionName: tool.functionName,
+					toolName: tool.toolName || '',
+					functionName: tool.functionName || '',
 					arguments: tool.arguments || ''
 				};
-				map.set(tool?.id!, { role: MessageRole.TOOL, req: { ...item, tool: toolWithArgs } as any, createTime: item.createTime || '' });
+				map.set(tool?.id!, { role: MessageRole.TOOL, req: { ...item, tool: toolWithArgs } as OutMessage & { tool: ToolCall }, createTime: item.createTime || '', res: [] });
 			});
 		});
 
-		// 3. 合并第二个数组（后者覆盖前者）
+		// 3. 合并第二个数组（一个 req 可以对应多个 res）
 		resArr.forEach(item => {
 			if (item.toolCallId && map.has(item.toolCallId)) {
 				const existing = map.get(item.toolCallId);
-				map.set(item.toolCallId, { ...existing, res: item });
+				if (existing) {
+					// 如果 res 不存在，初始化为空数组
+					if (!existing.res) {
+						existing.res = [];
+					}
+					// 将新的响应添加到数组中
+					existing.res.push(item);
+					map.set(item.toolCallId, existing);
+				}
 			} else if (item.toolCallId) {
-				map.set(item.toolCallId, { res: item });
+				// 如果只有响应没有请求，也创建一个条目
+				map.set(item.toolCallId, { res: [item] });
 			}
 		});
 
@@ -147,9 +156,9 @@ export const useChatMessageFormatter = (): UseChatMessageFormatterReturn => {
 		const subAgentArr = adjustSubAgentMsg(newMsgs);
 		const resultMessages = sortByCreateTime(resultArr.concat(planningArr).concat(subAgentArr));
 
-		const userMsg = newMsgs.find((m) => m.role === MessageRole.USER);
+		const userMsg = newMsgs.filter((m) => m.role === MessageRole.USER);
 		if (userMsg) {
-			newMsgArr.push(userMsg as AgentMessage);
+			newMsgArr.push(...userMsg as AgentMessage[]);
 		}
 		if (assistantIndex !== -1) {
 			const newMsg = { ...newMsgs[assistantIndex], thoughtProcessMessages: thoughtProcessMessages, resultProcessMessages: resultMessages } as AgentMessage;

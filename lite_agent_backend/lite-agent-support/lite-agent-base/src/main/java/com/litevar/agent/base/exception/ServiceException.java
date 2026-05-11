@@ -22,6 +22,13 @@ public class ServiceException extends RuntimeException {
         this.message = serviceExceptionEnum.getMessage();
     }
 
+    public ServiceException(ServiceExceptionEnum serviceExceptionEnum, String extraMsg) {
+        super(serviceExceptionEnum.getMessage());
+        this.code = serviceExceptionEnum.getCode();
+        //补充枚举以外的异常信息
+        this.message = serviceExceptionEnum.getMessage() + "【" + extraMsg + "】";
+    }
+
     public ServiceException(String message) {
         super(message);
         this.code = 10000;

@@ -1,9 +1,8 @@
 import React, { MouseEvent } from 'react';
-import { Card, Image } from 'antd';
-import { EllipsisOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
 import { AgentDTO } from '@/client';
 import { buildImageUrl } from '@/utils/buildImageUrl';
-import logoIcon from '@/assets/login/logo_svg';
+import AgentIconSvg from '@/assets/common/agent_icon_svg';
 import agentPcBlackSvg from '@/assets/dashboard/agent-pc-black.svg';
 
 interface IAgentCard {
@@ -14,31 +13,44 @@ interface IAgentCard {
 
 const AgentCard: React.FC<IAgentCard> = ({ agent, onSelectAgent, tab }) => {
   return (
-    <Card onClick={(e) => onSelectAgent(agent, e)} className="hover:shadow-md transition-shadow cursor-pointer">
-      <div>
-        <div className="flex items-center flex-none">
-          {agent.icon ? (
-            <img
-              src={buildImageUrl(agent.icon!)}
-              alt={`图标`}
-              width={40}
-              height={40}
-              className="mr-3 rounded"
-            />
-          ) : (
-            <span className="customeSvg w-12 h-12 flex items-center justify-center rounded-md mr-3 bg-[#F5F5F5]">
-              <span className="w-6 h-6 text-black">{logoIcon}</span>
-            </span>
+    <div
+      onClick={(e) => onSelectAgent(agent, e)}
+      className="flex flex-row items-center justify-between h-[84px] px-4 cursor-pointer transition-all hover:shadow-lg bg-white/60 backdrop-blur-[4px] border border-white/80 rounded-xl"
+    >
+      {/* 左侧：图标 + 名称 */}
+      <div className="flex items-center gap-[10px] flex-1 overflow-hidden">
+        {agent.icon ? (
+          <img
+            src={buildImageUrl(agent.icon!)}
+            alt="图标"
+            width={40}
+            height={40}
+            className="flex-none rounded-lg object-cover"
+          />
+        ) : (
+          <AgentIconSvg seed={agent.id} />
+        )}
+        <div className="flex-1 overflow-hidden">
+          <p className="text-sm font-medium text-[#383F44] truncate whitespace-pre-line" 
+          style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>
+            {agent.name}
+          </p>
+          {tab === 4 && (
+            <img className="w-3 mt-0.5" src={agentPcBlackSvg} alt="本地Agent" />
           )}
-          <h3 className="text-lg font-semibold break-all m-2 flex-1">{agent.name}</h3>
-          {tab != 4 && <EllipsisOutlined style={{ fontSize: '24px', color: '#000' }} className="flex-none" />}
-          {tab === 4 && <img className="flex-none w-4" src={agentPcBlackSvg} alt="本地Agent" />}
         </div>
-        {!!agent.autoAgentFlag && <p className='text-base text-gray-500 mt-4'>类型：Auto Multi Agent</p>}
-        <p className="text-gray-500 mt-4 mb-2 line-clamp-3">{agent.description}</p>
       </div>
-    </Card>
+
+      {/* 右侧：详情按钮 */}
+      <Button
+        size="small"
+        onClick={(e) => onSelectAgent(agent, e)}
+        className="flex-none text-xs h-8 px-4 rounded-lg bg-transparent hover:!bg-[#40A5EE]/5 border-[#40A5EE] text-[#40A5EE]"
+      >
+        详情
+      </Button>
+    </div>
   );
 };
 
-export default AgentCard; 
+export default AgentCard;

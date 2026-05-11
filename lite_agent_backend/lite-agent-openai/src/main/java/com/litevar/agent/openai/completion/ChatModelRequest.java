@@ -13,7 +13,17 @@ import java.util.List;
 public class ChatModelRequest {
     private String baseUrl;
     private String apiKey;
+    /**
+     * multi-agent时,同一sessionId下,某个agent的上下文
+     */
     private String contextId;
+
+    /**
+     * 上下文压缩时,保留最近terns轮对话
+     */
+    private Integer turns = 5;
+
+    private String llmModelId;
 
     /**
      * 模型

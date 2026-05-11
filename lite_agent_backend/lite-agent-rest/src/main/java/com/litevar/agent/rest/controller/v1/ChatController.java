@@ -1,58 +1,42 @@
 package com.litevar.agent.rest.controller.v1;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.IdUtil;
-import cn.hutool.core.util.StrUtil;
-import com.litevar.agent.base.constant.CacheKey;
+import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.constant.CommonConstant;
 import com.litevar.agent.base.dto.*;
 import com.litevar.agent.base.entity.Agent;
 import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.enums.AgentCallType;
-import com.litevar.agent.base.enums.AgentType;
-import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.exception.StreamException;
 import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.util.LoginContext;
-import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.base.vo.AgentSessionVO;
 import com.litevar.agent.core.module.agent.AgentService;
 import com.litevar.agent.core.module.agent.ChatService;
 import com.litevar.agent.core.module.local.LocalAgentService;
-import com.litevar.agent.openai.completion.message.Message;
-import com.litevar.agent.openai.completion.message.UserMessage;
-import com.litevar.agent.rest.openai.agent.AgentManager;
-import com.litevar.agent.rest.openai.agent.AgentMsgType;
-import com.litevar.agent.rest.openai.agent.MultiAgent;
-import com.litevar.agent.rest.openai.handler.AgentMessageHandler;
-import com.litevar.agent.rest.openai.handler.SseClientMessageHandler;
-import com.litevar.agent.rest.openai.message.UserSendMessage;
+import com.litevar.agent.rest.agentflow.AgentSessionManager;
+import com.litevar.agent.rest.agentflow.ExecutionStopManager;
+import com.litevar.agent.rest.agentflow.SseStreamCoordinator;
+import com.litevar.agent.rest.agentflow.listener.WebClientEventListener;
 import com.litevar.agent.rest.service.AgentDatasetRelaService;
 import com.litevar.agent.rest.springai.audio.SpeechService;
-import com.litevar.agent.rest.util.AgentUtil;
-import com.litevar.agent.rest.util.CurrentAgentRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
 
-import java.io.IOException;
-import java.io.OutputStream;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 /**
  * @author uncle
@@ -70,13 +54,15 @@ public class ChatController {
     @Autowired
     private LocalAgentService localAgentService;
     @Autowired
-    private AgentUtil agentUtil;
-    @Autowired
     private AgentDatasetRelaService agentDatasetRelaService;
     @Autowired
     private SpeechService speechService;
-    @Autowired
-    private Scheduler customScheduler;
+    @Resource
+    private AgentSessionManager manager;
+    @Resource
+    private SseStreamCoordinator chatStreamHandler;
+    @Resource
+    private ExecutionStopManager stopManager;
 
     /**
      * 初始化会话
@@ -101,7 +87,7 @@ public class ChatController {
      * @return
      */
     @PostMapping("/initSession/{agentId}")
-    public ResponseData<String> initSession(@PathVariable("agentId") String agentId) {
+    public ResponseData<String> initSession(@PathVariable String agentId) {
         Agent agent = agentService.getById(agentId);
         if (agent == null) {
             agent = localAgentService.getById(agentId);
@@ -112,13 +98,9 @@ public class ChatController {
     }
 
     private String initSession(Agent agent, Integer debugFlag, List<String> datasetIds) {
-        //反思agent不支持直接聊天
-        if (Objects.equals(agent.getType(), AgentType.REFLECTION.getType())) {
-            throw new ServiceException(ServiceExceptionEnum.REFLECT_AGENT_CANNOT_CHAT);
-        }
-
         String userId = LoginContext.currentUserId();
-        return AgentManager.initSession(agent, datasetIds, debugFlag, userId, AgentCallType.AGENT.getCallType());
+
+        return manager.initSession(agent, datasetIds, debugFlag, userId, AgentCallType.AGENT.getCallType());
     }
 
     /**
@@ -130,105 +112,11 @@ public class ChatController {
      * @return 响应式流
      */
     @PostMapping(value = "/stream/{sessionId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> stream(@PathVariable("sessionId") String sessionId,
+    public Flux<ServerSentEvent<String>> stream(@PathVariable String sessionId,
                                                 @RequestParam(value = "isChunk", defaultValue = "true", required = false) Boolean stream,
                                                 @RequestBody @Valid List<AgentSendMsgDTO> dto) {
-        return Flux.<ServerSentEvent<String>>create(sink -> {
-                    //第一级agent的taskId=requestId
-                    String requestId = IdUtil.getSnowflakeNextIdStr();
-                    SseClientMessageHandler messageHandler = new SseClientMessageHandler(sessionId, requestId, sink, stream);
-                    final List<AgentPlanningDTO> taskList = new ArrayList<>();
-
-                    try {
-                        Optional<AgentSendMsgDTO> opt = dto.stream().filter(i -> StrUtil.equals(i.getType(), "execute")).findFirst();
-                        List<AgentMessageHandler> handlers = AgentManager.getHandler(sessionId);
-                        if (opt.isPresent()) {
-                            String planId = opt.get().getMessage();
-                            List<AgentPlanningDTO> cacheTaskList = (List<AgentPlanningDTO>) RedisUtil.getValue(String.format(CacheKey.SESSION_PLAN_INFO, planId));
-                            if (cacheTaskList == null) {
-                                sink.error(new StreamException(404, "找不到该规划信息"));
-                                return;
-                            }
-                            taskList.addAll(cacheTaskList);
-
-                            AgentSendMsgDTO executeMsg = new AgentSendMsgDTO();
-                            executeMsg.setType("text");
-                            executeMsg.setMessage("执行方案");
-                            dto.clear();
-                            dto.add(executeMsg);
-                            RedisUtil.delKey(String.format(CacheKey.SESSION_PLAN_INFO, planId));
-                        }
-                        handlers.add(messageHandler);
-                    } catch (ServiceException ex) {
-                        sink.error(new StreamException(ex.getCode(), ex.getMessage()));
-                        return;
-                    } catch (Exception ex) {
-                        sink.error(new StreamException(500, ex.getMessage()));
-                        return;
-                    }
-
-                    // 设置取消处理器,确保资源清理
-                    sink.onCancel(() -> {
-                        log.info("SSE连接被取消: sessionId={}, requestId={}", sessionId, requestId);
-                        afterChat(sessionId, requestId);
-                    });
-
-                    // 响应式异步处理
-                    Mono.fromRunnable(() -> {
-                                MultiAgent agent = AgentManager.getAgent(sessionId);
-                                String taskId = requestId;
-                                UserSendMessage userSendMessage = new UserSendMessage(sessionId, taskId, agent.getAgentId(), dto, requestId);
-                                AgentManager.handleMsg(AgentMsgType.USER_SEND_MSG, userSendMessage);
-
-                                CurrentAgentRequest.AgentRequest currentContext = new CurrentAgentRequest.AgentRequest();
-                                currentContext.setSessionId(sessionId);
-                                currentContext.setParentTaskId(null);
-                                currentContext.setTaskId(null);
-                                currentContext.setRequestId(requestId);
-                                currentContext.setAgentId(agent.getAgentId());
-                                CurrentAgentRequest.setContext(currentContext);
-
-                                if (!taskList.isEmpty()) {
-                                    List<MultiAgent> taskAgentList;
-                                    currentContext.setTaskId(taskId);
-                                    try {
-                                        taskAgentList = agentUtil.createAgent(taskList);
-                                    } catch (Exception e) {
-                                        currentContext.setTaskId(taskId);
-                                        agent.handleError(currentContext, new ServiceException("agent组装失败"));
-                                        return;
-                                    }
-
-                                    String result = agentUtil.executeAgent(taskAgentList, stream);
-                                    agentUtil.summary(result, agent, stream);
-
-                                } else {
-                                    List<Message> submitMsg = new ArrayList<>();
-                                    for (AgentSendMsgDTO msgDto : dto) {
-                                        submitMsg.add(UserMessage.of(msgDto.getMessage()));
-                                    }
-                                    AgentManager.chat(agent, taskId, submitMsg, stream);
-                                }
-                                afterChat(sessionId, requestId);
-                            }).subscribeOn(customScheduler)
-                            .subscribe(null, sink::error, () -> afterChat(sessionId, requestId));
-                })
-                .timeout(Duration.ofMinutes(10))
-                .doOnError(TimeoutException.class, e -> log.warn("SSE连接超时: sessionId={}", sessionId))
-                .onErrorResume(TimeoutException.class, e -> Flux.just(ServerSentEvent.<String>builder()
-                        .event("timeout")
-                        .data("连接超时，请重新发起请求")
-                        .build()));
-    }
-
-    private void afterChat(String sessionId, String requestId) {
-        AgentManager.getHandler(sessionId).removeIf(h -> {
-            if (h instanceof SseClientMessageHandler handler && StrUtil.equals(handler.getRequestId(), requestId)) {
-                handler.disconnect(requestId);
-                return true;
-            }
-            return false;
-        });
+        return chatStreamHandler.streamChat(sessionId, stream, dto,
+            (sink, requestId) -> new WebClientEventListener(sink, requestId, stream));
     }
 
     /**
@@ -240,7 +128,19 @@ public class ChatController {
      */
     @PostMapping("/clearSession")
     public ResponseData<String> clearSession(@RequestParam("sessionId") String sessionId) {
-        AgentManager.clearSession(sessionId);
+        manager.clearSession(sessionId);
+        return ResponseData.success();
+    }
+
+    /**
+     * 停止执行
+     *
+     * @param taskId 推送的第一条消息的taskId
+     * @return
+     */
+    @PostMapping("/stop")
+    public ResponseData<String> stop(@RequestParam("taskId") String taskId) {
+        stopManager.requestStop(taskId);
         return ResponseData.success();
     }
 
@@ -278,7 +178,7 @@ public class ChatController {
      * @return
      */
     @GetMapping("/agentChat/{agentId}")
-    public ResponseData<MessageAndClearDTO> agentChat(@PathVariable("agentId") String agentId,
+    public ResponseData<MessageAndClearDTO> agentChat(@PathVariable String agentId,
                                                       @RequestParam(value = "sessionId", required = false) String sessionId,
                                                       @RequestParam(value = "debugFlag", defaultValue = "0") Integer debugFlag,
                                                       @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize) {
@@ -310,51 +210,106 @@ public class ChatController {
      * @param modelId
      * @param audio
      * @return
-     * @throws IOException
      */
     @PostMapping("/audio/transcriptions")
     public ResponseData<String> transcriptions(
+        @RequestParam(required = false, defaultValue = "") String agentId,
+        @RequestParam String modelId,
+        @RequestParam("audio") MultipartFile audio
+    ) {
+        TokenReportDTO tokenReport = new TokenReportDTO(LoginContext.currentUserId(), modelId, agentId, "");
+        return ResponseData.success(speechService.transcribe(tokenReport, modelId, audio));
+    }
+
+    /**
+     * 音频转文字-流式
+     *
+     * @param modelId
+     * @param audio
+     * @return
+     */
+    @PostMapping(value = "/audio/transcriptions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> transcriptionStream(
+            @RequestParam(required = false, defaultValue = "") String agentId,
             @RequestParam String modelId,
             @RequestParam("audio") MultipartFile audio
     ) {
-        return ResponseData.success(speechService.transcriptions(modelId, audio));
+        TokenReportDTO tokenReport = new TokenReportDTO(LoginContext.currentUserId(), modelId, agentId, "");
+        return Flux.just(ServerSentEvent.<String>builder()
+                        .event("init")
+                        .data("connected")
+                        .build())
+                .concatWith(Flux.defer(() -> speechService.transcribeStream(tokenReport, modelId, audio))
+                        .doOnNext(s -> log.info("transcription chunk: {}", s))
+                        .timeout(Duration.ofSeconds(40))
+                        .map(data -> ServerSentEvent.builder(data).build())
+                        .concatWithValues(ServerSentEvent.builder("[DONE]").build())
+                        .doOnError(TimeoutException.class, ex -> log.warn("transcriptionStream SSE连接超时: modelId={}, agentId={}", modelId, agentId))
+                        .onErrorResume(TimeoutException.class,
+                                ex -> Flux.just(ServerSentEvent.<String>builder()
+                                        .event("timeout")
+                                        .data("连接超时,请重新发起请求")
+                                        .build()))
+                        .onErrorResume(ex -> Flux.just(buildErrorEvent(ex, json -> json))));
     }
 
     /**
      * 文字转音频
      *
+     * @param agentId 可选参数，提供agentId可以让系统记录token使用情况
+     * @param modelId 必填参数，指定使用哪个模型进行文字转音频
+     * @param content 必填参数，输入的文本内容
+     */
+    @PostMapping(value = "/audio/speech", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<byte[]> speech(
+        @RequestParam(required = false, defaultValue = "") String agentId,
+        @RequestParam String modelId,
+        @RequestParam String content
+    ) {
+        TokenReportDTO tokenReport = new TokenReportDTO(LoginContext.currentUserId(), modelId, agentId, "");
+        byte[] data = speechService.speech(tokenReport, modelId, content);
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .body(data);
+    }
+
+    /**
+     * 文字转音频-流式
+     *
      * @param modelId
      * @param content
-     * @param response
+     * @param agentId
+     * @return
      */
-    @RequestMapping(value = "/audio/speech", method = {RequestMethod.GET, RequestMethod.POST})
-    public void speech(
-            @RequestParam String modelId,
-            @RequestParam String content,
-            @RequestParam(required = false, defaultValue = "false") Boolean stream,
-            HttpServletResponse response
+    @PostMapping(value = "/audio/speech/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> speechStream(
+        @RequestParam(required = false, defaultValue = "") String agentId,
+        @RequestParam String modelId,
+        @RequestParam String content
     ) {
-        byte[] bytes;
-        if (stream) {
-            bytes = speechService.speechStream(modelId, content);
-        } else {
-            bytes = speechService.speech(modelId, content);
-        }
+        TokenReportDTO tokenReport = new TokenReportDTO(LoginContext.currentUserId(), modelId, agentId, "");
+        return Flux.defer(() -> speechService.speechStream(tokenReport, modelId, content))
+                .map(data -> ServerSentEvent.builder(data).build())
+                .concatWithValues(ServerSentEvent.builder("[DONE]").build())
+                .onErrorResume(ex -> Flux.just(buildErrorEvent(ex, Function.identity())));
+    }
 
-        String fileName = System.currentTimeMillis() + ".wav";
-        // 设置响应头，指定内容类型为MP3音频
-        response.setContentType("audio/wav");
-        // 设置Content-Disposition头，使浏览器将响应作为下载处理
-        response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
-
-        // 将音频数据从输入流复制到响应输出流
-        try (OutputStream outputStream = response.getOutputStream()) {
-            outputStream.write(bytes);
-            outputStream.flush();
-        } catch (IOException e) {
-            log.error("Error while processing audio response", e);
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    private ResponseData<String> buildStreamError(Throwable ex) {
+        if (ex instanceof ServiceException serviceException) {
+            return ResponseData.error(serviceException.getCode(), serviceException.getMessage());
         }
+        if (ex instanceof StreamException streamException) {
+            return ResponseData.error(streamException.getCode(), streamException.getMessage());
+        }
+        return ResponseData.error(500, ex.getMessage());
+    }
+
+    private <T> ServerSentEvent<T> buildErrorEvent(Throwable ex, Function<String, T> dataMapper) {
+        String json = JSONUtil.toJsonStr(buildStreamError(ex));
+        return ServerSentEvent.<T>builder()
+            .event("error")
+            .data(dataMapper.apply(json))
+            .build();
     }
 
 }

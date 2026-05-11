@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useRef, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useRef, useEffect, useMemo, useCallback } from 'react';
 import { ChangeEvent } from 'react';
 import { 
   AgentMessage, 
@@ -6,19 +6,21 @@ import {
   UseChatHandleEventProps, 
   AgentStatusRef,
   SSEEventData,
-  DeltaEventData
+  DeltaEventData,
+  AgentSwitchMessage
 } from '@/types/chat';
 import { AgentChatMessageClear, SegmentVO } from '@/client';
-import { useChatSession } from '@/hooks/chat/useChatSession';
+import { useChatSession } from '@/hooks/chat/useChatSession.tsx';
 import { useChatScroll } from '@/hooks/chat/useChatScroll';
 import { useChatInput } from '@/hooks/chat/useChatInput';
 import { useChatKnowledge } from '@/hooks/chat/useChatKnowledge';
 import { useChatAudio } from '@/hooks/chat/useChatAudio';
-import { useChatSSE } from '@/hooks/chat/useChatSSE';
+import type { ChatMediaKind } from '@/hooks/chat/useChatMediaCoordinator';
+import { useChatMediaCoordinator } from '@/hooks/chat/useChatMediaCoordinator';
+import { useChatSSE, ChatMessageItem } from '@/hooks/chat/useChatSSE';
 import { useChatMessages } from '@/hooks/chat/useChatMessages';
 import { useChatMessageEvents } from '@/hooks/chat/useChatMessageEvents';
 import { useChatDeltaEvents } from '@/hooks/chat/useChatDeltaEvents';
-import { use } from 'marked';
 
 // 完整的 Context 接口定义
 interface ChatContextValue {
@@ -29,7 +31,7 @@ interface ChatContextValue {
   // 输入相关
   value: string;
   onInputChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
-  onSendMessage: (type: 'text' | 'execute' | 'imageUrl', text?: string) => Promise<void>;
+  onSendMessage: (messages: ChatMessageItem[]) => Promise<void>;
   asrLoading: boolean;
   setAsrLoading: (loading: boolean) => void;
   
@@ -72,13 +74,16 @@ interface ChatContextValue {
   handleDeltaEvent: (jsonData: DeltaEventData, id: string, agentId: string) => void;
   handleEndEvent: (id: string) => void;
   handleErrorEvent: (data: SSEEventData, id: string) => void;
-  sendMessage: (type: 'text' | 'execute' | 'imageUrl', text?: string) => Promise<void>;
+  sendMessage: (messages: ChatMessageItem[]) => Promise<void>;
   
   // 音频管理
   resetAudioFlag: () => void;
+  requestMediaPlayback: (controller: { id: string; kind: ChatMediaKind; stop: () => void }) => void;
+  releaseMediaPlayback: (id: string) => void;
+  stopActiveMediaPlayback: () => void;
   
   // 内部状态引用（供高级用法使用）
-  agentSwitchRef: React.MutableRefObject<any>;
+  agentSwitchRef: React.MutableRefObject<AgentSwitchMessage | undefined>;
   agentStatusRef: React.MutableRefObject<AgentStatusRef[]>;
 }
 
@@ -95,7 +100,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   agentInfo 
 }) => {
   // 内部引用
-  const agentSwitchRef = useRef<any>();
+  const agentSwitchRef = useRef<AgentSwitchMessage | undefined>(undefined);
   const agentStatusRef = useRef<AgentStatusRef[]>([]);
 
   // 会话管理
@@ -128,6 +133,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   } = useChatAudio({
     agentInfo,
   });
+
+  const {
+    requestMediaPlayback,
+    releaseMediaPlayback,
+    stopActiveMediaPlayback,
+  } = useChatMediaCoordinator();
 
   // 消息管理 - 使用 reducer 架构
   const {
@@ -178,6 +189,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   // SSE 连接管理
   const {
     sendMessage,
+    abortAllSSE,
   } = useChatSSE({
     agentId,
     getCurrentSession,
@@ -187,7 +199,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     handleErrorEvent,
     handleEndEvent,
     resetAudioFlag,
-    inputValue: value,
     clearInput,
     agentStatusRef,
   });
@@ -201,21 +212,31 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     setKnowledgeResultVisible,
   } = useChatKnowledge();
 
-  // 消息发送函数 - 结合输入验证和 SSE 发送
-  const onSendMessage = async (type: 'text' | 'execute' | 'imageUrl', text?: string) => {
-    if (!value.trim() && !text && type !== 'execute') {
+  const onSendMessage = useCallback(async (messages: ChatMessageItem[]) => {
+    if (!messages || messages.length === 0) {
       return;
     }
-    await sendMessage(type, text);
-  };
+    
+    const hasNonEmptyText = messages.some(msg => 
+      msg.type === 'text' && msg.message.trim()
+    );
+    const hasNonTextMessage = messages.some(msg => 
+      msg.type !== 'text' && msg.type !== 'execute'
+    );
+    const hasExecuteMessage = messages.some(msg => msg.type === 'execute');
+    
+    if (!hasNonEmptyText && !hasNonTextMessage && !hasExecuteMessage) {
+      return;
+    }
+    
+    await sendMessage(messages);
+  }, [sendMessage]);
 
-  // 更新重置会话函数
-  const onResetSessionWrapper = () => onResetSession(clearSession);
+  const onResetSessionWrapper = useCallback(() => onResetSession(clearSession), [onResetSession, clearSession]);
 
-  // 重试函数（保持原有接口）
-  const onRetry = async () => {
+  const onRetry = useCallback(async () => {
     console.log('retry');
-  };
+  }, []);
 
   // 初始化效果
   useEffect(() => {
@@ -227,17 +248,17 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
       if (scrollElement) {
         scrollElement.removeEventListener('scroll', handleScroll);
       }
-      // 清理 agentStatusRef
+      stopActiveMediaPlayback();
+      abortAllSSE();
       agentStatusRef.current = [];
     };
-  }, [handleScroll, scrollRef]);
+  }, [handleScroll, scrollRef, abortAllSSE, stopActiveMediaPlayback]);
 
   useEffect(() => {
     resetSession();
   }, [agentInfo, resetSession]);
 
-  const contextValue: ChatContextValue = {
-    // 基础状态和函数
+  const contextValue: ChatContextValue = useMemo(() => ({
     messagesMap,
     clearList,
     value,
@@ -263,8 +284,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     fetchData,
     hasMore,
     onRetry,
-
-    // 扩展功能
     initializeSession,
     clearSession,
     resetSession,
@@ -275,11 +294,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
     handleErrorEvent,
     sendMessage,
     resetAudioFlag,
-
-    // 内部状态引用
+    requestMediaPlayback,
+    releaseMediaPlayback,
+    stopActiveMediaPlayback,
     agentSwitchRef,
     agentStatusRef,
-  };
+  }), [
+    messagesMap, clearList, value, onInputChange, onSendMessage, asrLoading, setAsrLoading,
+    onResetSessionWrapper, scrollRef, thinkScrollRef, showScrollToBottom, scrollToBottom, lastThinkMessage,
+    onShowThinkMessage, onCloseThinkMessage, thinkDetailVisible, thinkMessageIndex,
+    onSearchKnowledgeResult, knowledgeResultVisible, knowledgeSearchResults,
+    setKnowledgeResultVisible, knowledgeQueryText, fetchData, hasMore, onRetry,
+    initializeSession, clearSession, resetSession, getCurrentSession,
+    handleMessageEvent, handleDeltaEvent, handleEndEvent, handleErrorEvent,
+    sendMessage, resetAudioFlag, requestMediaPlayback, releaseMediaPlayback, stopActiveMediaPlayback,
+  ]);
 
   return (
     <ChatContext.Provider value={contextValue}>

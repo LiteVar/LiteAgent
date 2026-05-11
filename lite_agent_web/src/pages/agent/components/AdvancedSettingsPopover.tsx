@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { Popover, Slider, Input, Typography, Button } from 'antd';
+import React, { useCallback, useMemo } from 'react';
+import { Popover, Slider, Input, Button } from 'antd';
 import { Agent, AgentVO, ModelDTO } from "@/client";
 
-const { Text } = Typography;
 export const DEFAULT_Max_TOKENS = 4096
 interface AdvancedSettingsPopoverProps {
   agent: Agent;
@@ -62,18 +61,18 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
         },
       }));
     }
-  }, [currentTokenVal, currentModalMaxToken, setAgentInfo]);
+  }, [currentTokenVal, setAgentInfo]);
 
   const advancedSettingsContent = (
-    <div className="w-80">
-      <div className="mb-4">
-        <Text strong>Temperature</Text>
-        <div className="flex">
+    <div className="w-[204px] px-4 py-3 flex flex-col gap-2 [&_.ant-slider-track]:bg-[#40A5EE]">
+      <div className="flex flex-col gap-1">
+        <div className="text-sm font-medium text-[#383F44] leading-[22px]">Temperature</div>
+        <div className="flex items-center gap-2">
           <Slider
             min={0}
             max={1}
             step={0.1}
-            className="flex-1"
+            className="flex-1 m-0"
             value={agent?.temperature || 0}
             onChange={(value: number) => setAgentInfo((pre: AgentVO) => {
               return { ...pre, agent: { ...pre.agent, temperature: value } }
@@ -84,7 +83,7 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
             min={0}
             max={1}
             step={0.1}
-            className={"ml-2 w-20"}
+            className="w-[60px] h-8 rounded-lg text-center border-[#E0E3E6] ml-2"
             value={agent?.temperature || 0}
             onChange={(e) => setAgentInfo((pre: AgentVO) => {
               return { ...pre, agent: { ...pre.agent, temperature: e.target.value } }
@@ -92,40 +91,42 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
           />
         </div>
       </div>
-      <div className="mb-4">
-        <Text strong>Max Token</Text>
-        <div className="flex">
+      
+      <div className="flex flex-col gap-1">
+        <div className="text-sm font-medium text-[#383F44] leading-[22px]">Max Token</div>
+        <div className="flex items-center gap-2">
           <Slider
             min={1}
             max={currentModalMaxToken}
             step={1}
             value={currentTokenVal || 1}
-            className="flex-1"
+            className="flex-1 m-0"
             onChange={(value: number) => setAgentInfo((pre: AgentVO) => {
               return { ...pre, agent: { ...pre.agent, maxTokens: value } }
             })}
           />
+          
           <Input
             type="number"
-            step={1}
             min={1}
             max={currentModalMaxToken}
-            className={"ml-2 w-20"}
+            className="hide-controls w-[60px] h-8 rounded-lg text-center border-[#E0E3E6] ml-2"
             value={currentTokenVal === null ? '' : currentTokenVal}
             onChange={(e) => handleTokensInputChange(e.target.value)}
             onBlur={handleTokensInputBlur}
           />
         </div>
       </div>
-      <div className="mb-4">
-        <Text strong>Top P</Text>
-        <div className="flex">
+
+      <div className="flex flex-col gap-1">
+        <div className="text-sm font-medium text-[#383F44] leading-[22px]">Top P</div>
+        <div className="flex items-center gap-2">
           <Slider
             min={0}
             max={1}
             step={0.1}
             value={agent?.topP || 0}
-            className="flex-1"
+            className="flex-1 m-0"
             onChange={(value: number) => setAgentInfo((pre: AgentVO) => {
               return { ...pre, agent: { ...pre.agent, topP: value } }
             })}
@@ -135,10 +136,37 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
             min={0}
             max={1}
             step={0.1}
-            className={"ml-2 w-20"}
+            className="w-[60px] h-8 rounded-lg text-center border-[#E0E3E6] ml-2"
             value={agent?.topP || 0}
             onChange={(e) => setAgentInfo((pre: AgentVO) => {
               return { ...pre, agent: { ...pre.agent, topP: e.target.value } }
+            })}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <div className="text-sm font-medium text-[#383F44] leading-[22px]">Keep recent turns</div>
+        <div className="flex items-center gap-2">
+          <Slider
+            min={1}
+            max={10}
+            step={1}
+            value={agent?.turns || 5}
+            className="flex-1 m-0"
+            onChange={(value: number) => setAgentInfo((pre: AgentVO) => {
+              return { ...pre, agent: { ...pre.agent, turns: value } }
+            })}
+          />
+          <Input
+            type="number"
+            min={1}
+            max={10}
+            step={1}
+            className="w-[60px] h-8 rounded-lg text-center border-[#E0E3E6] ml-2"
+            value={agent?.turns || 5}
+            onChange={(e) => setAgentInfo((pre: AgentVO) => {
+              return { ...pre, agent: { ...pre.agent, turns: (Number(e.target.value) > 10) ? 10 : Number(e.target.value) } }
             })}
           />
         </div>
@@ -147,15 +175,23 @@ const AdvancedSettingsPopover: React.FC<AdvancedSettingsPopoverProps> = ({ agent
   );
 
   return (
-    <Popover content={advancedSettingsContent} trigger="click">
+    <Popover 
+      content={advancedSettingsContent} 
+      trigger="click" 
+      placement="bottomLeft"
+      overlayClassName="custom-popover"
+      overlayInnerStyle={{ padding: 0, borderRadius: 8 }}
+    >
       <Button
         disabled={!agent?.llmModelId || readonly}
-        className={`${readonly ? 'opacity-20' : ''} mt-2 ml-3 h-[40px] border border-black bg-transparent text-black rounded-md hover:bg-gray-100 transition`}
+        className={`${readonly ? 'opacity-20' : ''} h-10 border-[#E0E3E6] bg-white/60 text-[#383F44] rounded-xl hover:bg-white transition flex-none`}
       >
         更多
       </Button>
     </Popover>
   );
 };
+
+
 
 export default AdvancedSettingsPopover;

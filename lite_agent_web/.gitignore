@@ -41,5 +41,7 @@ yarn-error.log*
 
 /.claude
 CLAUDE.md
+AGENTS.md
 
 /dist
+/figma

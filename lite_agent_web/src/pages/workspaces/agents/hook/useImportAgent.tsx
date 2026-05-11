@@ -206,6 +206,49 @@ export const useImportAgent = (onSuccess: () => void, onBack: () => void) => {
     setHasApiKeyWarning(!hasApiKey);
   }, []);
 
+  // 从 URL 参数导入（通过 previewFromDownload 接口）
+  const startImportFromParam = useCallback(async (param: string) => {
+    if (!param) return;
+
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch(`/v1/agent/import/previewFromDownload?param=${encodeURIComponent(param)}`, {
+        method: 'GET',
+        headers: {
+          'Workspace-id': workspace?.id || '',
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('获取导入数据失败');
+      }
+
+      const result = await response.json();
+
+      if (result.code === ResponseCode.S_OK && result.data) {
+        // 将 ImportDescriptor 转换为 ImportData
+        // 注意：ImportDescriptor 和 ImportData 的结构是兼容的，直接使用类型断言
+        const importData = result.data as unknown as ImportData;
+        
+        stepMessages.create = [];
+        parseImportData(importData);
+        setCurrentStep(1);
+        setSteps(prev => prev.map((step, index) =>
+          index === 0 ? { ...step, status: 'completed' } : index === 1 ? { ...step, status: 'processing' } : step
+        ));
+        simulateProcessing(1, 'parse');
+      } else {
+        message.error(result.message || '获取导入数据失败');
+        throw new Error(result.message || '获取导入数据失败');
+      }
+    } catch (error) {
+      console.error('Import from param error:', error);
+      setIsProcessing(false);
+    }
+  }, [workspace, parseImportData, simulateProcessing]);
+
   // 开始导入流程
   const startImportProcess = useCallback(async () => {
     if (!uploadedFile) return;
@@ -245,7 +288,6 @@ export const useImportAgent = (onSuccess: () => void, onBack: () => void) => {
       }
     } catch (error) {
       console.error('Import error:', error);
-      message.error('上传失败');
       setIsProcessing(false);
     }
   }, [uploadedFile, workspace, parseImportData, simulateProcessing]);
@@ -387,7 +429,7 @@ export const useImportAgent = (onSuccess: () => void, onBack: () => void) => {
   const importAgent = async () => {
     if (!importData) return;
     await postV1AgentImportByToken({
-      body: importData,
+      body: importData as any, // ImportData 和 ImportDescriptorAddAction 结构兼容，使用类型断言
       path: {
         token: importData.token || '',
       },
@@ -509,5 +551,6 @@ export const useImportAgent = (onSuccess: () => void, onBack: () => void) => {
     onChangeFile, 
     draggerRef,
     updateImportData,
+    startImportFromParam,
   };
 };

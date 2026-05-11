@@ -55,6 +55,13 @@ public class UserService {
         baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, userId));
     }
 
+    @CacheEvict(value = CacheKey.USER_INFO, key = "#userId")
+    public void updateSystemRole(String userId, Integer systemRole) {
+        Account account = getById(userId);
+        account.setSystemRole(systemRole);
+        baseMapper.update(account, new QueryWrapper<Account>().lambdaQuery().eq(Account::getId, userId));
+    }
+
     @CacheEvict(value = CacheKey.USER_INFO, key = "#result.id")
     public Account update(String originPwd, String newPwd) {
         Account account = getById(LoginContext.currentUserId());

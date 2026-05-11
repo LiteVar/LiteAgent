@@ -1,8 +1,12 @@
 package com.litevar.agent.rest.controller.v1;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.Dict;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.litevar.agent.auth.annotation.WorkspaceRole;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.constant.CommonConstant;
@@ -13,6 +17,7 @@ import com.litevar.agent.base.entity.AgentDatasetRela;
 import com.litevar.agent.base.entity.Dataset;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.enums.ServiceExceptionEnum;
+import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.exception.StreamException;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.util.LoginContext;
@@ -24,25 +29,35 @@ import com.litevar.agent.base.vo.AgentUpdateForm;
 import com.litevar.agent.base.vo.DatasetVO;
 import com.litevar.agent.core.module.agent.AgentApiKeyService;
 import com.litevar.agent.core.module.agent.AgentService;
+import com.litevar.agent.core.module.plugin.PluginAuthUtil;
+import com.litevar.agent.core.module.storage.SecretKeyService;
+import com.litevar.agent.core.module.workspace.WorkspaceService;
+import com.litevar.agent.rest.agentflow.AgentSessionManager;
 import com.litevar.agent.rest.config.LitevarProperties;
-import com.litevar.agent.rest.openai.agent.AgentManager;
 import com.litevar.agent.rest.service.AgentDatasetRelaService;
 import com.litevar.agent.rest.service.AgentImportProgressPublisher;
 import com.litevar.agent.rest.service.DatasetService;
 import com.litevar.agent.rest.util.AgentExportUtil;
 import com.litevar.agent.rest.util.AgentImportUtil;
 import com.litevar.agent.rest.util.FileDownloadUtil;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 
@@ -71,9 +86,18 @@ public class AgentController {
     private AgentImportUtil agentImportUtil;
     @Autowired
     private AgentImportProgressPublisher agentImportProgressPublisher;
-
+    @Autowired
+    private SecretKeyService secretKeyService;
+    @Autowired
+    private WorkspaceService workspaceService;
+    @Autowired
+    private ObjectMapper objectMapper;
     @Autowired
     private LitevarProperties litevarProperties;
+    @Resource
+    private AgentSessionManager manager;
+    @Autowired
+    private WebClient webClient;
 
     /**
      * agent列表
@@ -114,7 +138,7 @@ public class AgentController {
      * @return
      */
     @GetMapping("/{id}")
-    public ResponseData<AgentDetailVO> info(@PathVariable("id") String id) {
+    public ResponseData<AgentDetailVO> info(@PathVariable String id) {
         return ResponseData.success(agentService.info(id));
     }
 
@@ -125,7 +149,7 @@ public class AgentController {
      * @return
      */
     @GetMapping("/adminInfo/{id}")
-    public ResponseData<AgentDetailVO> adminInfo(@PathVariable("id") String id) {
+    public ResponseData<AgentDetailVO> adminInfo(@PathVariable String id) {
         AgentDetailVO detail = agentService.adminInfo(id);
 
         List<DatasetVO> vo = null;
@@ -203,11 +227,18 @@ public class AgentController {
 
         Object value = RedisUtil.getValue(String.format(CacheKey.AGENT_DATASET_DRAFT, id));
         if (value != null) {
+            @SuppressWarnings("unchecked")
             List<String> datasetIds = (List<String>) value;
             agentDatasetRelaService.bind(id, datasetIds);
             RedisUtil.delKey(String.format(CacheKey.AGENT_DATASET_DRAFT, id));
         }
-        AgentManager.clearSessionFromAgent(id);
+        manager.clearSessionFromAgent(id);
+
+        //如果agent未生成api key,则生成
+        boolean flag = agentApiKeyService.lambdaQuery().eq(AgentApiKey::getAgentId, id).count() == 0;
+        if (flag) {
+            generateApiKey(id);
+        }
         return ResponseData.success();
     }
 
@@ -244,6 +275,7 @@ public class AgentController {
      *
      * @param agentId
      */
+    @Deprecated
     @PostMapping("/resetSequence/{agentId}")
     @WorkspaceRole(value = {RoleEnum.ROLE_DEVELOPER, RoleEnum.ROLE_ADMIN})
     public ResponseData<String> resetSequence(@PathVariable("agentId") String agentId) {
@@ -264,6 +296,68 @@ public class AgentController {
                                                                         @RequestHeader(CommonConstant.HEADER_WORKSPACE_ID) String workspaceId) {
         AgentImportUtil.ImportDescriptor preview = agentImportUtil.previewAgent(file, workspaceId);
         return ResponseData.success(preview);
+    }
+
+    /**
+     * 一键运行导入agent
+     *
+     * @param param
+     * @return
+     */
+    @GetMapping("/import/previewFromDownload")
+    public ResponseData<AgentImportUtil.ImportDescriptor> previewFromDownload(@RequestParam("param") String param) throws JsonProcessingException {
+        if (StrUtil.hasBlank(litevarProperties.getHubUrl(), litevarProperties.getHubKey())) {
+            throw new ServiceException(ServiceExceptionEnum.HUB_URL_NOT_CONFIGURED);
+        }
+        String normalizedParam = param.replace(' ', '+');
+        byte[] decrypt = secretKeyService.decrypt(SecretKeyService.hub_aes_key, normalizedParam);
+        String agentId = new String(decrypt, StandardCharsets.UTF_8);
+        Dict body = Dict.create().set("agentId", agentId);
+        byte[] bodyBytes = objectMapper.writeValueAsBytes(body);
+
+        String path = "/api/v1/agent/external/file/export";
+        PluginAuthUtil.SignedHeaders sign = PluginAuthUtil.sign(litevarProperties.getHubKey().getBytes(StandardCharsets.UTF_8),
+                "PUT",
+                path,
+                "",
+                bodyBytes,
+                MediaType.APPLICATION_JSON_VALUE);
+
+        String url = litevarProperties.getHubUrl() + path;
+
+        String filename = "EmptyAgentName.agent";
+        byte[] content;
+
+        try {
+            ResponseEntity<byte[]> responseEntity = webClient.put()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("X-TS", sign.ts())
+                    .header("X-Nonce", sign.nonce())
+                    .header("X-Sign", sign.sign())
+                    .bodyValue(bodyBytes)
+                    .retrieve()
+                    .toEntity(byte[].class)
+                    .block();
+
+            if (responseEntity == null || responseEntity.getBody() == null) {
+                throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "下载Agent文件失败: 响应为空");
+            }
+            HttpHeaders headers = responseEntity.getHeaders();
+            ContentDisposition contentDisposition = headers.getContentDisposition();
+            if (contentDisposition.getFilename() != null) {
+                filename = contentDisposition.getFilename();
+            }
+            content = responseEntity.getBody();
+        } catch (WebClientResponseException e) {
+            String errorBody = e.getResponseBodyAsString();
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "下载Agent文件失败: " + (StrUtil.isNotBlank(errorBody) ? errorBody : e.getMessage()));
+        } catch (Exception e) {
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "下载Agent文件失败: " + e.getMessage());
+        }
+
+        String workspaceId = workspaceService.userAdminWorkspace(LoginContext.currentUserId());
+        return ResponseData.success(agentImportUtil.previewAgent(content, filename, workspaceId));
     }
 
     /**

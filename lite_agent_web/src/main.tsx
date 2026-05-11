@@ -17,6 +17,12 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       refetchIntervalInBackground: false,
+      retry: false,
+      staleTime: 0,
+      gcTime: 0,
+    },
+    mutations: {
+      retry: false,
     }
   },
 });

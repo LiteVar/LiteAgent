@@ -3,6 +3,7 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+**/src/test/
 
 ### STS ###
 .apt_generated
@@ -40,3 +41,5 @@ output/
 lite-agent-rest/logs/
 lite-agent-rest/src/main/java/com/litevar/agent/rest/controller/v1/TestController.java
 lite-agent-rest/src/main/java/com/litevar/agent/rest/Test.java
+upload/
+file/

@@ -166,6 +166,7 @@ public class ChatService {
             case "dispatch" -> OutMessage.DistributeContent.class;
             case "agentSwitch" -> OutMessage.AgentSwitchContent.class;
             case "reflect" -> OutMessage.ReflectContent.class;
+            case "contentList" -> List.class;
             default -> null;
         };
     }
@@ -201,6 +202,14 @@ public class ChatService {
                         message.setTo("agent");
                         message.setType("contentList");
                         message.setContent(List.of(Dict.create().set("type", "text").set("message", outMessage.getContent())));
+
+                    } else if (StrUtil.equals(outMessage.getRole(), "user") && StrUtil.equals(outMessage.getType(), "contentList")) {
+                        //新版本用户发送的文本
+                        message.setRole("user");
+                        message.setTo("agent");
+                        message.setType("contentList");
+                        String str = JSONUtil.toJsonStr(outMessage.getContent());
+                        message.setContent(JSONUtil.parseArray(str));
 
                     } else if (StrUtil.equals(outMessage.getRole(), "assistant") && StrUtil.equals(outMessage.getType(), "text")) {
                         //大模型回复的文本

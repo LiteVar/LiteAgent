@@ -11,23 +11,35 @@ import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.util.RedisUtil;
+import com.litevar.agent.core.module.storage.ChatTempFileService;
+import com.litevar.agent.core.module.storage.SecretKeyService;
+import com.litevar.agent.core.module.storage.StorageService;
 import com.litevar.agent.rest.config.LitevarProperties;
 import com.litevar.agent.rest.service.MarkdownConversionService;
 import com.litevar.agent.rest.service.UploadFileService;
+import com.litevar.agent.rest.storage.LocalStorageService;
 import com.litevar.agent.rest.util.AgentExportUtil;
 import com.litevar.agent.rest.util.FileDownloadUtil;
+import jakarta.annotation.Resource;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,6 +60,7 @@ import java.util.zip.ZipOutputStream;
 @Slf4j
 @RestController
 @RequestMapping("/v1/file")
+@Deprecated(since = "v3.0.0", forRemoval = true)
 public class FileController {
 
     @Autowired
@@ -56,6 +69,12 @@ public class FileController {
     private MarkdownConversionService markdownConversionService;
     @Autowired
     private LitevarProperties litevarProperties;
+    @Resource
+    private StorageService storageService;
+    @Autowired
+    private SecretKeyService secretKeyService;
+    @Resource
+    private ChatTempFileService chatTempFileService;
 
     /**
      * 文件上传
@@ -63,6 +82,7 @@ public class FileController {
      * @param file
      * @return
      */
+    @Deprecated(since = "v3.0.0")
     @PostMapping("/upload")
     public ResponseData<String> upload(@RequestParam("file") MultipartFile file) throws IOException {
         String filename = file.getOriginalFilename();
@@ -79,12 +99,25 @@ public class FileController {
     }
 
     /**
+     * Chat临时文件上传
+     *
+     * @param file
+     * @return
+     */
+    @PostMapping("/chat/upload")
+    public ResponseData<String> uploadChatTempFile(@RequestParam("file") MultipartFile file) throws IOException {
+        String fileId = chatTempFileService.saveTempFile(file);
+        return ResponseData.success(fileId);
+    }
+
+    /**
      * 文件下载
      *
      * @param response
      * @param filename
      */
     @IgnoreAuth
+    @Deprecated(since = "v3.0.0")
     @RequestMapping(value = "/download", method = {RequestMethod.GET, RequestMethod.POST})
     public void download(HttpServletResponse response,
                          @RequestParam("filename") String filename) {
@@ -97,25 +130,81 @@ public class FileController {
     }
 
     /**
-     * 知识库上传文件
+     * 生成文件访问url
      *
-     * @param file 上传的文件
-     * @return 上传后的文件元数据
+     * @param key 文件key
+     * @return
      */
-    @PostMapping("/dataset/upload")
-    public ResponseData<String> uploadFileDataset(
-        @RequestParam("datasetId") String datasetId,
-        @RequestParam("file") MultipartFile file
-    ) throws IOException {
-        UploadFile uf = uploadFileService.saveUploadedFile(datasetId, file);
-
-        if (!uf.getExtension().equalsIgnoreCase("md")) {
-            // 异步执行文件转markdown，输出目录为 UploadFile.path/md
-            markdownConversionService.convertToMarkdownAsync(uf);
-        }
-
-        return ResponseData.success(uf.getId());
+    @GetMapping("/resource/generateUrl")
+    public ResponseData<String> generateUrl(@RequestParam("key") String key) {
+        return ResponseData.success(storageService.generateUrl(key));
     }
+
+    /**
+     * 本地文件下载
+     *
+     * @param key     文件key
+     * @param expires 过期时间
+     * @param sign    签名
+     * @return
+     * @throws IOException
+     */
+    @IgnoreAuth
+    @GetMapping("/resource/download")
+    public ResponseEntity<Object> downloadResource(@RequestParam("key") String key,
+                                                   @RequestParam(value = "expires", required = false, defaultValue = "-1") long expires,
+                                                   @RequestParam("sign") String sign) throws IOException {
+        checkSign(key, expires, sign);
+        long maxAgeSeconds = expires == -1 ? 259200L : Math.max(0, (expires - System.currentTimeMillis()) / 1000);
+        String cacheControl = "public, max-age=" + maxAgeSeconds + ", immutable";
+        if (storageService instanceof LocalStorageService localStorageService) {
+            FileSystemResource resource = localStorageService.getFileResource(key);
+            MediaType mediaType = MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
+            return ResponseEntity.ok()
+                    .contentType(mediaType)
+                    .contentLength(resource.contentLength())
+                    .header(HttpHeaders.CACHE_CONTROL, cacheControl)
+                    .body(resource);
+        }
+        String url = storageService.generateUrl(key);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(url))
+                .header(HttpHeaders.CACHE_CONTROL, cacheControl)
+                .build();
+    }
+
+    private void checkSign(String key, long expires, String sign) {
+        long now = System.currentTimeMillis();
+        if (expires != -1 && expires < now) {
+            throw new ServiceException(ServiceExceptionEnum.ARGUMENT_NOT_VALID);
+        }
+        byte[] fileSecretKey = secretKeyService.getSecretKey(SecretKeyService.FILE_READ_KEY);
+        String expectedSign = storageService.sign(key + ":" + expires, fileSecretKey);
+        if (!expectedSign.equalsIgnoreCase(sign)) {
+            throw new ServiceException(ServiceExceptionEnum.ARGUMENT_NOT_VALID);
+        }
+    }
+
+//    /**
+//     * 知识库上传文件
+//     *
+//     * @param file 上传的文件
+//     * @return 上传后的文件元数据
+//     */
+//    @PostMapping("/dataset/upload")
+//    public ResponseData<String> uploadFileDataset(
+//            @RequestParam("datasetId") String datasetId,
+//            @RequestParam("file") MultipartFile file
+//    ) throws IOException {
+//        UploadFile uf = uploadFileService.saveFile(datasetId, file.getOriginalFilename(), file.getBytes(), "");
+//
+//        if (!uf.getExtension().equalsIgnoreCase("md")) {
+//            // 异步执行文件转markdown，输出目录为 UploadFile.path/md
+//            markdownConversionService.convertToMarkdownAsync(uf, datasetId);
+//        }
+//
+//        return ResponseData.success(uf.getId());
+//    }
 
     /**
      * 删除文件
@@ -136,8 +225,8 @@ public class FileController {
      */
     @GetMapping("/dataset/file/download")
     public void downloadFileDataset(
-        @RequestParam("fileId") String fileId,
-        HttpServletResponse response
+            @RequestParam("fileId") String fileId,
+            HttpServletResponse response
     ) {
         UploadFile uploadFile = uploadFileService.getById(fileId);
         if (uploadFile == null) {
@@ -160,8 +249,8 @@ public class FileController {
      */
     @GetMapping("/dataset/markdown/download")
     public void downloadFolder(
-        @RequestParam("fileId") String fileId,
-        HttpServletResponse response
+            @RequestParam("fileId") String fileId,
+            HttpServletResponse response
     ) {
         UploadFile uf = uploadFileService.getById(fileId);
         if (uf == null) {
@@ -216,7 +305,7 @@ public class FileController {
      */
     @GetMapping("/dataset/markdown/progress")
     public ResponseData<MarkdownConversionProgressDTO> getMarkdownConversionProgress(
-        @RequestParam("fileId") String fileId
+            @RequestParam("fileId") String fileId
     ) {
         UploadFile uf = uploadFileService.getById(fileId);
         if (uf == null) {

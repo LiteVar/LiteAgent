@@ -3,12 +3,12 @@ package com.litevar.agent.core.module.tool.parser;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.litevar.agent.base.dto.OpenToolJsonDTO;
 import com.litevar.agent.base.entity.ToolFunction;
 import com.litevar.agent.base.enums.ToolSchemaType;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.core.module.tool.ToolHandleFactory;
 import com.litevar.agent.core.module.tool.executor.FunctionExecutor;
+import com.litevar.opentool.model.OpenTool;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -43,8 +43,8 @@ public class OpenToolParser implements ToolParser, InitializingBean {
             extraStr = "{}";
         }
 
-        OpenToolJsonDTO dto = openToolThirdParser.checkData(entries.getStr("schema"));
-        List<ToolFunction> list = openToolThirdParser.parse(dto, FunctionExecutor.OPEN_TOOL);
+        OpenTool openTool = openToolThirdParser.checkData(entries.getStr("schema"));
+        List<ToolFunction> list = openToolThirdParser.parse(openTool, FunctionExecutor.OPEN_TOOL);
         list.forEach(function -> {
             function.setServerUrl(serverUrl);
             function.setExtra(extraStr);

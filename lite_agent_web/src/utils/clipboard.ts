@@ -3,7 +3,7 @@ export const copyToClipboard = async (text: string): Promise<void> => {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(text);
-      message.success('已复制');
+      message.success('复制成功');
     } else {
       // 回退到 document.execCommand 方法
       const textArea = document.createElement('textarea');
@@ -14,7 +14,7 @@ export const copyToClipboard = async (text: string): Promise<void> => {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      message.success('已复制');
+      message.success('复制成功');
     }
   } catch (error) {
     console.error('复制失败:', error);

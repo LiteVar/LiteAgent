@@ -1,4 +1,5 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useMemo, useEffect } from 'react';
+import { throttle } from 'lodash';
 
 export const useChatScroll = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -21,12 +22,22 @@ export const useChatScroll = () => {
     }, 100);
   }, []);
 
-  const handleScroll = useCallback(() => {
-    if (scrollRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-      setShowScrollToBottom(scrollTop + clientHeight < scrollHeight - 100);
-    }
-  }, []);
+  const handleScroll = useMemo(
+    () => throttle(() => {
+      if (scrollRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+        setShowScrollToBottom(scrollTop + clientHeight < scrollHeight - 100);
+      }
+    }, 100, { leading: true, trailing: true }),
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      handleScroll.cancel();
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    };
+  }, [handleScroll]);
 
   const scrollToThinkMessage = useCallback((expandThink = false) => {
     if (expandThink && lastThinkMessage.current && scrollRef.current) {
@@ -38,13 +49,23 @@ export const useChatScroll = () => {
     }
   }, [scrollToBottom]);
 
-  const adjustScrollAfterLoadMore = useCallback((oldScrollHeight: number) => {
-    setTimeout(() => {
-      if (scrollRef.current) {
-        const newScrollHeight = scrollRef.current.scrollHeight;
-        scrollRef.current.scrollTop = newScrollHeight - oldScrollHeight;
-      }
-    }, 100);
+  const adjustScrollAfterLoadMore = useCallback(() => {
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+    const oldScrollHeight = el.scrollHeight;
+    const oldScrollTop = el.scrollTop;
+
+    el.style.scrollBehavior = 'auto';
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          const newScrollHeight = scrollRef.current.scrollHeight;
+          scrollRef.current.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+          scrollRef.current.style.scrollBehavior = '';
+        }
+      });
+    });
   }, []);
 
   return {

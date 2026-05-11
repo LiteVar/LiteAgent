@@ -8,6 +8,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 /**
  * @author uncle
  * @since 2025/5/16 11:18
@@ -33,5 +35,9 @@ public class SpringBeanUtil implements BeanFactoryPostProcessor, ApplicationCont
 
     public static <T> T getBean(Class<T> clazz) {
         return getBeanFactory().getBean(clazz);
+    }
+
+    public static <T> Map<String, T> getBeansOfType(Class<T> clazz) {
+        return getBeanFactory().getBeansOfType(clazz);
     }
 }

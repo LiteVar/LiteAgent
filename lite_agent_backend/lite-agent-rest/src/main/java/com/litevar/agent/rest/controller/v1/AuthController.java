@@ -2,8 +2,10 @@ package com.litevar.agent.rest.controller.v1;
 
 import com.litevar.agent.auth.annotation.IgnoreAuth;
 import com.litevar.agent.auth.service.AuthService;
+import com.litevar.agent.auth.service.UserService;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.enums.RoleEnum;
+import com.litevar.agent.base.enums.SystemRoleEnum;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.response.ResponseData;
 import com.litevar.agent.base.util.LoginContext;
@@ -11,6 +13,7 @@ import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.core.module.local.LocalAgentService;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
 import com.litevar.agent.core.module.workspace.WorkspaceService;
+import com.litevar.agent.rest.config.dbrepair.RepairMongoRunner;
 import jakarta.validation.constraints.Email;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -29,11 +32,15 @@ public class AuthController {
     @Autowired
     private AuthService authService;
     @Autowired
+    private UserService userService;
+    @Autowired
     private WorkspaceService workspaceService;
     @Autowired
     private LocalAgentService localAgentService;
     @Autowired
     private WorkspaceMemberService workspaceMemberService;
+    @Autowired
+    private RepairMongoRunner repairMongoRunner;
 
     /**
      * 登录
@@ -67,12 +74,17 @@ public class AuthController {
 
         //新增用户,为用户创建默认工作空间
         String userId = workspaceService.addUser(username, password, email);
+        //系统的第一个用户,默认为系统管理员
+        userService.updateSystemRole(userId, SystemRoleEnum.ROLE_SYSTEM_ADMIN.getSystemRole());
         String workspaceId = workspaceService.addWorkspace(email + "'s workspace");
         workspaceMemberService.addMemberToWorkspace(userId, email, workspaceId, RoleEnum.ROLE_ADMIN.getCode());
 
         RedisUtil.setValue(CacheKey.INIT_STATUS, 1);
 
         String token = authService.login(email, password);
+
+        //插入默认插件数据
+        repairMongoRunner.builtIdPluginData();
         return ResponseData.success(token);
     }
 

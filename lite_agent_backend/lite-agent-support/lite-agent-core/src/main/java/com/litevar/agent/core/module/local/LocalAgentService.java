@@ -94,6 +94,7 @@ public class LocalAgentService extends ServiceImpl<LocalAgent> {
             localModel.setUuid(me.getUuid());
             localModel.setUserId(me.getId());
             localModel.setWorkspaceId(workspaceId);
+            localModel.setStatus(1);
             localModel.setExpireTime(LocalDateTime.now().plusSeconds(ttl));
             res.add(localModel);
         });

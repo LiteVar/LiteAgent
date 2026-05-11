@@ -1,6 +1,6 @@
 import React, { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import logoIcon from '@/assets/login/logo_svg';
+import AgentIconSvg from '@/assets/common/agent_icon_svg';
 import { useQuery } from '@tanstack/react-query';
 import { getV1WorkspaceListOptions, getV1AgentByIdOptions } from '@/client/@tanstack/query.gen';
 import { Button, message } from 'antd';
@@ -56,9 +56,7 @@ const ShareAgent = () => {
           {agentInfoResult?.data?.agent?.icon ? (
             <img className="w-[82px] h-[82px] rounded-md mb-12" src={agentInfoResult?.data?.agent?.icon} />
           ) : (
-            <div className="customeSvg w-[82px] h-[82px] rounded-md mb-12 bg-[#F5F5F5] flex items-center justify-center">
-              <span className="w-10 h-10 text-black">{logoIcon}</span>
-            </div>
+            <AgentIconSvg seed={agentId} width={82} height={82} className="mb-12" />
           )}
           <div className="text-6 mb-8">{agentInfoResult?.data?.agent?.name}</div>
           <div className="text-base text-[#C2C2C2] mb-24">{agentInfoResult?.data?.agent?.description}</div>

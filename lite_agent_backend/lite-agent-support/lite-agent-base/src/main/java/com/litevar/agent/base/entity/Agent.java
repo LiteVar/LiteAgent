@@ -60,6 +60,7 @@ public class Agent {
     /**
      * 方法执行顺序(functionId)
      */
+    @Deprecated
     private List<String> sequence;
 
     /**
@@ -81,6 +82,11 @@ public class Agent {
      * 最大 token 数
      */
     private Integer maxTokens;
+
+    /**
+     * 上下文压缩时,保留最近terns轮对话
+     */
+    private Integer turns = 5;
 
     /**
      * 子agent(普通,分发,分思) id

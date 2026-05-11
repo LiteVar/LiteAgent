@@ -2,9 +2,10 @@ package com.litevar.agent.rest.service;
 
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.dto.MarkdownConversionProgressDTO;
-import com.litevar.agent.base.entity.UploadFile;
+import com.litevar.agent.base.entity.UploadFileV2;
 import com.litevar.agent.base.util.RedisUtil;
-import com.litevar.agent.rest.config.LitevarProperties;
+import com.litevar.agent.core.module.storage.StorageServiceV2;
+import com.litevar.agent.rest.config.StorageProperties;
 import com.litevar.agent.rest.markdown_conversion.core.ConversionOptions;
 import com.litevar.agent.rest.markdown_conversion.core.ConversionResult;
 import com.litevar.agent.rest.markdown_conversion.core.Converter;
@@ -34,33 +35,35 @@ public class MarkdownConversionService {
     private static final long PROGRESS_TTL_HOURS = 1L;
 
     @Autowired
-    private UploadFileService uploadFileService;
-
-    @Autowired
     private PdfScanDetector pdfScanDetector;
 
     @Autowired
+    private StorageProperties storageProperties;
+    @Autowired
+    private StorageServiceV2 storageService;
+    @Autowired
     private DolphinPdfMarkdownClient dolphinPdfMarkdownClient;
     @Autowired
-    private LitevarProperties litevarProperties;
+    private UploadFileServiceV2 fileService;
 
     @Async("asyncTaskExecutor")
-    public void convertToMarkdownAsync(UploadFile uf) {
+    public void convertToMarkdownAsync(UploadFileV2 uf) {
         try {
             reportProgress(uf, 0, "START", "Starting conversion", STATUS_RUNNING);
-            Path source = Path.of(uf.getPath());
-            Path output = Path.of(source.getParent().toString(), "md");
-            Files.createDirectories(output);
 
-            if (isPdf(source) && tryScannedPdfPipeline(uf, source, output)) {
+            Path targetDir = Paths.get(storageProperties.getBasePathLocal()).resolve(uf.getFileKey()).getParent();
+            Path outputDir = targetDir.resolve("md");
+
+            Path source = storageService.downloadFile(uf.getFileKey(), targetDir.toAbsolutePath().toString());
+            Files.createDirectories(outputDir);
+
+            if (isPdf(source) && tryScannedPdfPipeline(uf, source, outputDir)) {
                 return;
             }
 
-            Path datasets = Paths.get(litevarProperties.getUploadPath(), "datasets");
-
             ConversionOptions options = ConversionOptions.builder()
-                .outputDir(output)
-                .prefixPath(datasets.toString())
+                .fileId(uf.getId())
+                .outputDir(outputDir)
                 .imageDir("imgs")
                 .progressListener((progress, stage, detail) ->
                     reportProgress(uf, progress * 100, stage, detail, STATUS_RUNNING))
@@ -68,14 +71,11 @@ public class MarkdownConversionService {
 
             ConversionResult result = Converter.convert(source, options);
             boolean hasMarkdown = !result.getMarkdownFiles().isEmpty();
-            if (hasMarkdown) {
-                Path markdownFile = result.getMarkdownFiles().get(0);
-                persistMarkdownMetadata(uf, markdownFile, source);
-            } else {
+            if (!hasMarkdown) {
                 log.warn("Markdown conversion produced no markdown output for fileId={}, source={}", uf.getId(), source);
             }
             log.info("Markdown conversion finished for fileId={}, source={}, outputDir={}, summary={}",
-                uf.getId(), source, output, result.getSummary());
+                uf.getId(), source, outputDir, result.getSummary());
             String finalStage = hasMarkdown ? "COMPLETE" : "UNSUPPORTED";
             String finalDetail = hasMarkdown ? "Conversion completed" : "No markdown output generated";
             reportProgress(uf, 100, finalStage, finalDetail, STATUS_COMPLETED);
@@ -86,7 +86,7 @@ public class MarkdownConversionService {
         }
     }
 
-    private void reportProgress(UploadFile uf, double progress, String stage, String detail, String status) {
+    private void reportProgress(UploadFileV2 uf, double progress, String stage, String detail, String status) {
         if (uf == null || uf.getId() == null) {
             return;
         }
@@ -103,7 +103,11 @@ public class MarkdownConversionService {
         RedisUtil.setValue(key, payload, PROGRESS_TTL_HOURS, TimeUnit.HOURS);
     }
 
-    private boolean tryScannedPdfPipeline(UploadFile uf, Path source, Path output) throws Exception {
+    private boolean tryScannedPdfPipeline(UploadFileV2 uf, Path source, Path output) throws Exception {
+        if (!dolphinPdfMarkdownClient.isConfigured()) {
+            log.info("Skip Dolphin OCR pipeline because dolphin config is missing, source={}", source);
+            return false;
+        }
         boolean scanned = detectScannedPdf(source);
         if (!scanned) {
             return false;
@@ -117,7 +121,10 @@ public class MarkdownConversionService {
             progressCounter.set(next);
         });
         replaceDolphinSeparators(markdownFile);
-        persistMarkdownMetadata(uf, markdownFile, source);
+
+        fileService.saveConvertedMarkdown(uf.getId(), markdownFile, "");
+        fileService.saveDolphinMarkdownImage(uf.getId(), markdownFile.getParent().resolve("imgs"));
+
         log.info("Scanned PDF conversion completed for fileId={}, source={}, markdown={}",
             uf.getId(), source, markdownFile);
         reportProgress(uf, 100, "COMPLETE", "Conversion completed", STATUS_COMPLETED);
@@ -135,26 +142,6 @@ public class MarkdownConversionService {
         }
     }
 
-    private void persistMarkdownMetadata(UploadFile uf, Path markdownFile, Path source) {
-        if (markdownFile == null) {
-            return;
-        }
-        String markdownName = markdownFile.getFileName().toString();
-        String markdownPath = markdownFile.toString();
-        uf.setMarkdownName(markdownName);
-        uf.setMarkdownPath(markdownPath);
-        if (uf.getId() != null) {
-            uploadFileService.update(
-                uploadFileService.lambdaUpdate()
-                    .set(UploadFile::getMarkdownName, markdownName)
-                    .set(UploadFile::getMarkdownPath, markdownPath)
-                    .eq(UploadFile::getId, uf.getId())
-            );
-        } else {
-            log.warn("UploadFile id is null, skip persisting markdown metadata for source={}", source);
-        }
-    }
-
     private boolean isPdf(Path source) {
         String name = source.getFileName().toString().toLowerCase(Locale.ROOT);
         return name.endsWith(".pdf");
@@ -166,7 +153,7 @@ public class MarkdownConversionService {
         }
         try {
             String content = Files.readString(markdownFile, StandardCharsets.UTF_8);
-            String updated = content.replaceAll("(?m)^\\s*---\\s*$", "<!-- SPLITTING -->");
+            String updated = content.replaceAll("(?m)^\\s*---\\s*$", " ");
             if (!content.equals(updated)) {
                 Files.writeString(markdownFile, updated, StandardCharsets.UTF_8);
             }

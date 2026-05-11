@@ -1,20 +1,36 @@
-import React, { useState } from 'react';
-import { Modal, Form, Input, Select, Slider, InputNumber, Button } from 'antd';
+import React from 'react';
+import { Modal, Form, Input, Select, InputNumber, Button, message } from 'antd';
 import { postV1DatasetAdd } from '@/client';
 import { useWorkspace } from '@/contexts/workspaceContext';
-import { ModelDTO } from '@/client';
 import { Link } from 'react-router-dom';
+import ResponseCode from '@/constants/ResponseCode';
+import { getV1ModelListOptions } from '@/client/@tanstack/query.gen';
+import { useQuery } from '@tanstack/react-query';
+
 interface CreateKnowledgeBaseModalProps {
   visible: boolean;
   onCancel: () => void;
-  models: ModelDTO[];
   refresh: () => void;
 }
 
 const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props) => {
-  const { visible, onCancel, models, refresh } = props;
+  const { visible, onCancel, refresh } = props;
   const [form] = Form.useForm();
   const workspace = useWorkspace();
+
+  const { data: modelsData } = useQuery({
+    ...getV1ModelListOptions({
+      headers: {
+        'Workspace-id': workspace?.id!,
+      },
+      query: {
+        pageNo: 0,
+        pageSize: 100000000,
+      },
+    }),
+    enabled: !!workspace?.id,
+  });
+  const models = modelsData?.data?.list || [];
 
   const handleOk = () => {
     form
@@ -22,7 +38,7 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props
       .then(async (values) => {
         console.log('Form values:', values);
         const model = models.find((model) => model.id === values.embeddingModel);
-        await postV1DatasetAdd({
+        const res = await postV1DatasetAdd({
           headers: {
             'Workspace-id': workspace?.id!,
           },
@@ -36,8 +52,14 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props
             embeddingModelProvider: model?.name || 'openai',
           },
         });
-        await refresh();
-        onCancel(); // 提交后关闭模态框
+
+        if (res?.data?.code === ResponseCode.S_OK) {
+          message.success('创建知识库成功');
+          await refresh();
+          onCancel(); // 提交后关闭模态框
+        } else {
+          message.error(res?.data?.message || '创建知识库失败');
+        }
       })
       .catch((info) => {
         console.log('Validate Failed:', info);
@@ -47,26 +69,32 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props
   return (
     <Modal
       centered={true}
-      title="新建知识库"
+      title={<span className="text-[18px] font-medium text-[#1D4A6B]">新建知识库</span>}
       open={visible}
       onCancel={onCancel}
+      styles={{
+        header: { padding: '16px 24px', marginBottom: 0, borderBottom: 'none' },
+        body: { padding: '16px 24px' },
+        footer: { padding: '10px 16px', marginTop: 0, borderTop: 'none' },
+      }}
       footer={[
-        <Button key="back" onClick={onCancel}>
+        <Button key="back" className="rounded-xl h-10 px-6" onClick={onCancel}>
           取消
         </Button>,
-        <Button key="submit" type="primary" onClick={handleOk}>
-          确定
+        <Button key="submit" type="primary" className="bg-[#40A5EE] rounded-xl h-10 px-6 border-[#40A5EE]" onClick={handleOk}>
+          确认
         </Button>,
       ]}
     >
-      <Form form={form} layout="vertical">
-        <Form.Item name="name" label="知识库名称" rules={[{ required: true, message: '请输入知识库名称' }]}>
-          <Input placeholder="请输入知识库名称" maxLength={40} />
+      <Form form={form} layout="vertical" requiredMark={false}>
+        <Form.Item name="name" label={<span className="text-[14px] text-[#383F44] font-medium">知识库名称</span>} rules={[{ required: true, message: '请输入知识库名称' }]}>
+          <Input className="h-10 rounded-lg shadow-sm" placeholder="请输入知识库名称" maxLength={40} />
         </Form.Item>
-        <Form.Item name="embeddingModel" label="嵌入模型" rules={[{ required: true, message: '请选择嵌入模型' }]}>
-          <Select placeholder="请选择嵌入模型">
+        <Form.Item name="embeddingModel" label={<span className="text-[14px] text-[#383F44] font-medium">嵌入模型</span>} rules={[{ required: true, message: '请选择嵌入模型' }]}>
+          <Select className="h-10 rounded-lg shadow-sm" placeholder="请选择嵌入模型">
             {models
               .filter((m) => m.type === 'embedding')
+              .filter((m) => m.status === 1)
               .map((model) => (
                 <Select.Option key={model.id} value={model.id}>
                   {model.alias}
@@ -79,10 +107,11 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props
             </Select.Option>
           </Select>
         </Form.Item>
-        <Form.Item name="llmModelId" label="摘要模型" rules={[{ message: '请选择摘要模型' }]}>
-          <Select placeholder="请选择摘要模型">
+        <Form.Item name="llmModelId" label={<span className="text-[14px] text-[#383F44] font-medium">摘要模型</span>} rules={[{ message: '请选择摘要模型' }]}>
+          <Select className="h-10 rounded-lg shadow-sm" placeholder="请选择摘要模型">
             {models
               .filter((m) => m.type === 'LLM')
+              .filter((m) => m.status === 1)
               .map((model) => (
                 <Select.Option key={model.id} value={model.id}>
                   {model.alias}
@@ -95,12 +124,14 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = (props
             </Select.Option>
           </Select>
         </Form.Item>
-        <Form.Item name="retrievalTopK" label="搜索结果条数" initialValue={10}>
-          <InputNumber min={1} max={20} className="w-full" />
-        </Form.Item>
-        <Form.Item name="similarity" label="最大向量距离" initialValue={0.5}>
-          <InputNumber min={0} max={1} className="w-full" />
-        </Form.Item>
+        <div className="flex gap-4">
+          <Form.Item name="retrievalTopK" label={<span className="text-[14px] text-[#383F44] font-medium">搜索结果条数</span>} initialValue={10} className="flex-1">
+            <InputNumber min={1} max={20} className="w-full h-10 rounded-lg shadow-sm leading-10" />
+          </Form.Item>
+          <Form.Item name="similarity" label={<span className="text-[14px] text-[#383F44] font-medium">最大向量距离</span>} initialValue={0.5} className="flex-1">
+            <InputNumber min={0} max={1} step={0.1} className="w-full h-10 rounded-lg shadow-sm leading-10" />
+          </Form.Item>
+        </div>
       </Form>
     </Modal>
   );

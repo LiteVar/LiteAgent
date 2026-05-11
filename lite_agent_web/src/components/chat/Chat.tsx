@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';
 import ScrollToBottom from './ScrollToBottom';
@@ -7,7 +7,7 @@ import { useChatContext, ChatProvider } from '@/contexts/ChatContext';
 import CloseSvg from '@/assets/dashboard/close.svg';
 import { Modal } from 'antd';
 import ChatThoughtProcess from './ChatThoughtProcess';
-import { debounce } from 'lodash';
+import { throttle } from 'lodash';
 import { ChatProps } from '@/types/chat';
 import SearchResults from '@/pages/dataset/retrievalTest/components/SearchResults';
 import { AgentDetailVO } from '@/client';
@@ -49,9 +49,21 @@ const ChatInner: React.FC<{
 
   const messages = useMemo(() => messagesMap?.[agentId]?.messages || [], [agentId, messagesMap]);
 
+  const agentMapRef = useRef(setAgentMap);
+  agentMapRef.current = setAgentMap;
+
+  const throttledSetAgentMap = useMemo(
+    () => throttle((map: any) => agentMapRef.current?.(map), 100, { leading: true, trailing: true }),
+    []
+  );
+
   useEffect(() => {
-    setAgentMap?.(messagesMap);
-  }, [messagesMap, setAgentMap]);
+    throttledSetAgentMap(messagesMap);
+  }, [messagesMap, throttledSetAgentMap]);
+
+  useEffect(() => {
+    return () => { throttledSetAgentMap.cancel(); };
+  }, [throttledSetAgentMap]);
 
   const ttsModelId = useMemo(() => {
     return agentInfo?.agent?.ttsModelId || '';
@@ -61,37 +73,43 @@ const ChatInner: React.FC<{
     return agentInfo?.agent?.asrModelId || '';
   }, [agentInfo]);
 
-  // 新增：滚动事件处理函数
-  const handleScroll = debounce(() => {
-    if (scrollRef.current) {
-      const { scrollTop } = scrollRef.current;
-      // 判断是否滚动到顶部
-      if (scrollTop === 0 && hasMore) {
-        fetchData(); // 调用加载更多消息的函数
-      }
-    }
-  }, 200);
+  const fetchDataRef = useRef(fetchData);
+  fetchDataRef.current = fetchData;
+  const hasMoreRef = useRef(hasMore);
+  hasMoreRef.current = hasMore;
 
-  // 新增：监听滚动事件
+  const handleLoadMoreScroll = useMemo(
+    () => throttle(() => {
+      if (scrollRef.current) {
+        const { scrollTop } = scrollRef.current;
+        if (scrollTop === 0 && hasMoreRef.current) {
+          fetchDataRef.current();
+        }
+      }
+    }, 200, { leading: false, trailing: true }),
+    [scrollRef]
+  );
+
   useEffect(() => {
     const current = scrollRef.current;
     if (current) {
-      current.addEventListener('scroll', handleScroll);
+      current.addEventListener('scroll', handleLoadMoreScroll);
     }
     return () => {
       if (current) {
-        current.removeEventListener('scroll', handleScroll);
+        current.removeEventListener('scroll', handleLoadMoreScroll);
       }
+      handleLoadMoreScroll.cancel();
     };
-  }, [fetchData, hasMore]);
+  }, [handleLoadMoreScroll, scrollRef]);
 
   return (
-    <div className="w-full flex h-full overflow-hidden">
+    <div className="w-full flex h-full overflow-hidden pl-0">
       <div
         className={
           mode === 'dev'
-            ? 'max-w-full flex-1 flex flex-col bg-[#FFF] h-full overflow-hidden'
-            : 'w-full h-[100vh] overflow-hidden flex flex-col'
+            ? 'max-w-full flex-1 flex flex-col bg-white/60 rounded-2xl h-full overflow-hidden'
+            : 'flex-1 h-full overflow-hidden flex flex-col bg-white/60 border border-solid border-white rounded-2xl shadow-sm'
         }
       >
         <ChatHeader
@@ -100,28 +118,19 @@ const ChatInner: React.FC<{
           agentName={agentInfo?.agent?.name}
           onResetSession={onResetSession}
         />
-        <div
-          className={
-            mode === 'dev'
-              ? 'flex-1 flex flex-col overflow-hidden'
-              : 'w-full flex-1 flex flex-col relative overflow-hidden'
-          }
-        >
+        <div className="flex-1 flex flex-col relative overflow-hidden pt-0 pb-6">
           <div
             ref={scrollRef}
-            className={
-              mode === 'dev'
-                ? 'flex-1 px-6 py-7 overflow-y-auto text-black/85'
-                : 'w-full flex-1 overflow-y-auto text-black/85'
-            }
+            className="flex-1 overflow-y-auto text-black/85 scroll-smooth px-6"
           >
             {clearList.slice(0, 3).map((clearMessage) => (
               <div
                 key={clearMessage.id}
-                className="mb-3 text-[#999] text-xs text-center"
+                className="mb-3 text-[#ACB6BE] text-xs text-center"
               >{`${clearMessage.createTime} 消息已被清空`}</div>
             ))}
             <ChatMessages
+              agentId={agentInfo?.agent?.id!}
               lastThinkMessage={lastThinkMessage}
               onShowThinkMessage={onShowThinkMessage}
               messages={messages}
@@ -130,6 +139,7 @@ const ChatInner: React.FC<{
               onRetry={onRetry}
               asrLoading={asrLoading}
               ttsModelId={ttsModelId}
+              ttsStreamSupported={!!agentInfo?.ttsModel?.streamable}
               onSendMessage={onSendMessage}
             />
           </div>
@@ -149,25 +159,27 @@ const ChatInner: React.FC<{
               <SearchResults results={knowledgeSearchResults} />
             </div>
           </Modal>
-          <div className="relative flex items-center justify-center mb-2">
+          <div className="relative flex flex-col items-center justify-center mt-4">
             {showScrollToBottom && <ScrollToBottom onClick={scrollToBottom} />}
             <ChatInput
               value={value}
               mode={mode}
               agentType={agentInfo?.agent?.type!}
+              agentId={agentId}
               onChange={onInputChange}
               onSend={onSendMessage}
               setAsrLoading={setAsrLoading}
               asrModelId={asrModelId}
+              asrStreamSupported={agentInfo?.asrModel?.streamable}
             />
           </div>
         </div>
       </div>
       {!!thinkDetailVisible && thinkMessageIndex != undefined && (
-        <div className="flex-none w-[40%] min-w-[360px] bg-[#fff] h-full flex flex-col border-0 border-solid border-l border-l-[#D9D9D9]">
-          <div className="h-[60px] pl-6 pr-8 flex items-center border-0 border-solid border-b border-b-[#D9D9D9]">
-            <div className="text-lg text-[#333] flex-1">过程详情</div>
-            <img onClick={onCloseThinkMessage} className="w-5 h-5 flex-none cursor-pointer" src={CloseSvg} />
+        <div className="flex-none w-[40%] bg-white h-full flex flex-col border-0 border-solid border-l border-l-[#D9D9D9] ml-4 rounded-2xl">
+          <div className="h-[60px] pl-6 pr-8 flex items-center border-0 border-solid border-b border-b-[#E0E3E6]">
+            <div className="text-lg text-[#1D4A6B] font-medium flex-1">过程详情</div>
+            <img onClick={onCloseThinkMessage} className="w-5 h-5 flex-none cursor-pointer hover:bg-black/5 rounded-full transition-colors" src={CloseSvg} />
           </div>
           <div ref={thinkScrollRef} className="p-6 flex-1 overflow-y-auto overflow-x-hidden text-black/85">
             {(messages[thinkMessageIndex]?.thoughtProcessMessages?.length ?? 0) > 0 && (
@@ -181,6 +193,7 @@ const ChatInner: React.FC<{
       )}
     </div>
   );
+
 };
 
 // 主 Chat 组件包装器，提供 Context

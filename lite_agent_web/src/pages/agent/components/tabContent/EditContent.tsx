@@ -57,7 +57,7 @@ const EditContent: React.FC<EditContentProps> = (props) => {
   const [isShowSubAgentModal, setIsShowSubAgentModal] = useState(false);
   const [selectedToolTab, setSelectedToolTab] = useState<string>('0');
 
-  const { data: tools } = useQuery({
+  const { data: tools, refetch: refetchTools } = useQuery({
     ...getV1ToolListWithFunctionOptions({
       headers: {
         'Workspace-id': workspaceId!,
@@ -83,7 +83,7 @@ const EditContent: React.FC<EditContentProps> = (props) => {
     enabled: !!workspaceId,
   });
 
-  const { data: datasets } = useQuery({
+  const { data: datasets, refetch: refetchDatasets } = useQuery({
     ...getV1DatasetListOptions({
       query: {
         pageNo: 0,
@@ -96,7 +96,7 @@ const EditContent: React.FC<EditContentProps> = (props) => {
     enabled: !!workspaceId,
   });
 
-  const { data: agents } = useQuery({
+  const { data: agents, refetch: refetchAgents } = useQuery({
     ...getV1AgentAdminListOptions({
       query: {
         tab: 0,
@@ -261,6 +261,21 @@ const EditContent: React.FC<EditContentProps> = (props) => {
     setAddToolModalVisible(true)
   };
 
+  const handleAddTool = useCallback(async () => {
+    await refetchTools();
+    setAddToolModalVisible(true);
+  }, [refetchTools]);
+
+  const handleAddDataset = useCallback(async () => {
+    await refetchDatasets();
+    setIsShowAddDatasetModal(true);
+  }, [refetchDatasets]);
+
+  const handleAddSubAgent = useCallback(async () => {
+    await refetchAgents();
+    setIsShowSubAgentModal(true);
+  }, [refetchAgents]);
+
   const goDatasetPage = useCallback((datasetId: string) => {
     window.open(`/dataset/${workspaceId}/${datasetId}`, '_blank');
   }, []);
@@ -291,6 +306,8 @@ const EditContent: React.FC<EditContentProps> = (props) => {
   }, [])
 
   const onTtsEnableChange = useCallback((ttsModelId: string) => {
+    const nextTtsModel = audioModelList.find(model => model.id === ttsModelId);
+
     // @ts-ignore
     setAgentInfo((prev: AgentDetailVO) => {
       return {
@@ -298,14 +315,17 @@ const EditContent: React.FC<EditContentProps> = (props) => {
         agent: {
           ...prev?.agent,
           ttsModelId: ttsModelId,
-        }
+        },
+        ttsModel: nextTtsModel,
       }
     });
 
     setHasUnsavedChanges(true);
-  }, []);
+  }, [audioModelList, setAgentInfo, setHasUnsavedChanges]);
 
   const onAsrEnableChange = useCallback((asrModelId: string) => {
+    const nextAsrModel = audioModelList.find(model => model.id === asrModelId);
+
     // @ts-ignore
     setAgentInfo((prev: AgentDetailVO) => {
       return {
@@ -313,12 +333,13 @@ const EditContent: React.FC<EditContentProps> = (props) => {
         agent: {
           ...prev?.agent,
           asrModelId: asrModelId,
-        }
+        },
+        asrModel: nextAsrModel,
       }
     });
 
     setHasUnsavedChanges(true);
-  }, []);
+  }, [audioModelList, setAgentInfo, setHasUnsavedChanges]);
 
   const toggleSubAgent = useCallback((subAgentId: string) => {
     // @ts-ignore
@@ -404,9 +425,9 @@ const EditContent: React.FC<EditContentProps> = (props) => {
   }, [agentInfo, modelList]);
 
   return (
-    <div className={visible ? "h-full flex" : "invisible w-0 h-0 m-0 p-0"}>
+    <div className={visible ? "h-full flex" : "invisible w-0 h-0 m-0 p-0 overflow-hidden"}>
       {agentInfo?.canEdit ? (
-        <div className="w-1/3 bg-white rounded p-6 flex flex-col overflow-y-auto agent-config"
+        <div className="w-[368px] shrink-0 bg-white/60 px-4 py-6 flex flex-col overflow-y-auto agent-config rounded-2xl"
           style={{
             scrollbarGutter: 'stable'
           }}>
@@ -431,15 +452,14 @@ const EditContent: React.FC<EditContentProps> = (props) => {
           {!agentInfo?.agent?.autoAgentFlag && <ToolsList
             agentInfo={agentInfo}
             tools={agentInfo?.functionList || []}
-            onAddTool={() => setAddToolModalVisible(true)}
-            onSetClick={() => setIsShowSequenceModal(true)}
+            onAddTool={handleAddTool}
             onEditTool={handleEditTool}
             onRemoveFn={toggleTool}
             onChangeMode={onChangeMode}
           />}
           {!agentInfo?.agent?.autoAgentFlag && <Dataset
             datasetList={agentInfo?.datasetList || []}
-            onAddBase={() => setIsShowAddDatasetModal(true)}
+            onAddBase={handleAddDataset}
             onEditDataset={goDatasetPage}
             onRemoveDataset={toggleDataset}
           />}
@@ -459,12 +479,12 @@ const EditContent: React.FC<EditContentProps> = (props) => {
           {!agentInfo?.agent?.autoAgentFlag && <SubAgent
             agentInfo={agentInfo}
             agentList={agentList}
-            onAddClick={() => setIsShowSubAgentModal(true)}
+            onAddClick={handleAddSubAgent}
             toggleSubAgent={toggleSubAgent}
           />}
         </div>
       ) : (
-        <div className="w-1/3 mr-6 bg-white rounded p-4 flex flex-col overflow-y-auto">
+        <div className="w-[380px] shrink-0 bg-transparent p-4 flex flex-col overflow-y-auto border-r border-white/20">
           <ReadonlyAgentInfo
             audioModelList={audioModelList}
             workspaceId={workspaceId}
@@ -474,7 +494,7 @@ const EditContent: React.FC<EditContentProps> = (props) => {
           />
         </div>
       )}
-      <div style={{ borderLeft: '1px solid #ddd' }} className="w-2/3 bg-white rounded h-full">
+      <div className="flex-1 min-w-0 bg-transparent h-full ml-4">
         <Chat mode="dev" agentId={agentId} agentInfo={agentInfo} />
       </div>
 

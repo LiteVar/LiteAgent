@@ -1,10 +1,8 @@
-import React, { useState, useCallback } from 'react';
-import { Radio, Input, Upload, Button, Form, Space, Card, Typography, message } from 'antd';
-import { UploadOutlined, LinkOutlined, EditOutlined, FileTextOutlined } from '@ant-design/icons';
-import { deleteV1FileById } from '@/client';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Input, Upload, Button, Form, message } from 'antd';
 import type { UploadProps, UploadFile } from 'antd';
 import { DocumentSourceType } from '@/types/dataset';
-const { Text } = Typography;
+import fileImg from '@/assets/dataset/file.png';
 
 interface SelectSourceProps {
   documentData: any;
@@ -13,16 +11,41 @@ interface SelectSourceProps {
   onFileUpload?: (file: File) => Promise<{ fileId: string; fileName: string }>;
 }
 
+const labelClass = 'text-sm font-medium text-[#383F44]';
+
+function FormFieldLabel({ text, required }: { text: string; required?: boolean }) {
+  return (
+    <span className={labelClass}>
+      {required && <span className="text-[#CC2D3A] mr-0.5">*</span>}
+      {text}
+      <span className="ml-0.5">:</span>
+    </span>
+  );
+}
+
 const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentData, onNext, onFileUpload }) => {
   const [form] = Form.useForm();
 
-  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [fileList, setFileList] = useState<UploadFile[]>(() => {
+    if (documentData?.fileId && documentData?.fileName) {
+      return [{ uid: documentData.fileId, name: documentData.fileName, status: 'done' } as UploadFile];
+    }
+    return [];
+  });
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  // 回到此步骤时，若已有上传文件则恢复 form 字段值以通过 required 校验
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (documentData?.fileId && documentData?.fileName) {
+      form.setFieldsValue({ file: documentData.fileName });
+    }
+  }, []);
+
   const handleSourceChange = useCallback((dataSourceType: DocumentSourceType) => {
     form.setFieldValue('dataSourceType', dataSourceType);
-    
+
     setDocumentData({
       ...documentData,
       dataSourceType,
@@ -32,29 +55,30 @@ const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentDa
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      
+
       let fileData = {};
-      
-      // 如果是文件类型且有选择的文件，先上传文件
-      if (documentData.dataSourceType === DocumentSourceType.FILE && selectedFile && onFileUpload) {
-        setUploading(true);
-        try {
-          const uploadResult = await onFileUpload(selectedFile);
-          fileData = uploadResult;
-          setUploading(false);
-        } catch (uploadError) {
-          // 上传失败，清空文件列表和选中的文件
-          setUploading(false);
-          setFileList([]);
-          setSelectedFile(null);
-          form.setFieldsValue({
-            file: undefined,
-          });
-          // 错误信息已在 handleFileUpload 中显示
-          return; // 不继续执行
+
+      if (documentData.dataSourceType === DocumentSourceType.FILE) {
+        if (selectedFile && onFileUpload) {
+          // 用户重新选择了文件，上传新文件
+          setUploading(true);
+          try {
+            const uploadResult = await onFileUpload(selectedFile);
+            fileData = uploadResult;
+            setUploading(false);
+          } catch (uploadError) {
+            setUploading(false);
+            setFileList([]);
+            setSelectedFile(null);
+            form.setFieldsValue({ file: undefined });
+            return;
+          }
+        } else if (documentData.fileId) {
+          // 文件已上传过，直接复用
+          fileData = { fileId: documentData.fileId, fileName: documentData.fileName };        
         }
       }
-      
+
       setDocumentData({
         ...documentData,
         ...values,
@@ -75,19 +99,19 @@ const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentDa
       const allowedExt = ['.doc', '.docx', '.pdf', '.txt', '.md'];
       const fileName = file.name;
       const ext = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
-      
+
       if (!allowedExt.includes(ext)) {
         message.error(`不支持 ${ext} 格式，仅支持 doc/docx/pdf/txt/md 格式`);
         return Upload.LIST_IGNORE; // 不支持的格式不显示在列表中
       }
-      
+
       // 验证文件大小
       const isLt15M = file.size / 1024 / 1024 < 15;
       if (!isLt15M) {
         message.error('文件大小不能超过 15MB');
         return Upload.LIST_IGNORE; // 超大文件不显示在列表中
       }
-      
+
       return true;
     },
     onChange: info => {
@@ -106,13 +130,12 @@ const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentDa
         setSelectedFile(null);
       }
     },
-     onRemove: async (file) => {
-      // 用户移除时，清理表单和组件状态
+    onRemove: async () => {
       setFileList([]);
       setSelectedFile(null);
-      form.setFieldsValue({
-        file: undefined,
-      });
+      form.setFieldsValue({ file: undefined });
+      // 同步清空 documentData 中的文件信息，避免复用旧文件
+      setDocumentData({ ...documentData, fileId: undefined, fileName: undefined });
       return true;
     },
     customRequest: (options) => {
@@ -120,147 +143,194 @@ const SelectSource: React.FC<SelectSourceProps> = ({ documentData, setDocumentDa
       // 只保存文件对象，不立即上传
       const rawFile = file as File;
       setSelectedFile(rawFile);
-      
+
       // 更新文件列表显示
       setFileList([{
         uid: (file as any).uid || Date.now().toString(),
         name: rawFile.name,
         status: 'done',
       } as UploadFile]);
-      
+
       form.setFieldsValue({
         file: rawFile,
       });
-      
+
       onSuccess?.('ok');
     },
   };
 
+  const sourceOptions: { type: DocumentSourceType; title: string }[] = [
+    { type: DocumentSourceType.FILE, title: '文档' },
+    { type: DocumentSourceType.INPUT, title: '纯文本' },
+    { type: DocumentSourceType.HTML, title: 'Web 站点' },
+  ];
+
   return (
-    <Form 
-      form={form} 
-      layout="vertical" 
-      initialValues={documentData}
-      className="py-6"
-    >
-      <Form.Item name="dataSourceType" label="选择数据源" rules={[{ required: true, message: '请选择数据源' }]}>
-        <Radio.Group className="w-full">
-          <Space direction="horizontal" className="w-full" size="middle">
-             <Card
-              hoverable
-              className={`w-full cursor-pointer ${documentData.dataSourceType === DocumentSourceType.FILE ? 'border-primary' : ''}`}
-              onClick={() => handleSourceChange(DocumentSourceType.FILE)}
-            >
-              <Radio value={DocumentSourceType.FILE}>
-                <Space>
-                  <FileTextOutlined />
-                  <span className="font-medium">导入文档</span>
-                </Space>
-              </Radio>
-            </Card>
-
-            <Card
-              hoverable
-              className={`w-full cursor-pointer ${documentData.dataSourceType === DocumentSourceType.INPUT ? 'border-primary' : ''}`}
-              onClick={() => handleSourceChange(DocumentSourceType.INPUT)}
-            >
-              <Radio value={DocumentSourceType.INPUT}>
-                <Space>
-                  <EditOutlined />
-                  <span className="font-medium">导入已有文本</span>
-                </Space>
-              </Radio>
-            </Card>
-
-            <Card
-              hoverable
-              className={`w-full cursor-pointer ${documentData.dataSourceType === DocumentSourceType.HTML ? 'border-primary' : ''}`}
-              onClick={() => handleSourceChange(DocumentSourceType.HTML)}
-            >
-              <Radio value={DocumentSourceType.HTML}>
-                <Space>
-                  <LinkOutlined />
-                  <span className="font-medium">同步自 Web 站点</span>
-                </Space>
-              </Radio>
-            </Card>
-          </Space>
-        </Radio.Group>
-      </Form.Item>
-
-      {documentData.dataSourceType === DocumentSourceType.INPUT && (
-        <>
-          <Form.Item name="name" label="文档名称" rules={[{ required: true, message: '请输入文档名称' }]}>
-            <Input placeholder="请输入文档名称" maxLength={60} />
+    <div className="h-full bg-white rounded-2xl p-4 flex flex-col gap-4">
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={documentData}
+        className="flex flex-col gap-4 w-full"
+        requiredMark={false}
+      >
+        <Form.Item label={<FormFieldLabel text="选择数据源" required />} className="!mb-0">
+          <Form.Item name="dataSourceType" noStyle rules={[{ required: true, message: '请选择数据源' }]}>
+            <Input type="hidden" />
           </Form.Item>
-          <Form.Item name="content" label="文档内容" rules={[{ required: true, message: '请输入文档内容' }]}>
-            <Input.TextArea rows={8} placeholder="请输入文档内容" />
-          </Form.Item>
-        </>
-      )}
-
-      {documentData.dataSourceType === DocumentSourceType.FILE && (
-        <>
-          <Form.Item
-            name="file"
-            label="上传文件"
-            rules={[{ required: true, message: '请上传文件' }]}
-          >
-            <Upload.Dragger {...uploadProps} disabled={uploading}>
-              <p className="ant-upload-drag-icon">
-                <UploadOutlined />
-              </p>
-              <p className="text-[#1890ff]">拖拽文件或者点击此区域进行上传</p>
-              <p className="text-base text-gray-500">支持上传文档格式：doc/docx, pdf, txt, md</p>
-            </Upload.Dragger>
-          </Form.Item>
-        </>
-      )}
-
-      {documentData.dataSourceType === DocumentSourceType.HTML && (
-        <Form.Item
-          name="htmlUrl"
-          label="网页链接"
-          rules={[
-            { required: true, message: '请输入网页链接' },
-            {
-              validator: (_, value) => {
-                if (!value) return Promise.resolve();
-                const links = value.split('\n').filter((link: string) => link.trim());
-                if (links.length > 10) {
-                  return Promise.reject('最多支持10个链接');
-                }
-                const validLinks = links.every((link: string) => {
-                  try {
-                    new URL(link.trim());
-                    return true;
-                  } catch {
-                    return false;
-                  }
-                });
-                if (!validLinks) {
-                  return Promise.reject('请确保每行都是的URL地址格式');
-                }
-                return Promise.resolve();
-              }
-            }
-          ]}
-          extra={
-            <Text type="secondary">
-              仅支持静态链接，每行一个链接，至多支持10个链接。如果上传数据为空，可能是该链接无法被读取
-            </Text>
-          }
-        >
-          <Input.TextArea rows={4} placeholder="请输入网页链接，每行一个" />
+          <div className="flex flex-row flex-wrap gap-2 mt-2" role="radiogroup" aria-label="选择数据源">
+            {sourceOptions.map(({ type, title }) => {
+              const selected = documentData.dataSourceType === type;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => handleSourceChange(type)}
+                  className={[
+                    'flex flex-none flex-row items-center justify-start gap-[10px] px-4 py-3 rounded-xl',
+                    'border border-solid bg-white text-left text-black/[0.85]',
+                    'shadow-none [appearance:none] [-webkit-appearance:none]',
+                    'transition-[border-color] duration-150',
+                    'hover:border-[#40A5EE]',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#40A5EE]/25 focus-visible:ring-offset-0',
+                    'active:shadow-none active:translate-y-0',
+                    selected ? 'border-[#40A5EE]' : 'border-[#E0E3E6]'
+                  ].join(' ')}
+                >
+                  <span
+                    className={[
+                      'relative box-border inline-flex h-4 w-4 shrink-0 flex-none items-center justify-center rounded-full border border-solid',
+                      selected
+                        ? 'border-[#40A5EE] bg-[#ECF6FD]'
+                        : 'border-[#E0E3E6] bg-white',
+                    ].join(' ')}
+                    aria-hidden
+                  >
+                    {selected ? (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-[#40A5EE]" />
+                    ) : null}
+                  </span>
+                  <span className="text-sm font-normal leading-[1.57142857]">{title}</span>
+                </button>
+              );
+            })}
+          </div>
         </Form.Item>
-      )}
 
-      <div className="mt-8 text-right">
-        <Button type="primary" size="large" onClick={handleSubmit} loading={uploading}>
-          下一步
-        </Button>
-      </div>
-    </Form>
+        <div className="flex flex-col gap-4">
+          {documentData.dataSourceType === DocumentSourceType.INPUT && (
+            <div className="flex flex-col gap-4">
+              <Form.Item 
+                name="name" 
+                className="!mb-0"
+                label={<FormFieldLabel text="文档名称" required />} 
+                rules={[
+                  { required: true, message: '请输入文档名称' }, 
+                  { validator: (_, value) => !value || value.trim() ? Promise.resolve() : Promise.reject(new Error('请输入文档名称')) }
+                ]} 
+              >
+                <Input placeholder="请输入文档名称" maxLength={60} className="!rounded-xl !border-[#E0E3E6] !h-11 !text-sm" />
+              </Form.Item>
+              <Form.Item name="content" label={<FormFieldLabel text="文档内容" required />} rules={[{ required: true, message: '请输入文档内容' }]} className="!mb-0">
+                <Input.TextArea rows={10} placeholder="请输入文档内容" className="!rounded-xl !border-[#E0E3E6] !text-sm !p-3" />
+              </Form.Item>
+            </div>
+          )}
+
+          {documentData.dataSourceType === DocumentSourceType.FILE && (
+            <div className="flex flex-col gap-2">
+              <FormFieldLabel text="上传文档" required />
+              <Form.Item
+                name="file"
+                rules={[{ required: true, message: '请上传文件' }]}
+                className="!mb-0"
+              >
+                <Upload.Dragger
+                  {...uploadProps}
+                  disabled={uploading}
+                >
+                  <div className="flex flex-col items-center gap-5 py-0">
+                    <div className="w-13 h-13 flex items-center justify-center text-black/45">
+                      <img src={fileImg} className="w-12" />
+                    </div>
+                    <div className="flex flex-col items-center gap-1 max-w-[395px] text-center">
+                      <p className="text-base text-black/[0.85] leading-tight m-0">拖拽文件或点击此区域进行上传</p>
+                      <p className="text-sm text-black/45 leading-[1.57] m-0">支持上传文档格式：doc/docx, pdf, txt, md（最大 15MB）</p>
+                    </div>
+                  </div>
+                </Upload.Dragger>
+              </Form.Item>
+            </div>
+          )}
+
+          {documentData.dataSourceType === DocumentSourceType.HTML && (
+            <div className="flex flex-col gap-4">
+              <Form.Item 
+                name="name" 
+                className="!mb-0"
+                label={<FormFieldLabel text="文档名称" required />} 
+                rules={[
+                  { required: true, message: '请输入文档名称' }, 
+                  { validator: (_, value) => !value || value.trim() ? Promise.resolve() : Promise.reject(new Error('请输入文档名称')) }
+                ]}
+              >
+                <Input placeholder="请输入文档名称" maxLength={60} className="!rounded-xl !border-[#E0E3E6] !h-11 !text-sm" />
+              </Form.Item>
+              <Form.Item
+                name="htmlUrl"
+                label={<FormFieldLabel text="网页链接" required />}
+                rules={[
+                  { required: true, message: '请输入网页链接' },
+                  {
+                    validator: (_, value) => {
+                      if (!value) return Promise.resolve();
+                      const links = value.split('\n').filter((link: string) => link.trim());
+                      if (links.length > 10) {
+                        return Promise.reject('最多支持10个链接');
+                      }
+                      const validLinks = links.every((link: string) => {
+                        try {
+                          new URL(link.trim());
+                          return true;
+                        } catch {
+                          return false;
+                        }
+                      });
+                      if (!validLinks) {
+                        return Promise.reject('请确保每行都是的URL地址格式');
+                      }
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
+                className="!mb-0"
+                extra={
+                  <div className="mt-2 p-3 border-[#E0E3E6] rounded-xl text-xs text-black/45 flex items-start gap-2">
+                    {/* <div className="w-1.5 h-1.5 bg-[#40A5EE] rounded-full mt-1 shrink-0" /> */}
+                    仅支持静态链接，每行一个链接，至多支持10个链接。如果上传数据为空，可能是该链接无法被读取。
+                  </div>
+                }
+              >
+                <Input.TextArea rows={6} placeholder="请输入网页链接，每行一个" className="!rounded-xl !border-[#E0E3E6] !text-sm !p-3" />
+            </Form.Item>
+          </div>
+          )}
+        </div>
+
+        <div className="flex justify-end items-center gap-2 pt-2.5">
+          <Button
+            type="primary"
+            onClick={handleSubmit}
+            loading={uploading}
+            className="!h-8 !min-w-[80px] !rounded-lg !px-4 !text-sm !font-normal !bg-[#40A5EE] hover:!bg-[#40A5EE]/90 !border-[#40A5EE] !shadow-none"
+          >
+            下一步
+          </Button>
+        </div>
+      </Form>
+    </div>
   );
 };
 

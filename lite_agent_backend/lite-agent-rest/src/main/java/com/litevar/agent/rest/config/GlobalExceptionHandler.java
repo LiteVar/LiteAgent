@@ -3,6 +3,7 @@ package com.litevar.agent.rest.config;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
@@ -209,23 +210,35 @@ public class GlobalExceptionHandler {
 
     private String buildHttpMessageNotReadableMessage(HttpMessageNotReadableException ex) {
         Throwable cause = ex.getMostSpecificCause();
+        if (cause instanceof JsonParseException jsonParseException) {
+            String path = null;
+            String targetType = null;
+            if (ex.getCause() instanceof JsonMappingException jsonMappingException) {
+                path = buildJsonPath(jsonMappingException.getPath());
+                if (jsonMappingException instanceof MismatchedInputException mismatchedInputException
+                        && mismatchedInputException.getTargetType() != null) {
+                    targetType = mismatchedInputException.getTargetType().getSimpleName();
+                }
+            }
+            return buildJsonParseMessage(jsonParseException, path, targetType);
+        }
         if (cause instanceof InvalidFormatException invalidFormatException) {
             String path = buildJsonPath(invalidFormatException.getPath());
             String targetType = invalidFormatException.getTargetType() == null ? "未知类型" : invalidFormatException.getTargetType().getSimpleName();
             String value = formatValue(invalidFormatException.getValue());
-            return "请求体字段`" + path + "`类型错误，值`" + value + "`无法转换为`" + targetType + "`";
+            return buildTypeMismatchMessage(path, targetType, value);
         }
         if (cause instanceof MismatchedInputException mismatchedInputException) {
             String path = buildJsonPath(mismatchedInputException.getPath());
             String targetType = mismatchedInputException.getTargetType() == null ? "未知类型" : mismatchedInputException.getTargetType().getSimpleName();
-            if (path.isBlank() || "未知字段".equals(path)) {
-                return "请求体结构不正确，无法解析为`" + targetType + "`";
-            }
-            return "请求体字段`" + path + "`结构不正确，无法解析为`" + targetType + "`";
+            return buildTypeMismatchMessage(path, targetType, null);
         }
         if (cause instanceof JsonMappingException jsonMappingException) {
             String path = buildJsonPath(jsonMappingException.getPath());
             String originalMessage = jsonMappingException.getOriginalMessage();
+            if (originalMessage != null && originalMessage.contains("Cannot deserialize value of type")) {
+                return "请求体字段`" + path + "`类型错误，请检查字段值类型是否正确";
+            }
             if (originalMessage == null || originalMessage.isBlank()) {
                 originalMessage = "解析失败";
             }
@@ -248,7 +261,7 @@ public class GlobalExceptionHandler {
         for (JsonMappingException.Reference reference : path) {
             String fieldName = reference.getFieldName();
             if (fieldName != null) {
-                if (builder.length() > 0) {
+                if (!builder.isEmpty()) {
                     builder.append('.');
                 }
                 builder.append(fieldName);
@@ -257,7 +270,46 @@ public class GlobalExceptionHandler {
                 builder.append('[').append(reference.getIndex()).append(']');
             }
         }
-        return builder.length() == 0 ? "未知字段" : builder.toString();
+        return builder.isEmpty() ? "未知字段" : builder.toString();
+    }
+
+    private String buildJsonParseMessage(JsonParseException ex, String jsonPath, String targetType) {
+        String message = ex.getOriginalMessage();
+        if (message == null || message.isBlank()) {
+            return buildTypeMismatchMessage(jsonPath, targetType, null);
+        }
+
+        if (message.contains("Unrecognized token")) {
+            String token = extractToken(message);
+            return buildTypeMismatchMessage(jsonPath, targetType, token);
+        }
+        return buildTypeMismatchMessage(jsonPath, targetType, null);
+    }
+
+    private String extractToken(String message) {
+        int first = message.indexOf('\'');
+        if (first < 0) {
+            return "未知";
+        }
+        int second = message.indexOf('\'', first + 1);
+        if (second < 0) {
+            return "未知";
+        }
+        return message.substring(first + 1, second);
+    }
+
+    private String buildTypeMismatchMessage(String path, String targetType, String value) {
+        String safePath = (path == null || path.isBlank() || "未知字段".equals(path)) ? null : path;
+        if (safePath == null) {
+            if (value == null || value.isBlank()) {
+                return "请求体字段值类型错误，无法转换为目标类型";
+            }
+            return "请求体字段值类型错误，值`" + value + "`无法转换为目标类型";
+        }
+        if (value == null || value.isBlank()) {
+            return "请求体字段`" + safePath + "`类型错误，无法转换为目标类型";
+        }
+        return "请求体字段`" + safePath + "`类型错误，值`" + value + "`无法转换为目标类型";
     }
 
     private String formatValue(Object value) {

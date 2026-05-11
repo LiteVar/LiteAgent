@@ -8,6 +8,7 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
   - [Web](lite_agent_web/README.md): manage agent, tool, model, knowledge base and user, etc.
   - [Desktop](lite_agent_client/README.md): manage agent, tool, model, etc.
   - [Backend](lite_agent_backend/README.md): service and api for web, desktop and sdk.
+  - [Plugin Engine](lite_agent_plugin_runner/README.md): Runs plugins, such as WeChat and DingTalk bots
   - [SDK](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk): C#/LabVIEW/TypeScript/Dart/Java sdk, to help developers quickly integrate LiteAgent.
 
 ## Features
@@ -23,6 +24,8 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Agent mode support: Parallel, Serial, Reject
 - Auto Multi Agent (Web, Desktop)
 - Support exporting/importing configurations
+- Support configuring and retaining recent conversation rounds (default: 5 rounds)
+- Chat supports image and video uploads
 
 ### 2. Tool Support
 
@@ -36,6 +39,7 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Protocol: OpenTool
   - Support for OpenTool-formatted specification documents
   - Support calling OpenTool Server
+  - Support StreamCall invocation mode
 - Support exporting tools
 
 ### 3. Functional Modules
@@ -48,13 +52,17 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Added reasoning type differentiation
 - Preview mode added for prompt and knowledge base document editors
 - New SDKs released (C#/LabVIEW/TypeScript/Dart/Java)
+- System-level model management (Web)
+- System-level plugin management (Web)
 
 ### 4. LLM support
 
 - Only support OpenAI Style API，other models(like: Zhipu-AI、QianFan、ChatGLM、Kimi、qwen and so on), please use the OneAPI tool to convert to OpenAI style.
-- Speech-to-Text (ASR Model)
-- Text-to-Speech (TTS Model)
-- LLM Support exporting/importing JSON-formatted configurations
+- Speech-to-Text (ASR model), supporting real-time speech-text streaming conversion
+- Text-to-Speech (TTS model), supporting real-time text-speech streaming conversion
+- LLM supports exporting/importing configurations in JSON format
+- Support adding system-level large models for all system users
+- Support adding VL models (Vision-Language Models)
 
 ### 5. Knowledge Base Support
 
@@ -62,6 +70,18 @@ LiteAgent is an open-source AI Agent platform designed for industrial applicatio
 - Add document content summarization (Web)
 - Knowledge base retrieval, support "View Original" and "Download Original Document" (Web, Desktop)
 - Knowledge base list, can select and "Download as Markdown" (Web, Desktop)
+
+### 6. Plugin Smart Integration
+- Provide CRUD functionalities
+- Enable Agent integration with WeChat (MP), DingTalk (Robot), and Website platforms to bring intelligent capabilities to the platforms
+- Support multi-dimensional session data statistics and trend analysis
+
+### 7. ChatKit Component
+- Support component-based custom chat window configuration
+- Easily integrate intelligent agents into homepages/websites
+
+## VDB migrate to Qdrant
+- Please refer to [lite_agent_backend/docs/milvus-qdrant-migrate/README.md](lite_agent_backend/docs/milvus-qdrant-migrate/README.md)
 
 ## Quick Start
 

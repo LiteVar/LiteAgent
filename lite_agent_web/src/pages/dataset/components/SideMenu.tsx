@@ -1,8 +1,7 @@
+import React from 'react';
 import { Menu } from 'antd';
-import documentIcon from '@/assets/dataset/doc_svg';
-import retrievalTestIcon from '@/assets/dataset/retrieval_test_svg';
-import settingIcon from '@/assets/dataset/setting_svg';
-import apisIcon from '@/assets/agent/api_svg';
+import { EditIcon, ApiIcon, SettingsIcon, SearchIcon } from '@/assets/agent/agent_tabs_icons_svg';
+import { useLocation } from 'react-router-dom';
 
 interface SideMenuProps {
   canEdit: boolean;
@@ -12,57 +11,40 @@ interface SideMenuProps {
 }
 
 const SideMenu = ({ selectedTab, onTabChange, canEdit, canDelete }: SideMenuProps) => {
+  const location = useLocation();
+  const pathname = location.pathname;
+  const menuItems = [
+    {
+      key: 'documents',
+      className: 'm-0',
+      icon: <EditIcon active={selectedTab === 'documents' || pathname.includes('fragments')} />,
+    },
+    {
+      key: 'test',
+      className: 'my-4 mx-0',
+      icon: <SearchIcon active={selectedTab === 'test'} />,
+    },
+    {
+      key: 'apis',
+      className: 'my-4 mx-0',
+      icon: <ApiIcon active={selectedTab === 'apis'} />,
+    },
+    ...((canEdit && canDelete) ? [{
+      key: 'settings',
+      className: 'm-0',
+      icon: <SettingsIcon active={selectedTab === 'settings'} />,
+    }] : [])
+  ];
+
   return (
-    <div
-      className="w-[80px] pt-8 flex flex-col"
-      style={{
-        borderRight: '1px solid #f0f0f0',
-      }}
-    >
+    <div className="w-8 pt-6 px-4 flex flex-col bg-white/60 backdrop-blur-[4px] border border-white rounded-2xl">
       <Menu
         mode="inline"
-        defaultSelectedKeys={['documents']}
+        defaultSelectedKeys={[selectedTab]}
         selectedKeys={[selectedTab]}
-        style={{ borderRight: 'none' }}
-        className="customeSvg [&_.ant-menu-item]:bg-transparent [&_.ant-menu-item-selected]:bg-transparent"
-        items={[
-          {
-            key: 'documents',
-            className: 'm-0',
-            icon: (
-              <span className={`${selectedTab === 'documents' ? 'rgba(102, 172, 252, 1)' : 'text-gray-400'}`}>
-                {documentIcon}
-              </span>
-            ),
-          },
-          {
-            key: 'test',
-            className: 'my-6 mx-0',
-            icon: (
-              <span className={`${selectedTab === 'test' ? 'rgba(102, 172, 252, 1)' : 'text-gray-400'}`}>
-                {retrievalTestIcon}
-              </span>
-            ),
-          },
-          {
-            key: 'apis',
-            className: 'my-6 mx-0',
-            icon: (
-              <span className={`${selectedTab === 'apis' ? 'rgba(102, 172, 252, 1)' : 'text-gray-400'}`}>
-                {apisIcon}
-              </span>
-            ),
-          },
-          {
-            key: 'settings',
-            className: (canEdit && canDelete) ? 'mt-auto' : 'hidden',
-            icon: (
-              <span className={`${selectedTab === 'settings' ? 'rgba(102, 172, 252, 1)' : 'text-gray-400'}`}>
-                {settingIcon}
-              </span>
-            ),
-          },
-        ]}
+        style={{ borderRight: 'none', background: 'transparent' }}
+        className="customSvg [&_.ant-menu-item]:w-full [&_.ant-menu-item]:bg-transparent [&_.ant-menu-item-selected]:bg-transparent [&_.ant-menu-item]:flex [&_.ant-menu-item]:justify-center [&_.ant-menu-item]:px-0"
+        items={menuItems}
         onClick={({ key }) => onTabChange(key)}
       />
     </div>

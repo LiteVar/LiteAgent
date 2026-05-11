@@ -15,6 +15,7 @@ import com.litevar.agent.base.enums.ServiceExceptionEnum;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.response.ResponseData;
+import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.vo.*;
 import com.litevar.agent.rest.service.*;
 import com.mongoplus.conditions.update.LambdaUpdateChainWrapper;
@@ -150,7 +151,7 @@ public class DatasetController {
         @PathVariable("id") String datasetId,
         @RequestParam String query
     ) {
-        return ResponseData.success(datasetService.retrieve(datasetId, query, ""));
+        return ResponseData.success(datasetService.retrieve(datasetId, query, "", LoginContext.currentUserId()));
     }
 
     /**
@@ -163,7 +164,7 @@ public class DatasetController {
     @GetMapping("/retrieveDesktop")
     public ResponseData<Dict> retrieveDesktop(@RequestParam("ids") List<String> datasetIds,
                                               @RequestParam String query) {
-        return ResponseData.success(datasetService.retrieve(datasetIds, query));
+        return ResponseData.success(segmentService.retrieve("", datasetIds, query, LoginContext.currentUserId()));
     }
 
     @IgnoreAuth
@@ -174,7 +175,7 @@ public class DatasetController {
         HttpServletRequest request
     ) {
         String token = JwtUtil.getApikeyFromRequest(request);
-        return ResponseData.success(datasetService.retrieve(datasetId, query, token));
+        return ResponseData.success(datasetService.retrieve(datasetId, query, token, ""));
     }
 
     /**

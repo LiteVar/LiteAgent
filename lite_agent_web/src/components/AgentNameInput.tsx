@@ -1,10 +1,9 @@
-import { Link, useNavigate } from 'react-router-dom';
 import agentPcWhiteSvg from '@/assets/dashboard/agent-pc-white.svg';
 import { Dropdown, Tooltip } from 'antd';
 import { EllipsisOutlined, DeleteOutlined, Loading3QuartersOutlined } from '@ant-design/icons';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AgentSessionVO, postV1ChatClearDebugRecord } from '@/client';
-import { a } from 'vite/dist/node/types.d-aGj9QkWt';
+import { useNavigate } from 'react-router-dom';
 
 interface AgentNameInputProps {
 	agent: AgentSessionVO;
@@ -13,74 +12,92 @@ interface AgentNameInputProps {
 	responding: boolean;
 }
 
-export default function AgentNameInput({ agent, workspaceId, collapsed, responding }: AgentNameInputProps) {
+export default function AgentNameInput({ agent, workspaceId, responding, collapsed }: AgentNameInputProps) {
 	const navigate = useNavigate();
-	const textRef = useRef<HTMLAnchorElement>(null);
+	const textRef = useRef<HTMLSpanElement>(null);
 	const [isOverflow, setIsOverflow] = useState(false);
+	const [hovered, setHovered] = useState(false);
 	const [dropdownOpen, setDropdownOpen] = useState(false);
-	const [menuOpen, setMenuOpen] = useState(false);
 
-	const checkOverflow = () => {
-		if (textRef.current) {
-			setIsOverflow(
-				textRef.current.scrollWidth > textRef.current.clientWidth ||
-				textRef.current.scrollHeight > textRef.current.clientHeight,
-			);
-		}
-	};
+	const checkOverflow = useCallback(() => {
+		const el = textRef.current;
+		if (!el) return;
+		const next =
+			el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+		setIsOverflow(next);
+	}, []);
 
 	useEffect(() => {
 		checkOverflow();
-	}, [textRef]);
+		const el = textRef.current;
+		if (!el) return;
+
+		const ro = new ResizeObserver(() => {
+			requestAnimationFrame(checkOverflow);
+		});
+		ro.observe(el);
+		if (el.parentElement) {
+			ro.observe(el.parentElement);
+		}
+
+		return () => ro.disconnect();
+	}, [agent.name, checkOverflow]);
 
 	const onDeleteAgentChat = useCallback(async () => {
 		await postV1ChatClearDebugRecord({
 			query: {
-				agentId: agent.agentId,
+				agentId: agent.agentId!,
 				debugFlag: 0,
 			},
 		});
 		navigate(`/dashboard/${workspaceId}`);
-	}, [agent.agentId]);
+	}, [agent.agentId, navigate, workspaceId]);
 
 	const agentDropDownItems = [
 		{
 			key: `agent-delete-${agent.agentId}`,
-			label: <div onClick={onDeleteAgentChat} className='flex items-center'><DeleteOutlined />
-				<div className='ml-2'>删除</div>
-			</div>,
+			label: (
+				<div onClick={onDeleteAgentChat} className='flex items-center'>
+					<DeleteOutlined />
+					<div className='ml-2'>删除</div>
+				</div>
+			),
 		},
 	];
 
-	const onMouseEnter = () => {
-		setDropdownOpen(true);
-	};
-
-	const onMouseLeave = () => {
-		setDropdownOpen(false);
-	};
-
 	return (
-		<div className='flex items-center w-full' onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+		<div
+			className='flex items-center w-full min-w-0'
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => setHovered(false)}
+		>
 			<Tooltip title={agent.name} open={(isOverflow && !collapsed) ? undefined : false}>
-				<div className='h-10 flex-1 pr-3 line-clamp-1 break-all text-white truncate'>
-					<Link
+				<div className='h-10 flex-1 min-w-0 pr-2 flex items-center overflow-hidden'>
+					<span
 						ref={textRef}
-						to={`/dashboard/${workspaceId}/chat/${agent.agentId}`}
-						className='inline-block w-full truncate'
+						className='block w-full truncate text-[#383F44] text-sm leading-[22px]'
 					>
 						{agent.name}
-					</Link>
+					</span>
 				</div>
 			</Tooltip>
 			{agent.localFlag && <img className='flex-none w-4 mr-2' src={agentPcWhiteSvg} />}
-			{responding && <Loading3QuartersOutlined className='ml-2 text-[#fff]' spin />}
-			{!dropdownOpen && !menuOpen && <div className='w-[18px] h-10'></div>}
-			{(dropdownOpen || menuOpen) && <Dropdown onOpenChange={value => setMenuOpen(value)} menu={{ items: agentDropDownItems }} trigger={['click']} placement='bottom'>
-				<a className='agentActionWrapper' onClick={(e) => e.preventDefault()}>
-					<EllipsisOutlined />
-				</a>
-			</Dropdown>}
+			{responding && <Loading3QuartersOutlined className='ml-1 text-[#94A0AB]' spin />}
+			<div className='flex-none w-5 flex items-center justify-center'>
+				{(hovered || dropdownOpen) && (
+					<Dropdown
+						menu={{ items: agentDropDownItems }}
+						trigger={['click']}
+						placement='bottom'
+						onOpenChange={setDropdownOpen}
+					>
+						<EllipsisOutlined
+							onClick={(e) => e.stopPropagation()}
+							className='text-[#94A0AB] p-2 hover:text-[#383F44] transition-colors cursor-pointer'
+						/>
+					</Dropdown>
+				)}
+			</div>
 		</div>
 	);
 }

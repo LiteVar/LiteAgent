@@ -3,6 +3,7 @@ package com.litevar.agent.rest.controller.v1;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.crypto.digest.MD5;
 import com.litevar.agent.auth.annotation.IgnoreAuth;
+import com.litevar.agent.auth.service.AuthService;
 import com.litevar.agent.auth.service.UserService;
 import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.entity.Account;
@@ -31,6 +32,8 @@ public class UserController {
     private UserService userService;
     @Autowired
     private MailSendUtil mailSendUtil;
+    @Autowired
+    private AuthService authService;
 
     /**
      * 获取当前用户的信息
@@ -151,6 +154,9 @@ public class UserController {
         }
 
         userService.resetPassword(email, password);
-        return ResponseData.success();
+
+        String token = authService.login(email, password);
+
+        return ResponseData.success(token);
     }
 }

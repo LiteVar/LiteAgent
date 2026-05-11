@@ -18,7 +18,7 @@ public enum ServiceExceptionEnum {
     BAD_TOKEN(10003, "无效token"),
     NO_PERMISSION(10004, "无权限访问该接口"),
     BAN_ACCOUNT(10005, "当前账号无法使用"),
-    WRONG_PASSWORD(10006, "账号密码错误"),
+    WRONG_PASSWORD(10006, "账号或密码错误"),
     EXPIRED_LOGIN(10007, "登录已过期,请重新登录"),
     WORKSPACE_ID_HEADER_NULL(10008, "http header workspaceId不能为空"),
     REFERER_NOT_NULL(10009, "http header referer不能为空"),
@@ -36,6 +36,8 @@ public enum ServiceExceptionEnum {
     DATASET_NAME_DUPLICATE(20005, "知识库名称不能重复，建议重新输入"),
     NOT_FOUND_RECORD(20006, "不存在该记录"),
     NO_PERMISSION_OPERATE(20007, "没权限修改该数据"),
+    DOCUMENT_NAME_DUPLICATE(20008, "文档名字不能重复"),
+    DOCUMENT_SUMMARY_UPDATE_FAILURE(20009, "文档摘要更新失败,请稍后再试"),
 
 
     ORIGIN_PASSWORD_WRONG(30001, "旧密码错误"),
@@ -51,6 +53,17 @@ public enum ServiceExceptionEnum {
     MODEL_ALIAS_DUPLICATE(30012, "该模型别名已存在，请重新输入"),
     AUTO_AGENT_WITHOUT_MODEL_TO_USE(30013, "auto agent无可用模型,请到<模型管理>处选择模型并打开支持auto agent开关"),
     DUPLICATE_FILE(30014, "存在重复文件"),
+    MODEL_DISABLED(30015, "当前模型已停用，请在设置中切换至其他可用模型后重试"),
+    TOKEN_LIMIT_REACHED(30016, "本次请求大模型输出内容的token已达到限制值,停止输出"),
+    SYSTEM_NOT_SUPPORT_MODEL(30017, "系统暂不支持的文字转语音模型"),
+
+    DUPLICATE_PLUGIN_NAME(40001, "插件名称重复"),
+    PLUGIN_ENABLED(40002, "插件已启用"),
+    PLUGIN_NOT_ENABLED(40003, "插件未启用"),
+    RUNNER_START_FAILURE(40004, "plugin runner启动失败"),
+    DOCKER_NOT_AVAILABLE(40005, "docker不可用"),
+    RUNNER_NOT_AVAILABLE(40006, "plugin runner不可用"),
+    HUB_URL_NOT_CONFIGURED(40007, "未配置ihub url key"),
 
     OPERATE_FAILURE(40001, "操作失败"),
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import logoIcon from '@/assets/login/logo_svg';
+import ChatLogo from '@/assets/agent/agent.png';
 import { buildImageUrl } from '@/utils/buildImageUrl';
 
 interface AgentIconProps {
@@ -7,12 +7,8 @@ interface AgentIconProps {
 }
 
 const AgentIcon: React.FC<AgentIconProps> = ({ agentIcon }) => {
-  return agentIcon ? (
-    <img className="p-3 w-6 h-6 rounded-md mr-3 bg-[#F5F5F5]" src={buildImageUrl(agentIcon)} alt="agent" />
-  ) : (
-    <span className="p-3 customeSvg flex items-center justify-center mr-3 text-black bg-[#F5F5F5]">
-      <span className="w-6 h-6">{logoIcon}</span>
-    </span>
+  return (
+    <img className="w-10 h-10 rounded-lg mr-3 bg-[#F5F5F5] object-cover" src={agentIcon ? buildImageUrl(agentIcon) : ChatLogo} alt="agent" />
   );
 };
 

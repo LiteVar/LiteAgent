@@ -2,7 +2,6 @@ package com.litevar.agent.rest.service;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
-import cn.hutool.core.lang.Dict;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -20,6 +19,7 @@ import com.litevar.agent.base.vo.DatasetCreateForm;
 import com.litevar.agent.base.vo.DatasetsVO;
 import com.litevar.agent.base.vo.DocumentCreateForm;
 import com.litevar.agent.base.vo.SegmentVO;
+import com.litevar.agent.core.module.llm.ModelService;
 import com.litevar.agent.rest.config.LitevarProperties;
 import com.litevar.agent.rest.util.PermissionUtil;
 import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
@@ -53,6 +53,8 @@ public class DatasetService extends ServiceImpl<Dataset> {
     private SegmentService segmentService;
     @Autowired
     private AgentDatasetRelaService agentDatasetRelaService;
+    @Autowired
+    private ModelService modelService;
 
     /**
      * Creates a new dataset in the specified workspace.
@@ -69,6 +71,8 @@ public class DatasetService extends ServiceImpl<Dataset> {
         if (existDataset != null) {
             throw new ServiceException(ServiceExceptionEnum.DATASET_NAME_DUPLICATE);
         }
+        modelService.checkModelAvailable(form.getEmbeddingModel(), "");
+        modelService.checkModelAvailable(form.getLlmModelId(), "");
         String userId = LoginContext.currentUserId();
 
         Dataset dataset = BeanUtil.toBean(form, Dataset.class, CopyOptions.create().setIgnoreNullValue(true));
@@ -224,6 +228,9 @@ public class DatasetService extends ServiceImpl<Dataset> {
             }
         }
 
+        modelService.checkModelAvailable(form.getEmbeddingModel(), "");
+        modelService.checkModelAvailable(form.getLlmModelId(), "");
+
         //之前没有选择摘要模型,新选择了模型,要帮needSummary的文档做一次摘要
         boolean firstSummary = StrUtil.isBlank(dataset.getLlmModelId())
                 && StrUtil.isNotBlank(form.getLlmModelId());
@@ -339,7 +346,7 @@ public class DatasetService extends ServiceImpl<Dataset> {
     /**
      * 召回测试
      */
-    public List<SegmentVO> retrieve(String datasetId, String content, String apikey) {
+    public List<SegmentVO> retrieve(String datasetId, String content, String apikey, String userId) {
         Dataset dataset = getById(datasetId);
 
         if (StrUtil.isBlank(dataset.getEmbeddingModel())) {
@@ -350,11 +357,11 @@ public class DatasetService extends ServiceImpl<Dataset> {
             throw new ServiceException(ServiceExceptionEnum.INVALID_APIKEY);
         }
 
-        return segmentService.retrieveSegments("", Collections.singletonList(datasetId), content);
-    }
+        if (StrUtil.isEmpty(userId)) {
+            userId = dataset.getUserId();
+        }
 
-    public Dict retrieve(List<String> datasetIds, String content) {
-        return segmentService.retrieve("", datasetIds, content);
+        return segmentService.retrieveSegments("", Collections.singletonList(datasetId), content, userId);
     }
 
     public Dataset generateApiKey(String id) {

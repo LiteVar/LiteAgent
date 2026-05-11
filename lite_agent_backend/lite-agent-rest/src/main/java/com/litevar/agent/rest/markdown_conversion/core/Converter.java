@@ -1,18 +1,16 @@
 package com.litevar.agent.rest.markdown_conversion.core;
 
-import cn.hutool.core.util.StrUtil;
 import com.litevar.agent.rest.markdown_conversion.core.model.Blocks;
 import com.litevar.agent.rest.markdown_conversion.parser.*;
+import com.litevar.agent.rest.service.UploadFileServiceV2;
 import com.litevar.agent.rest.util.IOUtil;
-import org.apache.commons.codec.digest.DigestUtils;
+import com.litevar.agent.base.util.SpringUtil;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.tika.Tika;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Converter {
@@ -53,7 +51,7 @@ public class Converter {
         notifyProgress(options, 0.6, STAGE_PARSING, "Finished parsing document");
         // export resources (images)
         notifyProgress(options, 0.7, STAGE_EXPORTING, "Exporting embedded resources");
-        String imagePrefix = DigestUtils.md5Hex(file.getFileName().toString());
+        String imagePrefix = FilenameUtils.getBaseName(file.getFileName().toString());
         AtomicInteger imageCounter = new AtomicInteger(1);
         exportResources(doc, file, options, result, imagePrefix, imageCounter);
 
@@ -63,33 +61,31 @@ public class Converter {
         boolean isTextLike = lowerMime.startsWith("text/");
         boolean isWordDoc = lowerMime.contains("wordprocessingml") || lowerMime.contains("msword");
         boolean enableParagraphSplitting = !hasPageBreaks && (isTextLike || isWordDoc);
-        String md = renderer.render(doc, enableParagraphSplitting);
+        String mdContent = renderer.render(doc, enableParagraphSplitting);
 
-        Path outDir = options.getOutputDir() != null ? options.getOutputDir() : file.getParent();
-        String baseName = IOUtil.baseName(file);
-        Path mdPath = outDir.resolve(baseName + ".md");
-        Files.createDirectories(mdPath.getParent());
+        String markdownName = IOUtil.baseName(file) + ".md";
+        Path markdownDir = options.getOutputDir().resolve(markdownName);
+
         notifyProgress(options, 0.85, STAGE_WRITING, "Writing markdown output");
-        Files.writeString(mdPath, md, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        result.addMarkdown(mdPath);
+
+        SpringUtil.getBean(UploadFileServiceV2.class).saveConvertedMarkdown(options.getFileId(), markdownDir, mdContent);
+        result.addMarkdown(markdownDir);
         notifyProgress(options, 1.0, STAGE_COMPLETE, "Conversion completed");
     }
 
     private static void exportResources(Blocks.Document doc, Path file, ConversionOptions options, ConversionResult result,
                                         String imagePrefix, AtomicInteger imageCounter) throws IOException {
-        Path outDir = options.getOutputDir() != null ? options.getOutputDir() : file.getParent();
-        Path imageDir = outDir.resolve(options.getImageDir());
-        //为了方便 nginx 代理，这里把图片路径改为绝对路径,再加上resources前缀
-        String imageDirRel = Paths.get("/resources", StrUtil.removePrefix(imageDir.toString(), options.getPrefixPath())).toString();
+        Path imageDir = options.getOutputDir().resolve(options.getImageDir());
         Files.createDirectories(imageDir);
+
         for (Blocks.Block b : doc.blocks) {
             if (b instanceof Blocks.Image im) {
-                exportImage(im, imageDir, imageDirRel, result, imagePrefix, imageCounter);
+                exportImage(im, imageDir, options, result, imagePrefix, imageCounter);
             } else if (b instanceof Blocks.Table t) {
                 for (Blocks.Table.Row row : t.rows) {
                     for (Blocks.Table.Cell cell : row.cells) {
                         for (Blocks.Image im : cell.images) {
-                            exportImage(im, imageDir, imageDirRel, result, imagePrefix, imageCounter);
+                            exportImage(im, imageDir, options, result, imagePrefix, imageCounter);
                         }
                     }
                 }
@@ -97,16 +93,19 @@ public class Converter {
         }
     }
 
-    private static void exportImage(Blocks.Image im, Path imageDir, String imageDirRel, ConversionResult result,
+    private static void exportImage(Blocks.Image im, Path imageDir, ConversionOptions options, ConversionResult result,
                                     String imagePrefix, AtomicInteger imageCounter) throws IOException {
         if (im.data != null && im.data.length > 0) {
             String ext = (im.extension == null || im.extension.isBlank()) ? "png" : im.extension.toLowerCase();
             int index = imageCounter.getAndIncrement();
             String fileName = imagePrefix + "_" + index + "." + ext;
-            Path out = imageDir.resolve(fileName);
-            Files.write(out, im.data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            im.path = imageDirRel + "/" + fileName;
-            result.addResource(out);
+            Path path = imageDir.resolve(fileName);
+
+            SpringUtil.getBean(UploadFileServiceV2.class)
+                .saveMarkdownImage(im.data, fileName, imageDir.toString());
+
+            im.path = "./imgs/" + fileName;
+            result.addResource(path);
         }
     }
 

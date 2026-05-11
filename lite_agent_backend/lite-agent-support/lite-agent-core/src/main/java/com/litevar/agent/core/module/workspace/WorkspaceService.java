@@ -43,6 +43,16 @@ public class WorkspaceService extends ServiceImpl<Workspace> {
     }
 
     /**
+     * 获取用户管理的工作空间
+     */
+    public String userAdminWorkspace(String userId) {
+        return workspaceMemberService.lambdaQuery()
+                .projectDisplay(WorkspaceMember::getWorkspaceId)
+                .eq(WorkspaceMember::getUserId, userId)
+                .eq(WorkspaceMember::getRole, RoleEnum.ROLE_ADMIN.getCode()).one().getWorkspaceId();
+    }
+
+    /**
      * 指定用户的工作空间列表
      */
     public List<WorkSpaceVO> userWorkspaceList(String userId) {

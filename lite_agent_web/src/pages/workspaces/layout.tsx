@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
-import { Layout, Menu, Select, Skeleton } from 'antd';
+import { Layout, Menu, message, Select, Skeleton } from 'antd';
 import {
-  TeamOutlined,
-  ToolOutlined,
-  AppstoreOutlined,
   UserOutlined,
   SwapOutlined,
-  FolderOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { getV1UserInfoOptions, getV1WorkspaceListOptions } from '@/client/@tanstack/query.gen';
 import { useQuery } from '@tanstack/react-query';
 import { WorkSpaceVO } from '@/client';
 import { WorkspaceProvider } from '@/contexts/workspaceContext';
-import agentLogo from '@/assets/login/logo_white.png';
+import { ToolIcon, DatasetsIcon, ModelIcon, UserIcon, AgentIcon, PluginConnectIcon } from '@/assets/workspaces/workspace_tabs_icons_svg';
+import Bg from '@/assets/common/bg';
 
 const { Sider, Content } = Layout;
 
@@ -32,6 +29,7 @@ export default function WorkspaceLayout() {
   const { data: userInfoResult } = useQuery({
     ...getV1UserInfoOptions({}),
   });
+
   const workspaces = useMemo(() => data?.data || [], [data]);
   const userInfo = userInfoResult?.data;
 
@@ -54,48 +52,56 @@ export default function WorkspaceLayout() {
   const menuItems = [
     {
       key: 'agents',
-      icon: <img src={agentLogo} alt="Agents Logo" className="w-4 h-4" />,
+      icon: <AgentIcon active={pathname.includes('agents')} />,
       label: <Link to={`/workspaces/${workspaceId}/agents`}>Agents管理</Link>,
     },
     {
       key: 'tools',
-      icon: <ToolOutlined />,
+      icon: <ToolIcon active={pathname.includes('tools')} />,
       label: <Link to={`/workspaces/${workspaceId}/tools`}>工具管理</Link>,
     },
     {
       key: 'datasets',
-      icon: <FolderOutlined />,
+      icon: <DatasetsIcon active={pathname.includes('datasets')} />,
       label: <Link to={`/workspaces/${workspaceId}/datasets`}>知识库管理</Link>,
     },
     {
       key: 'models',
-      icon: <AppstoreOutlined />,
+      icon: <ModelIcon active={pathname.includes('models')} />,
       label: <Link to={`/workspaces/${workspaceId}/models`}>模型管理</Link>,
     },
     {
       key: 'users',
-      icon: <UserOutlined />,
+      icon: <UserIcon active={pathname.includes('users')} />,
       label: <Link to={`/workspaces/${workspaceId}/users`}>用户管理</Link>,
     },
+    {
+      key: 'plugin-connects',
+      icon: <PluginConnectIcon active={pathname.includes('plugin-connects')} />,
+      label: <Link to={`/workspaces/${workspaceId}/plugin-connects`}>插件智连</Link>,
+    }
   ];
 
   return (
-    <Layout className="h-screen overflow-hidden">
+    <Layout className="h-screen overflow-hidden bg-white">
+      <div className="fixed inset-0 pointer-events-none">
+        <Bg/>
+      </div>
       <Sider
-        theme="dark"
+        theme="light"
         onCollapse={(value) => setCollapsed(value)}
-        className="px-4 bg-[#001529] text-[#ABB9C9] h-screen overflow-hidden"
-        width={208}
+        className="p-0 m-0 backdrop-blur-md border-r border-white/80 h-screen overflow-hidden z-20 [&_.ant-layout-sider-children]:rounded-2xl [&_.ant-layout-sider-children]:bg-white/60 [&_.ant-layout-sider-children]:ml-4 [&_.ant-layout-sider-children]:h-[calc(100vh-32px)]"
+        width={272}
       >
-        <div className="mb-4 mt-6">
+        <div className="m-2 mb-7">
           <Select
-            className="w-full rounded-lg bg-[#2D4257] [&_.ant-select-selection-item]:text-white"
-            size="large"
+            className="w-full h-16 rounded-xl bg-white/80 border-white/80 shadow-sm [&_.ant-select-selection-item]:text-[#1D4A6B] [&_.ant-select-selection-item]:text-[18px] [&_.ant-select-selection-item]:font-medium"
+            prefix={<UserOutlined className="text-[#1D4A6B] cursor-pointer pointer-events-none"/>}
             variant="borderless"
             value={currentWorkspace?.id}
             onChange={handleWorkspaceChange}
-            suffixIcon={<SwapOutlined className="text-white cursor-pointer pointer-events-none"/>}
-            dropdownStyle={{ width: 208 }}
+            suffixIcon={<SwapOutlined className="text-[#1D4A6B] cursor-pointer pointer-events-none"/>}
+            dropdownStyle={{ borderRadius: '12px' }}
           >
             {workspaces.map((workspace) => (
               <Select.Option key={workspace.id} value={workspace.id}>
@@ -106,16 +112,18 @@ export default function WorkspaceLayout() {
         </div>
 
         <Menu
-          theme="dark"
+          theme="light"
           mode="inline"
           items={menuItems}
           selectedKeys={[pathname.split('/')[3] || 'agents']}
-          className={`bg-[#001529] border-r-0 [&_.ant-menu-item-selected]:bg-[#2D4257]`}
+          rootClassName='px-3 gap-y-1 flex flex-col'
+          className="bg-transparent border-r-0 [&_.ant-menu-item]:p-3 [&_.ant-menu-item]:h-[48px] [&_.ant-menu-item]:rounded-xl [&_.ant-menu-item-selected]:bg-white [&_.ant-menu-item-selected]:text-[#1D4A6B] [&_.ant-menu-item-selected]:shadow-sm [&_.ant-menu-item]:text-[#7C8B98] [&_.ant-menu-item]:font-medium [&_.ant-menu-item:hover]:bg-white/80"
         />
+
       </Sider>
-      <Layout className="h-screen overflow-hidden">
-        <Suspense fallback={<Skeleton />}>
-          <Content className="bg-white h-full overflow-y-auto">
+      <Layout className="h-screen overflow-hidden bg-transparent z-10">
+        <Suspense fallback={<Skeleton active className="p-8" />}>
+          <Content className="h-full overflow-y-auto">
             <WorkspaceProvider value={{ workspace: currentWorkspace, userInfo: userInfo }}>
               <Outlet />
             </WorkspaceProvider>

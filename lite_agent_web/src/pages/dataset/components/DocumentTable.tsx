@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { Table, Button, Space, Tag, Dropdown, message } from 'antd';
+import React, { useCallback, useMemo } from 'react';
+import { Table, Button, Space, Dropdown, message, Modal } from 'antd';
 
 import { useDatasetContext } from '@/contexts/datasetContext';
 import { Pagination } from '@/utils/paginationUtils';
@@ -7,6 +7,9 @@ import { getAccessToken } from '@/utils/cache';
 import { putV1DatasetDocumentSummary } from '@/client';
 import { DatasetDocument } from '@/client/types.gen';
 import { DocumentSourceType } from '@/types/dataset';
+import { ExclamationCircleFilled, PlusOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import ResponseCode from '@/constants/ResponseCode';
 
 interface DocumentTableProps {
   documents: DatasetDocument[];
@@ -50,7 +53,13 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 
   const token = getAccessToken();
   const { workspaceId } = useDatasetContext();
-  
+  const navigate = useNavigate();
+  const datasetId = useMemo(() => {
+    const path = window.location.pathname;
+    const id = path.split('/')[3];
+    return id;
+  }, []);
+
   const formatNumber = (num: number): string | number => {
     if (num < 1000) return num;
     if (num < 1000000) return `${(num / 1000).toFixed(1)}k`;
@@ -58,7 +67,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   };
 
   const onDownloadMarkdown = useCallback((fileId: string) => {
-    fetch(`/v1/file/dataset/markdown/download?fileId=${fileId}`, {
+    fetch(`/v2/file/download/markdown?fileId=${fileId}`, {
       method: 'GET',
       headers: {
         Accept: 'application/zip,application/octet-stream',
@@ -122,6 +131,20 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 
       if (res.data?.code === 200) {
         message.success('文档摘要更新成功');
+      } else if (res.data?.code === ResponseCode.MODEL_CLOSED) {
+        Modal.confirm({
+          icon: <ExclamationCircleFilled style={{ color: '#40A5EE' }} />,
+          content: '当前摘要模型已停用，请切换为其他模型后重试。',
+          centered: true,
+          okText: '去设置',
+          cancelText: '取消',
+          okButtonProps: {
+            style: { backgroundColor: '#40A5EE', borderColor: '#40A5EE', color: '#fff', marginTop: '32px' },
+          },
+          onOk: () => {
+            navigate(`/dataset/${workspaceId}/${datasetId}/settings`);
+          },
+        });
       } else {
         message.error(res.data?.message || '更新文档摘要失败');
       }
@@ -158,7 +181,13 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       dataIndex: 'enableFlag',
       key: 'enableFlag',
       render: (enableFlag: boolean) => (
-        <Tag color={enableFlag ? 'green' : 'default'}>{enableFlag ? '已激活' : '已冻结'}</Tag>
+        <span className={`inline-block px-2.5 py-1 rounded text-xs font-medium border border-solid ${
+          enableFlag 
+            ? 'bg-[#F6FFED] text-[#52C41A] border-[#BBEB98]' 
+            : 'bg-[#FAEAEB] text-[#CD3440] border-[#EAAAAE]'
+        }`}>
+          {enableFlag ? '已激活' : '已冻结'}
+        </span>
       ),
     },
     {
@@ -214,49 +243,65 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   ];
 
   return (
-    <>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl">文档列表 (共 {total} 个)</h2>
+    <div className="flex flex-col gap-6 h-full overflow-hidden bg-white/40 px-4">
+      <div className="flex justify-between items-center shrink-0">
+        <p className="text-xl">文档列表 (共 {total} 个)</p>
 
-        <Space>
+        <div className="flex items-center gap-3">
           {selectedRowKeys.length > 0 && canDelete && (
             <Button
               danger
+              size="large"
+              className="rounded-xl"
               onClick={() => onBatchDelete(selectedRowKeys.map(String), pagination, setPagination)}
             >
               批量删除 ({selectedRowKeys.length})
             </Button>
           )}
           {canEdit && (
-            <Button size="large" onClick={updateDocumentSummary}>
+            <Button
+              size="large"
+              className="rounded-xl bg-transparent text-[#40A5EE] font-normal border-[#40A5EE] flex items-center h-10"
+              onClick={updateDocumentSummary}
+            >
               更新文档摘要
             </Button>
           )}
           {canEdit && (
-            <Button type="primary" size="large" onClick={handleCreateDocument}>
+            <Button
+              type="primary"
+              size="large"
+              className="rounded-xl bg-[#40A5EE] hover:!bg-[#40A5EE]/90 font-normal border-none shadow-md shadow-blue-200/50"
+              icon={<PlusOutlined />}
+              onClick={handleCreateDocument}
+            >
               新建文档
             </Button>
           )}
-        </Space>
+        </div>
       </div>
 
-      <Table
-        className={documents.length === 0 ? 'hidden' : ''}
-        columns={columns}
-        dataSource={documents}
-        loading={loading}
-        rowKey="id"
-        rowSelection={{
-          selectedRowKeys,
-          onChange: (selectedKeys) => setSelectedRowKeys(selectedKeys as number[]),
-        }}
-        pagination={{
-          ...pagination,
-          total,
-          onChange: (current, pageSize) => setPagination({ current, pageSize }),
-        }}
-      />
-    </>
+      <div className={`flex-1 min-h-0 rounded-2xl border border-white/60 overflow-hidden shadow-sm ${documents.length === 0 ? 'hidden' : ''}`}>
+        <Table
+          columns={columns}
+          dataSource={documents}
+          loading={loading}
+          rowKey="id"
+          scroll={{ y: 'calc(100vh - 320px)' }}
+          rowSelection={{
+            selectedRowKeys,
+            onChange: (selectedKeys) => setSelectedRowKeys(selectedKeys as number[]),
+          }}
+          pagination={{
+            ...pagination,
+            total,
+            className: 'px-6 py-4 !m-0 border-t border-white/60',
+            onChange: (current, pageSize) => setPagination({ current, pageSize }),
+          }}
+          className="customTable [&_.ant-table]:bg-transparent [&_.ant-table-tbody_.ant-table-cell]:hover:bg-transparent [&_.ant-table-body]:!overflow-y-auto"
+        />
+      </div>
+    </div>
   );
 };
 

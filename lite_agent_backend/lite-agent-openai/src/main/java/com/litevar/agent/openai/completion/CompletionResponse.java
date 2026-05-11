@@ -55,4 +55,9 @@ public class CompletionResponse {
     public boolean isFunctionCalling() {
         return StrUtil.equals(choices.get(0).finishReason, FinishReason.TOOL_CALLS);
     }
+
+    public boolean isStopByLength() {
+        //因为输出token达到max_completion_tokens设置的长度,所以结束输出
+        return StrUtil.equals(choices.get(0).finishReason, FinishReason.LENGTH);
+    }
 }

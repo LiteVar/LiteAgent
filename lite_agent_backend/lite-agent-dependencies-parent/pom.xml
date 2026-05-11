@@ -11,16 +11,27 @@
 
     <groupId>com.litevar.agent</groupId>
     <artifactId>lite-agent-dependencies-parent</artifactId>
-    <version>2.0.0</version>
+    <version>3.0.0</version>
     <name>lite-agent-dependencies-parent</name>
-    <description>统一依赖管理</description>
+    <description>Bill of Materials POM (BOM) for the lite-agent project</description>
     <packaging>pom</packaging>
+
+    <organization>
+        <name>LiteVar</name>
+        <url>https://www.liteagent.cn</url>
+    </organization>
+
+    <scm>
+        <url>https://github.com/LiteVar/LiteAgent</url>
+        <connection>git://github.com/LiteVar/LiteAgent.git</connection>
+        <developerConnection>git@github.com:LiteVar/LiteAgent.git</developerConnection>
+    </scm>
 
     <properties>
         <java.version>17</java.version>
         <hutool.version>5.8.29</hutool.version>
-        <spring-ai.version>1.0.2</spring-ai.version>
-        <spring-ai-alibaba.version>1.0.0.2</spring-ai-alibaba.version>
+        <spring-ai.version>1.1.2</spring-ai.version>
+        <spring-ai-alibaba.version>1.1.2.0</spring-ai-alibaba.version>
     </properties>
 
     <dependencyManagement>
@@ -40,15 +51,9 @@
             </dependency>
 
             <dependency>
-                <groupId>com.squareup.okhttp3</groupId>
-                <artifactId>okhttp</artifactId>
-                <version>4.12.0</version>
-            </dependency>
-
-            <dependency>
                 <groupId>com.litevar.opentool</groupId>
                 <artifactId>opentool-core</artifactId>
-                <version>1.0.0</version>
+                <version>2.0.0</version>
             </dependency>
 
             <!-- 以下为各模块依赖管理 -->
@@ -97,7 +102,7 @@
             </dependency>
             <dependency>
                 <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>spring-ai-alibaba-bom</artifactId>
+                <artifactId>spring-ai-alibaba-extensions-bom</artifactId>
                 <version>${spring-ai-alibaba.version}</version>
                 <type>pom</type>
                 <scope>import</scope>

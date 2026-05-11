@@ -1,11 +1,13 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Form, InputNumber, Input, Button, Space, Typography, Spin, Empty, message } from 'antd';
+import { Form, InputNumber, Input, Button, Typography, Spin, Empty, message } from 'antd';
 import { postV1DatasetDocumentsSplitMutation } from '@/client/@tanstack/query.gen';
-import { getV1FileDatasetMarkdownProgress, getV1FileDatasetMarkdownPreview } from '@/client';
+import { getV2FileMarkdownProgress, getV2FileMarkdownPreview } from '@/client';
 import { useMutation } from '@tanstack/react-query';
 import { LinkOutlined } from '@ant-design/icons';
 import { DocumentSourceType } from '@/types/dataset';
 import PreviewSourceModal from '../../retrievalTest/components/PreviewSourceModal';
+import noPreviewImg from '@/assets/dataset/no-preview.png';
+import { normalizeSeparator } from '@/utils/normalizeSeparator';
 
 interface DataProcessProps {
   documentData: any;
@@ -52,7 +54,7 @@ const DataProcess: React.FC<DataProcessProps> = ({ documentData, setDocumentData
 
   const { mutate: previewDocument } = useMutation({
     mutationFn: async (params: { fileId: string }) => {
-      return await getV1FileDatasetMarkdownPreview({
+      return await getV2FileMarkdownPreview({
         query: { fileId: params.fileId },
       });
     },
@@ -87,9 +89,9 @@ const DataProcess: React.FC<DataProcessProps> = ({ documentData, setDocumentData
         workspaceId: documentData.workspaceId,
         dataSourceType: documentData.dataSourceType,
         chunkSize: formValues.chunkSize || 500,
-        separator: formValues.separator || '',
+        separator: normalizeSeparator(formValues.separator) || '',
         metadata: formValues.metadata || '',
-        name: documentData.dataSourceType === DocumentSourceType.INPUT ? documentData.name : '',
+        name: documentData.dataSourceType != DocumentSourceType.FILE ? documentData.name : '',
         content: documentData.dataSourceType === DocumentSourceType.INPUT ? documentData.content : '',
         fileId: documentData.dataSourceType === DocumentSourceType.FILE ? documentData.fileId : '',
         htmlUrl:
@@ -133,7 +135,7 @@ const DataProcess: React.FC<DataProcessProps> = ({ documentData, setDocumentData
   const fetchFileConversionProgress = useCallback(async (fileId: string) => {
     try {
       
-      const res = await getV1FileDatasetMarkdownProgress({
+      const res = await getV2FileMarkdownProgress({
         query: { fileId }
       });
 
@@ -268,99 +270,140 @@ const DataProcess: React.FC<DataProcessProps> = ({ documentData, setDocumentData
   }, []);
 
   return (
-    <div className="flex gap-8 h-full">
-      <div className="flex-1" style={{ borderRight: '1px solid #f0f0f0' }}>
-        <Typography.Title level={5}>数据处理参数设置</Typography.Title>
-        {renderConversionStatus()}
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            separator: documentData.separator || DefaultSplitSet.separator,
-            chunkSize: documentData.chunkSize || DefaultSplitSet.chunkSize,
-            metadata: documentData.metadata || DefaultSplitSet.metadata,
-          }}
-          labelAlign="left"
-          className="mt-8 mr-8"
-        >
-          <Form.Item name="chunkSize" label="片段长度" className="mb-4">
-            <InputNumber min={50} className="w-full" placeholder="请输入片段长度" />
-          </Form.Item>
-          <Form.Item name="separator" label="分隔符" className="mb-4">
-            <Input className="whitespace-pre-wrap" placeholder="请输入分隔符" />
-          </Form.Item>
-          <Form.Item name="metadata" label="metadata" className="mb-0">
-            <Input.TextArea placeholder="可以输入 JSON 格式的 metadata" rows={4} />
-          </Form.Item>
-        </Form>
-        <Space className="w-full text-center mt-8 justify-between">
-          <div>
-            <Button
-              type="primary"
-              size="large"
-              onClick={loadPreview}
-              disabled={documentData.dataSourceType === 'HTML' || isFileConverting}
+    <div className="flex flex-col md:flex-row gap-8 h-full">
+      {/* Left Panel - Settings */}
+      <div className="flex-1 flex flex-col min-w-0 p-4 mr-4 border-r border-white/40 bg-white rounded-2xl">
+        <p className="text-lg mt-0 mb-6 flex items-center gap-2">
+          数据处理参数设置
+        </p>
+        
+        <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
+          {renderConversionStatus()}
+          
+          <div className="bg-white/40 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm">
+            <Form
+              form={form}
+              layout="vertical"
+              initialValues={{
+                separator: documentData.separator || DefaultSplitSet.separator,
+                chunkSize: documentData.chunkSize || DefaultSplitSet.chunkSize,
+                metadata: documentData.metadata || DefaultSplitSet.metadata,
+              }}
+              className="customForm"
             >
-              预览块
-            </Button>
-            <Button
-              type="default"
-              size="large"
-              onClick={resetForm}
-              className="ml-4"
-              disabled={documentData.dataSourceType === 'HTML'}
-            >
-              重置
-            </Button>
+              <Form.Item name="chunkSize" label={<span className="text-gray-600 font-medium">片段长度 :</span>}>
+                <InputNumber 
+                  min={50} 
+                  className="w-full !rounded-xl !border-[#E0E3E6] !bg-white/80 !h-11 flex items-center" 
+                  placeholder="请输入片段长度" 
+                />
+              </Form.Item>
+              
+              <Form.Item name="separator" label={<span className="text-gray-600 font-medium">分隔符 :</span>}>
+                <Input 
+                  className="!rounded-xl !border-[#E0E3E6] !bg-white/80 !h-11 focus:!bg-white transition-all whitespace-pre-wrap" 
+                  placeholder="请输入分隔符" 
+                />
+              </Form.Item>
+              
+              <Form.Item name="metadata" label={<span className="text-gray-600 font-medium">Metadata (JSON) :</span>} className="!mb-0">
+                <Input.TextArea 
+                  placeholder="可以输入 JSON 格式的 metadata" 
+                  rows={4} 
+                  className="!rounded-xl !border-[#E0E3E6] !bg-white/80 focus:!bg-white transition-all !p-3"
+                />
+              </Form.Item>
+            </Form>
           </div>
-          <div className="mr-8">
-            <Button onClick={onPrev} size="large">
-              上一步
-            </Button>
-            <Button 
-              type="primary" 
-              onClick={handleSubmit} 
-              size="large" 
-              className="ml-4"
-              disabled={isFileConverting}
-            >
-              下一步
-            </Button>
-          </div>
-        </Space>
-      </div>
-
-      <div className="w-1/2">
-        <Typography.Title level={5}>
-          预览数据<span className="text-gray-400">（至多5个片段）</span>
-        </Typography.Title>
-        {documentData.dataSourceType === 'HTML' && (
-          <div className="mt-8 rounded-lg overflow-y-auto h-15 bg-[#f5f5f5] p-4 flex items-start">
-            <LinkOutlined className="text-blue-400 text-xl mt-1" />
-            <div className="ml-4">
-              <div className="text-lg">{documentData.htmlUrl}</div>
-              <Typography.Text>链接内容不支持预览</Typography.Text>
+          
+          {/* 放到同一个滚动容器里：让按钮栏紧贴文本域而不是被顶到底部 */}
+          <div className="mt-4 pt-4 border-t border-black/5 flex items-center justify-between">
+            <div className="flex gap-3">
+              <Button
+                type="primary"
+                size="large"
+                onClick={loadPreview}
+                disabled={documentData.dataSourceType === 'HTML' || isFileConverting}
+                className="rounded-xl bg-white text-[#40A5EE] border-[#40A5EE] px-6"
+              >
+                预览块
+              </Button>
+              <Button
+                size="large"
+                onClick={resetForm}
+                disabled={documentData.dataSourceType === 'HTML'}
+                className="rounded-xl border-[#E0E3E6] text-gray-600 hover:!text-blue-500 hover:!border-blue-500 px-6"
+              >
+                重置
+              </Button>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button 
+                onClick={onPrev} 
+                size="large"
+                className="rounded-xl border-[#E0E3E6] text-gray-600 hover:!text-blue-500 hover:!border-blue-500 px-6"
+              >
+                上一步
+              </Button>
+              <Button 
+                type="primary" 
+                onClick={handleSubmit} 
+                size="large" 
+                disabled={isFileConverting}
+                className="rounded-xl bg-[#40A5EE] text-white border-[#40A5EE] px-6"
+              >
+                下一步
+              </Button>
             </div>
           </div>
-        )}
-        {documentData.dataSourceType !== 'HTML' && (
-          <div className="mt-8 rounded-lg overflow-y-auto h-80">
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <Spin tip="加载预览数据中..." />
+        </div>
+      </div>
+
+      {/* Right Panel - Preview */}
+      <div className="w-full md:w-[50%] flex flex-col min-w-0 bg-white p-4 rounded-2xl">
+        <p className="text-lg mt-0 mb-6 flex items-center gap-2">
+          预览数据（至多5个片段）
+        </p>
+
+        <div className="flex-1 min-h-[400px] bg-white/40 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm overflow-hidden flex flex-col">
+          {documentData.dataSourceType === 'HTML' ? (
+            <div className="p-8 flex flex-col items-center justify-center h-full text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 text-2xl mb-4">
+                <LinkOutlined />
               </div>
-            ) : previewData.length > 0 ? (
-              previewData.slice(0, 5).map((chunk, index) => (
-                <div key={index} className="bg-gray-50 p-4 mb-4 rounded">
-                  <div className="text-gray-400 mb-2">#{index + 1}</div>
-                  <div>{chunk || '无内容'}</div>
+              <div className="text-base font-bold text-gray-700 mb-2 truncate w-full px-4">{documentData.htmlUrl}</div>
+              <p className="text-sm text-gray-400">网页链接内容目前不支持实时预览</p>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center h-full gap-4">
+                  <Spin size="large" />
+                  <span className="text-sm text-gray-400">正在切分数据...</span>
                 </div>
-              ))
-            ) : (
-              <Empty description="暂无预览数据，请点击左侧的“预览块”按钮来加载预览" />
-            )}
-          </div>
-        )}
+              ) : previewData.length > 0 ? (
+                <div className="space-y-4">
+                  {previewData.slice(0, 5).map((chunk, index) => (
+                    <div key={index} className="p-4 rounded-xl bg-[#F2F3F5] border border-white shadow-sm animate-in fade-in slide-in-from-right-4" style={{ animationDelay: `${index * 50}ms` }}>
+                      <div className="text-[12px] mb-2 w-fit text-[#383F44]">
+                        #{index + 1}
+                      </div>
+                      <div className="line-clamp-4 break-all text-sm text-[#383F44] leading-relaxed break-words">
+                        {chunk || '无内容'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full opacity-40">
+                  <img src={noPreviewImg} alt="no preview" className="w-[160px] h-[160px] object-contain" />
+                  <span className="text-sm text-gray-400">暂无预览数据，请点击左侧的“预览块”按钮来加载预览</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {previewModalVisible && (
@@ -368,7 +411,7 @@ const DataProcess: React.FC<DataProcessProps> = ({ documentData, setDocumentData
           open={previewModalVisible}
           markdown={convertedContent}
           onCancel={() => setPreviewModalVisible(false)}
-          title={'查看文档'}
+          title={'预览原始文档'}
         />
       )}
     </div>

@@ -57,6 +57,7 @@ const SubAgentModal: React.FC<SubAgentModalProps> = ({
     return (
       <Button
         key="status"
+        className={`bg-transparent ${isSubAgentSelected(agent.id!) ? 'border-0' : 'border-[#40A5EE]'}`}
         color={isSubAgentSelected(agent.id!) ? 'danger' : 'primary'}
         variant="filled"
         onClick={() => toggleSubAgent(agent.id!)}
@@ -101,7 +102,7 @@ const SubAgentModal: React.FC<SubAgentModalProps> = ({
 
   return (
     <Modal
-      title="添加子 Agent"
+      title="添加子Agent"
       open={visible}
       onCancel={onClose}
       footer={null}
@@ -127,7 +128,7 @@ const SubAgentModal: React.FC<SubAgentModalProps> = ({
                 }
                 title={agent.name}
                 description={
-                  <div className="text-xs text-[#c2c2c2] line-clamp-2">
+                  <div className="text-xs text-[#c2c2c2] break-all line-clamp-2">
                     <span>类型：{renderType(agent)}</span>
                   </div>
                 }

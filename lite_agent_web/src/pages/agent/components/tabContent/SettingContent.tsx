@@ -6,7 +6,7 @@ import { Agent } from '@/client';
 import type { GetProp, UploadFile, UploadProps } from 'antd';
 import { buildImageUrl } from '@/utils/buildImageUrl';
 import { validateMaxLength } from '@/utils/validate';
-import { beforeUpload, onUploadAction } from '@/utils/uploadFile';
+import { beforeUpload, customUploadRequest } from '@/utils/uploadFile';
 
 type FileType = Parameters<GetProp<UploadProps, 'beforeUpload'>>[0];
 const { TextArea } = Input;
@@ -45,19 +45,54 @@ const SettingContent: React.FC<ISettingProps> = ({ settingAgent, setSettingAgent
     setPreviewOpen(true);
   };
 
-  const handleImageUpload = async (info: UploadChangeParam) => {
-    setFileList(info.fileList);
+  const handleCustomRequest = async (options: any) => {
+    await customUploadRequest({
+      ...options,
+      onSuccess: (data: any) => {
+        options.onSuccess?.(data);
+        
+        const imageUrl = data;
+        setImageName(imageUrl);
+        setSettingAgent?.({
+          ...form.getFieldsValue(),
+          icon: imageUrl,
+        });
+        
+        setFileList([{
+          uid: options.file.uid,
+          name: options.file.name,
+          status: 'done',
+          url: imageUrl,
+          thumbUrl: imageUrl,
+          type: 'image/jpeg',
+        }]);
+      },
+    });
+  };
 
+  const handleImageUpload = async (info: UploadChangeParam) => {
     if (info.file.status === 'done') {
-      const newImageName = info.file.xhr.responseURL.split('=')[1];
-      setImageName(newImageName);
+      // info.file.response 就是 customUploadRequest 返回的完整图片 URL
+      const imageUrl = info.file.response;
+      setImageName(imageUrl);
       setSettingAgent?.({
         ...form.getFieldsValue(),
-        icon: newImageName,
+        icon: imageUrl,
       });
-      await message.success(`${info.file.name} 上传成功`);
+      
+      // 手动设置 fileList，使用 thumbUrl 避免额外请求
+      setFileList([{
+        uid: info.file.uid,
+        name: info.file.name,
+        status: 'done',
+        url: imageUrl,
+        thumbUrl: imageUrl,
+        type: 'image/jpeg',
+      }]);
+      
     } else if (info.file.status === 'error' || info.file.status === 'removed') {
       setImageName('');
+      setFileList([]);
       setSettingAgent?.({
         ...form.getFieldsValue(),
         icon: '',
@@ -65,13 +100,15 @@ const SettingContent: React.FC<ISettingProps> = ({ settingAgent, setSettingAgent
       if (info.file.status === 'error') {
         message.error(`${info.file.name} 上传失败`);
       }
+    } else {
+      setFileList(info.fileList);
     }
   };
 
   const uploadButton = (
     <div>
       <PlusOutlined />
-      <div style={{ marginTop: 8 }}>上传图标</div>
+      <div style={{ marginTop: 8, color: '#C7CDD3' }}>上传图标</div>
     </div>
   );
 
@@ -88,6 +125,7 @@ const SettingContent: React.FC<ISettingProps> = ({ settingAgent, setSettingAgent
             name: icon,
             status: 'done',
             url: imgUrl,
+            type: 'image/jpeg',
           },
         ]);
         setImageName(icon);
@@ -95,17 +133,13 @@ const SettingContent: React.FC<ISettingProps> = ({ settingAgent, setSettingAgent
     }
   }, [settingAgent, form]);
 
-  if (!visible) {
-    return <div className="invisible w-0 h-0 m-0 p-0" />;
-  }
-
   return (
-    <div className="w-1/2 p-6">
-      <h2 className="text-lg font-medium mb-6">Agent 设置</h2>
+    <div className={visible ? "max-w-[500px] px-4 py-6 bg-white/60 rounded-2xl h-[calc(100%-48px)]" : "invisible w-0 h-0 m-0 p-0 overflow-hidden"}>
+      <h2 className="text-lg font-medium mt-0 mb-4">Agent 设置</h2>
       <Form form={form} layout="vertical" onValuesChange={() => onValuesChange()}>
         <Form.Item
           name="name"
-          label="Agent名称"
+          label="Agent名称:"
           rules={[
             { required: true, message: '请输入Agent名称', whitespace: true },
             { validator: validateMaxLength(20, 'Agent 名称不能超过 20 个字符') }
@@ -114,19 +148,20 @@ const SettingContent: React.FC<ISettingProps> = ({ settingAgent, setSettingAgent
           <Input maxLength={20} placeholder="请输入Agent名称" />
         </Form.Item>
 
-        <Form.Item label="图标" name="icon">
+        <Form.Item label="图标:" name="icon">
           <Upload
             name="icon"
             maxCount={1}
             accept=".png,.jpg,.jpeg,.svg,.gif,.webp"
             listType="picture-card"
-            className="avatar-uploader"
+            className="avatar-uploader [&_img]:object-cover [&_.ant-upload]:bg-[#FCFCFC] [&_.ant-upload]:overflow-hidden"
             showUploadList={true}
-            action={onUploadAction}
+            customRequest={handleCustomRequest}
             beforeUpload={beforeUpload}
             onChange={handleImageUpload}
             onPreview={handlePreview}
             fileList={fileList}
+            isImageUrl={() => true}
           >
             {uploadButton}
           </Upload>
@@ -143,7 +178,7 @@ const SettingContent: React.FC<ISettingProps> = ({ settingAgent, setSettingAgent
           />
         )}
 
-        <Form.Item name="description" label="描述">
+        <Form.Item name="description" label="描述:">
           <TextArea maxLength={200} rows={4} placeholder="用简单几句话将Agent介绍给用户" />
         </Form.Item>
       </Form>

@@ -1,6 +1,7 @@
 package com.litevar.agent.core.module.llm;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.litevar.agent.base.constant.CacheKey;
@@ -12,6 +13,8 @@ import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.response.PageModel;
 import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.base.vo.ModelVO;
+import com.litevar.agent.base.event.ModelStatusChangeEvent;
+import com.litevar.agent.base.util.SpringUtil;
 import com.litevar.agent.core.module.agent.AgentService;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
 import com.mongoplus.conditions.query.LambdaQueryChainWrapper;
@@ -70,6 +73,10 @@ public class ModelService extends ServiceImpl<LlmModel> {
         llmModel.setId(null);
         llmModel.setWorkspaceId(workspaceId);
         llmModel.setUserId(LoginContext.currentUserId());
+        if (!StrUtil.equals(workspaceId, "0")) {
+            //非系统模型默认为启用
+            llmModel.setStatus(1);
+        }
 
         //别名不能重复
         long count = this.lambdaQuery()
@@ -127,24 +134,46 @@ public class ModelService extends ServiceImpl<LlmModel> {
             }
         }
 
-        BeanUtil.copyProperties(vo, llmModel);
+        BeanUtil.copyProperties(vo, llmModel, "status");
         this.updateById(llmModel);
     }
 
-    public PageModel<ModelDTO> modelList(String workspaceId, String type, Boolean autoAgent, Integer pageSize, Integer pageNo) {
+    public PageModel<ModelDTO> modelList(String workspaceId, String type, Boolean autoAgent, Integer pageSize,
+                                         Integer pageNo, String query, Integer tab, List<Integer> statusList) {
+        String userId = LoginContext.currentUserId();
         LambdaQueryChainWrapper<LlmModel> chain = this.lambdaQuery()
-                .eq(LlmModel::getWorkspaceId, workspaceId)
                 .eq(StrUtil.isNotBlank(type), LlmModel::getType, type)
+                .in(ObjectUtil.isNotEmpty(statusList), LlmModel::getStatus, statusList)
                 .eq(autoAgent != null, LlmModel::getAutoAgent, autoAgent)
+                .or(StrUtil.isNotBlank(query), wrapper ->
+                        wrapper.like(LlmModel::getName, query)
+                                .like(LlmModel::getAlias, query))
                 .orderByDesc(LlmModel::getCreateTime);
+
+        if (tab == 1) {
+            //系统
+            chain.eq(LlmModel::getWorkspaceId, "0");
+        } else if (tab == 2) {
+            //我的
+            chain.eq(LlmModel::getWorkspaceId, workspaceId)
+                    .eq(LlmModel::getUserId, userId);
+        } else {
+            //全部
+            chain.in(LlmModel::getWorkspaceId, List.of("0", workspaceId));
+        }
 
         PageResult<LlmModel> all = this.page(chain, pageNo, pageSize);
 
         List<LlmModel> list = all.getContentData();
         List<ModelDTO> res = BeanUtil.copyToList(list, ModelDTO.class);
         res.forEach(dto -> {
-            dto.setCanDelete(getEditPermission(dto.getUserId(), workspaceId));
-            dto.setCanEdit(getEditPermission(dto.getUserId(), workspaceId));
+            if (!StrUtil.equals(dto.getUserId(), userId)) {
+                dto.setApiKey("******");
+                dto.setBaseUrl("******");
+            }
+            boolean edit = getEditPermission(dto.getUserId(), workspaceId, dto.getWorkspaceId());
+            dto.setCanDelete(edit);
+            dto.setCanEdit(edit);
             dto.setCreateUser(proxy().userInfo(dto.getUserId()).getName());
         });
 
@@ -154,7 +183,14 @@ public class ModelService extends ServiceImpl<LlmModel> {
     /**
      * 编辑权限
      */
-    private boolean getEditPermission(String creatorId, String workspaceId) {
+    private boolean getEditPermission(String creatorId, String workspaceId, String dataWorkspaceId) {
+        if (StrUtil.equals(workspaceId, "0")) {
+            return true;
+        }
+        if (!StrUtil.equals(workspaceId, dataWorkspaceId)) {
+            //如果模型不是这个工作空间的,不能编辑
+            return false;
+        }
         String userId = LoginContext.currentUserId();
         RoleEnum role = workspaceMemberService.userRole(workspaceId, userId);
         //谁创建谁有权限编辑,并且普通成员没有权限修改
@@ -172,6 +208,9 @@ public class ModelService extends ServiceImpl<LlmModel> {
     }
 
     public byte[] exportModel(LlmModel model, boolean plainText) {
+        if (!StrUtil.equals(LoginContext.currentUserId(), model.getUserId())) {
+            plainText = false;
+        }
         Map<String, Object> data = new HashMap<>();
         data.put("name", model.getName());
         data.put("alias", model.getAlias());
@@ -253,6 +292,39 @@ public class ModelService extends ServiceImpl<LlmModel> {
             throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "保存过程中发生错误: " + e.getMessage());
         }
         return idMapping;
+    }
+
+    @CacheEvict(value = CacheKey.MODEL_INFO, key = "#id")
+    public void toggleStatus(String id, int status) {
+        LlmModel llmModel = proxy().findById(id);
+
+        llmModel.setStatus(status);
+        updateById(llmModel);
+        if (status == 2) {
+            //禁用,agent要清session
+            SpringUtil.publishEvent(new ModelStatusChangeEvent(this, id));
+        }
+    }
+
+    /**
+     * 检查模型可用性
+     */
+    public void checkModelAvailable(String modelId, String agentId) {
+        if (StrUtil.isEmpty(modelId)) {
+            return;
+        }
+        LlmModel model = proxy().findById(modelId);
+        if (model.getStatus() != 1) {
+            String agentName = "";
+            if (StrUtil.isNotEmpty(agentId)) {
+                Agent agent = agentService.getById(agentId);
+                if (agent != null) {
+                    agentName = "Agent:" + agent.getName() + ",";
+                }
+            }
+            String modelName = "模型:" + model.getName();
+            throw new ServiceException(ServiceExceptionEnum.MODEL_DISABLED, agentName + modelName);
+        }
     }
 
     private ModelService proxy() {

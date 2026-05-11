@@ -7,8 +7,9 @@ import { buildImageUrl } from '@/utils/buildImageUrl';
 import OpenToolSpecForm from './OpenToolSpecForm';
 
 import type { GetProp, UploadFile, UploadProps } from 'antd';
-import { beforeUpload, onUploadAction } from '@/utils/uploadFile';
+import { beforeUpload, customUploadRequest } from '@/utils/uploadFile';
 import ResponseCode from '@/constants/ResponseCode';
+import type { ToolVOAddAction, ToolVOUpdateAction } from '@/client';
 
 type FileType = Parameters<GetProp<UploadProps, 'beforeUpload'>>[0];
 
@@ -19,7 +20,7 @@ const requiresAuth = [ToolSchemaType.OPEN_API3, ToolSchemaType.JSON_RPC];
 interface ToolModalProps {
   visible: boolean;
   onCancel: () => void;
-  onOk: (id: string, values: any) => Promise<number>;
+  onOk: (id: string, values: ToolVOAddAction | ToolVOUpdateAction) => Promise<number>;
   onDelete?: (id: string) => void;
   showExportModal?: (event: React.MouseEvent, record: any) => void;
   initialData?: any;
@@ -37,6 +38,9 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
   const [selectedSchemaType, setSelectedSchemaType] = useState<ToolSchemaType | undefined>(undefined);
   const originalTypeRef = useRef<ToolSchemaType | undefined>(undefined);
   const originalSchemaStrRef = useRef<string>('');
+  const hasShownSchemaWarningRef = useRef(false);
+
+  const SCHEMA_MAX_WARN_LENGTH = 50000;
 
   const resetFormAndState = useCallback(() => {
     form.resetFields();
@@ -45,7 +49,27 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
     setImageName('');
     setFileList([]);
     setIsEditing(false);
+    hasShownSchemaWarningRef.current = false;
   }, [form]);
+
+  const handleSchemaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    if (value.length > SCHEMA_MAX_WARN_LENGTH && !hasShownSchemaWarningRef.current) {
+      hasShownSchemaWarningRef.current = true;
+      Modal.confirm({
+        title: 'Schema 文稿过长',
+        content: (
+          <span style={{ color: '#D97706' }}>
+            Schema 文稿定义过长可能导致 Token 消耗过大或超出模型上下文限制。建议删除不必要的注释、描述，或使用 JSON 压缩。
+          </span>
+        ),
+        okText: '知道了',
+        cancelButtonProps: { style: { display: 'none' } },
+      });
+    } else if (value.length <= SCHEMA_MAX_WARN_LENGTH) {
+      hasShownSchemaWarningRef.current = false;
+    }
+  };
 
   const getSchemaPlaceholder = (schemaType: ToolSchemaType) => {
     switch (schemaType) {
@@ -86,7 +110,7 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
           values.schemaStr = JSON.stringify(openToolSpecData);
         }
 
-        const code = await onOk(initialData?.id, { ...values, icon: imageName });
+        const code = await onOk(initialData?.id, { ...values, icon: imageName } as ToolVOAddAction | ToolVOUpdateAction);
 
         if (code === ResponseCode.S_OK) {
           form.resetFields();
@@ -144,19 +168,50 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
     setPreviewOpen(true);
   };
 
-  const handleImageUpload = async (info: UploadChangeParam) => {
-    setFileList(info.fileList);
+  const handleCustomRequest = async (options: any) => {
+    await customUploadRequest({
+      ...options,
+      onSuccess: (data: any) => {
+        options.onSuccess?.(data);
+        
+        const imageUrl = data;
+        setImageName(imageUrl);
+        
+        setFileList([{
+          uid: '-1',
+          name: 'icon.jpg',
+          status: 'done',
+          url: imageUrl,
+          thumbUrl: imageUrl,
+          type: 'image/jpeg',
+        }]);
+      },
+    });
+  };
 
+  const handleImageUpload = async (info: UploadChangeParam) => {
     if (info.file.status === 'done') {
-      setImageName(info.file.xhr.responseURL.split('=')[1]);
-      await message.success(`${info.file.name} 上传成功`);
+      // info.file.response 就是 customUploadRequest 返回的完整图片 URL
+      const imageUrl = info.file.response;
+      setImageName(imageUrl);
+      
+      // 手动设置 fileList，使用 thumbUrl 避免额外请求
+      setFileList([{
+        uid: '-1',
+        name: 'icon.jpg',
+        status: 'done',
+        url: imageUrl,
+        thumbUrl: imageUrl,
+        type: 'image/jpeg',
+      }]);
     } else if (info.file.status === 'error') {
       setImageName('');
       setFileList([]);
-      message.error(`${info.file.name} 上传失败`);
     } else if (info.file.status === 'removed') {
       setImageName('');
       setFileList([]);
+    } else {
+      setFileList(info.fileList);
     }
   };
 
@@ -189,9 +244,11 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
         setFileList([
           {
             uid: '-1',
-            name: toolIcon,
+            name: 'icon.jpg',
             status: 'done',
             url: imgUrl,
+            thumbUrl: imgUrl, // 使用 thumbUrl 避免 Upload 组件发送额外请求
+            type: 'image/jpeg',
           },
         ]);
 
@@ -215,32 +272,43 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
     <Modal
       zIndex={100}
       centered
-      title={isEditing ? '编辑工具' : '新建工具'}
+      title={<span className="text-[18px] font-medium text-[#1D4A6B]">{isEditing ? '编辑工具' : '新建工具'}</span>}
       open={visible}
+      destroyOnClose
       onCancel={onCancelClick}
       onOk={handleSubmit}
       maskClosable={false}
-      okText="确定"
+      okText="确认"
       cancelText="取消"
       width={800}
+      className="createToolModal max-w-[60vh] [&_.ant-modal-body]:max-h-[70vh] [&_.ant-modal-body]:overflow-auto"
+      styles={{
+        header: { padding: '16px 24px', marginBottom: 0, borderBottom: 'none' },
+        body: { padding: '16px 24px' },
+        footer: { padding: '10px 16px', marginTop: 0, borderTop: 'none' },
+      }}
+      okButtonProps={{ className: 'bg-[#40A5EE] rounded-xl h-10 px-6 border-[#40A5EE]' }}
+      cancelButtonProps={{ className: 'rounded-xl h-10 px-6' }}
     >
       <Form
         form={form}
         layout="vertical"
+        requiredMark={false}
         className="-mb-8 max-h-full overflow-y-auto [&_.ant-form-item]:mb-4"
       >
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="图标" name="icon" style={{ flex: '0 0 50px' }}>
+          <Form.Item label={<span className="text-[14px] text-[#383F44] font-medium">图标</span>} name="icon" style={{ flex: '0 0 50px' }}>
             <Upload
               name="icon"
               maxCount={1}
               accept=".png,.jpg,.jpeg,.svg,.gif,.webp"
               listType="picture-card"
-              className="avatar-uploader"
+              className="avatar-uploader shadow-sm"
               showUploadList={true}
-              action={onUploadAction}
+              customRequest={handleCustomRequest}
               beforeUpload={beforeUpload}
               onChange={handleImageUpload}
+              isImageUrl={() => true}
               onPreview={handlePreview}
               fileList={fileList}
             >
@@ -250,11 +318,11 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
 
           <Form.Item
             name="name"
-            label="工具名称"
+            label={<span className="text-[14px] text-[#383F44] font-medium">工具名称</span>}
             rules={[{ required: true, message: '请输入工具名称', whitespace: true }]}
             style={{ flex: 1 }}
           >
-            <Input maxLength={50} placeholder="请输入工具名称" />
+            <Input className="h-10 rounded-lg shadow-sm" maxLength={50} placeholder="请输入工具名称" />
           </Form.Item>
         </div>
 
@@ -270,106 +338,126 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
           />
         )}
 
-        <Form.Item name="description" label="描述">
-          <TextArea rows={3} maxLength={200} placeholder="用简单几句话将工具介绍给用户" />
+        <Form.Item name="description" label={<span className="text-[14px] text-[#383F44] font-medium">描述</span>}>
+          <TextArea className="rounded-lg shadow-sm" rows={3} maxLength={200} placeholder="用简单几句话将工具介绍给用户" />
         </Form.Item>
 
-        <Form.Item label={<span className="font-bold">Schema</span>}>
-          <Form.Item
-            label="类型"
-            name="schemaType"
-            style={{ display: 'inline-block', width: 'calc(30% - 8px)', marginRight: '8px' }}
-            rules={[{ required: true, message: '请选择协议类型' }]}
-          >
-            <Select
-              placeholder="这里显示协议类型"
-              onChange={(value) => {
-                setSelectedSchemaType(value);
-                form.setFields([
-                  {
-                    name: 'schemaStr',
-                    errors: [],
-                  },
-                ]);
+        <div className="bg-[#F2F3F5] rounded-xl p-4 mb-4">
+          <h4 className="text-[14px] font-bold text-[#383F44] mb-4">Schema</h4>
+          <div className="flex gap-4">
+            <Form.Item
+              label={<span className="text-[12px] text-[#7C8B98]">类型</span>}
+              name="schemaType"
+              style={{ flex: '0 0 200px' }}
+              rules={[{ required: true, message: '请选择协议类型' }]}
+            >
+              <Select
+                className="rounded-lg"
+                placeholder="这里显示协议类型"
+                onChange={(value) => {
+                  setSelectedSchemaType(value);
+                  hasShownSchemaWarningRef.current = false;
+                  form.setFields([
+                    {
+                      name: 'schemaStr',
+                      errors: [],
+                    },
+                  ]);
 
-                // 如果切回到初始类型，恢复为原始文稿
-                if (value === originalTypeRef.current) {
-                  const originalStr = originalSchemaStrRef.current || '';
-                  form.setFieldValue('schemaStr', originalStr);
-                  if (value === ToolSchemaType.OPEN_TOOL_SPEC && originalStr) {
-                    try {
-                      const openToolSpecData = JSON.parse(originalStr);
-                      form.setFieldValue('origin', openToolSpecData.origin);
-                      form.setFieldValue('apiKey', openToolSpecData.apiKey);
-                      form.setFieldValue('serverUrl', openToolSpecData.serverUrl);
-                      form.setFieldValue('schema', openToolSpecData.schema);
-                    } catch {
-                      // ignore JSON parse error and keep fields as-is
+                  // 如果切回到初始类型，恢复为原始文稿
+                  if (value === originalTypeRef.current) {
+                    const originalStr = originalSchemaStrRef.current || '';
+                    form.setFieldValue('schemaStr', originalStr);
+                    if (value === ToolSchemaType.OPEN_TOOL_SPEC && originalStr) {
+                      try {
+                        const openToolSpecData = JSON.parse(originalStr);
+                        form.setFieldValue('origin', openToolSpecData.origin);
+                        form.setFieldValue('apiKey', openToolSpecData.apiKey);
+                        form.setFieldValue('serverUrl', openToolSpecData.serverUrl);
+                        form.setFieldValue('schema', openToolSpecData.schema);
+                      } catch {
+                        // ignore JSON parse error and keep fields as-is
+                      }
                     }
+                    return;
                   }
-                  return;
-                }
 
-                // 当切换到 OPEN_TOOL_SPEC 类型时，设置默认的 schemaStr
-                if (value === ToolSchemaType.OPEN_TOOL_SPEC) {
-                  const defaultData = {
-                    origin: 'server',
-                    apiKey: '',
-                    serverUrl: '',
-                    schema: ''
-                  };
-                  form.setFieldValue('schemaStr', JSON.stringify(defaultData));
-                } else {
-                  // 切换到其他类型时，清空 schemaStr
-                  form.setFieldValue('schemaStr', '');
-                }
-              }}
-            >
-              <Select.Option value={ToolSchemaType.OPEN_API3}>OpenAPI3(YAML/JSON)</Select.Option>
-              <Select.Option value={ToolSchemaType.JSON_RPC}>OpenRPC(JSON)</Select.Option>
-              <Select.Option value={ToolSchemaType.OPEN_TOOL}>第三方OpenTool</Select.Option>
-              <Select.Option value={ToolSchemaType.MCP}>MCP(HTTP)</Select.Option>
-              <Select.Option value={ToolSchemaType.OPEN_TOOL_SPEC}>OpenTool Spec</Select.Option>
-            </Select>
-          </Form.Item>
-          {selectedSchemaType === ToolSchemaType.OPEN_TOOL_SPEC ? (
-            <div style={{ display: 'inline-block', width: 'calc(70%)' }}>
-              <OpenToolSpecForm form={form} />
-            </div>
-          ) : (
-            <Form.Item
-              label="文稿"
-              name="schemaStr"
-              style={{ display: 'inline-block', width: 'calc(70%)' }}
-              rules={[{ required: true, message: getSchemaPlaceholder(selectedSchemaType!), whitespace: true }]}
-            >
-              <TextArea rows={8} maxLength={20000} placeholder={getSchemaPlaceholder(selectedSchemaType!)} />
-            </Form.Item>
-          )}
-        </Form.Item>
-
-        {requiresAuth.includes(selectedSchemaType!) && (
-          <Form.Item label={<span className="font-bold">API Key</span>}>
-            <Form.Item
-              label="认证类型"
-              name="apiKeyType"
-              style={{ display: 'inline-block', width: 'calc(30% - 8px)', marginRight: '8px' }}
-            >
-              <Select placeholder="这里显示Key类型" defaultValue={NO_SELECT}>
-                <Select.Option value={NO_SELECT}>暂不选择</Select.Option>
-                <Select.Option value="Basic">Basic</Select.Option>
-                <Select.Option value="Bearer">Bearer</Select.Option>
+                  // 当切换到 OPEN_TOOL_SPEC 类型时，设置默认的 schemaStr
+                  if (value === ToolSchemaType.OPEN_TOOL_SPEC) {
+                    const defaultData = {
+                      origin: 'server',
+                      apiKey: '',
+                      serverUrl: '',
+                      schema: ''
+                    };
+                    form.setFieldValue('schemaStr', JSON.stringify(defaultData));
+                  } else {
+                    // 切换到其他类型时，清空 schemaStr
+                    form.setFieldValue('schemaStr', '');
+                  }
+                }}
+              >
+                <Select.Option value={ToolSchemaType.OPEN_API3}>OpenAPI3(YAML/JSON)</Select.Option>
+                <Select.Option value={ToolSchemaType.JSON_RPC}>OpenRPC(JSON)</Select.Option>
+                <Select.Option value={ToolSchemaType.OPEN_TOOL}>第三方OpenTool</Select.Option>
+                <Select.Option value={ToolSchemaType.MCP}>MCP(HTTP)</Select.Option>
+                <Select.Option value={ToolSchemaType.OPEN_TOOL_SPEC}>OpenTool Spec</Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item label="Key值" name="apiKey" style={{ display: 'inline-block', width: 'calc(70%)' }}>
-              <Input maxLength={150} placeholder="请输入API Key" />
-            </Form.Item>
-          </Form.Item>
+            {selectedSchemaType === ToolSchemaType.OPEN_TOOL_SPEC ? (
+              <div style={{ flex: 1 }}>
+                <OpenToolSpecForm form={form} onSchemaChange={handleSchemaChange} />
+              </div>
+            ) : (
+              <Form.Item
+                label={<span className="text-[12px] text-[#7C8B98]">文稿</span>}
+                name="schemaStr"
+                style={{ flex: 1 }}
+                rules={[{ required: true, message: getSchemaPlaceholder(selectedSchemaType!), whitespace: true }]}
+              >
+                <TextArea 
+                  className="rounded-lg font-mono text-[12px]"
+                  rows={8}
+                  placeholder={getSchemaPlaceholder(selectedSchemaType!)} 
+                  onChange={handleSchemaChange}
+                />
+              </Form.Item>
+            )}
+          </div>
+        </div>
+
+        {requiresAuth.includes(selectedSchemaType!) && (
+          <div className="bg-[#F2F3F5] rounded-xl p-4 mb-4">
+            <h4 className="text-[14px] font-bold text-[#383F44] mb-4">API Key</h4>
+            <div className="flex gap-4">
+              <Form.Item
+                label={<span className="text-[12px] text-[#7C8B98]">认证类型</span>}
+                name="apiKeyType"
+                style={{ flex: '0 0 200px' }}
+              >
+                <Select className="rounded-lg" placeholder="这里显示Key类型" defaultValue={NO_SELECT}>
+                  <Select.Option value={NO_SELECT}>暂不选择</Select.Option>
+                  <Select.Option value="Basic">Basic</Select.Option>
+                  <Select.Option value="Bearer">Bearer</Select.Option>
+                </Select>
+              </Form.Item>
+              <Form.Item label={<span className="text-[12px] text-[#7C8B98]">Key值</span>} name="apiKey" style={{ flex: 1 }}>
+                <Input className="h-10 rounded-lg" maxLength={150} placeholder="请输入API Key" />
+              </Form.Item>
+            </div>
+          </div>
         )}
 
-        <Form.Item name="autoAgent" label="是否支持Auto Multi Agent使用" valuePropName="checked">
-          <Switch />
-        </Form.Item>
+        <div className="flex items-center py-4 mb-4">
+          <span className="text-[#383f44] text-[14px] leading-[22px] font-bold mr-4">支持Auto Agent使用</span>
+          <Form.Item
+            name="autoAgent"
+            valuePropName="checked"
+            noStyle
+          >
+            <Switch size='small' />
+          </Form.Item>
+        </div>
       </Form>
       {isEditing && onDelete && initialData?.canDelete && (
         <Popconfirm
@@ -379,15 +467,16 @@ const CreateToolModal: React.FC<ToolModalProps> = (props) => {
           onConfirm={handleDelete}
           okText="确认"
           cancelText="取消"
+          okButtonProps={{ danger: true, className: 'bg-[#CC2D3A] border-[#CC2D3A]' }}
         >
-          <Button danger className="bottom-[20px] float-left absolute">
+          <Button danger className="bottom-[20px] left-[24px] absolute rounded-xl h-10 px-6">
             删除
           </Button>
         </Popconfirm>
       )}
       {isEditing && showExportModal && initialData?.canEdit && (
         <Button
-          className={`bottom-[20px] float-left absolute ${isEditing && onDelete ? 'left-[100px]' : 'left-[20px]'}`}
+          className={`bottom-[20px] absolute rounded-xl h-10 px-6 border-[#E0E3E6] text-[#383F44] ${isEditing && onDelete && initialData?.canDelete ? 'left-[120px]' : 'left-[24px]'}`}
           onClick={(event) => showExportModal(event, initialData)}
           key={`export-${initialData?.id}`}
         >

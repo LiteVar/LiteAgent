@@ -20,19 +20,10 @@ spring:
             enable: true
   main:
     allow-circular-references: true
-  ai:
-    model:
-      chat: none
-      audio:
-        speech: none
-        transcription: none
-      embedding: none
-      image: none
-      moderation: none
   servlet:
     multipart:
-      max-file-size: 20MB
-      max-request-size: 20MB
+      max-file-size: 1024MB
+      max-request-size: 1024MB
 
 mongo-plus:
   configuration:
@@ -51,10 +42,22 @@ llm:
   # 大模型请求超时时间(单位:秒)
   timeout: 300
 
-dolphin:
-  base-url: https://example.com:8082
-  token: xxxxx
-  poll-interval: 3s
-  poll-timeout: 5m
-  download-timeout: 2m
-  request-timeout: 60s
+aliyun:
+  oss:
+    endpoint: oss-cn-placeholder.aliyuncs.com
+    custom-domain:
+    region: cn-placeholder
+    bucket-name: liteagent-placeholder-9x2k
+    access-key-id: AKID_PLACEHOLDER_7F2NQ8M4
+    access-key-secret: SK_PLACEHOLDER_p3R8vK4m2Lq9xN7z
+
+storage:
+  type: local
+#  type: oss
+  base-path-local: /home/liteAgent/upload
+  base-path-oss: private
+  image-path: multimedia/image/
+  audio-path: multimedia/audio/
+  video-path: multimedia/video/
+  document-path: document/knowledge/
+  access-timeout: 1800 # 30 minutes

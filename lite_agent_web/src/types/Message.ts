@@ -18,9 +18,11 @@ export enum MessageRole {
 
 export enum TaskMessageType {
   TEXT = 'text',
+  CONTENT_LIST = 'contentList',
   THINK = 'think',
   ERROR = 'error',
   IMAGE_URL = 'imageUrl',
+  VIDEO_URL = 'videoUrl',
   FUNCTION_CALL_LIST = 'functionCallList',
   TOOL_RETURN = 'toolReturn',
   FLAG = 'flag',

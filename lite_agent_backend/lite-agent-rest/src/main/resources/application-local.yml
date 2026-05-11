@@ -12,14 +12,23 @@ mongo-plus:
       host: 127.0.0.1
       port: 27018
       username: xxx
-      password: xxxxx
+      password: xxx
       authentication-database: admin
       database: lite-agent
       connect-timeout-m-s: 50000
 
-milvus:
+qdrant:
   host: 127.0.0.1
-  port: 19530
-  username: xxx
-  password: xxxxx
-  database: lite_agent
+  port: 6334
+  use-tls: false
+  api-key: xxx
+  timeout-seconds: 10
+
+plugin:
+  runner:
+    base-url: http://127.0.0.1:18080
+    encrypted-key: xxx
+
+hub:
+  url: http://127.0.0.1:9081
+  key: xxx

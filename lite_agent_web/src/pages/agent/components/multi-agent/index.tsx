@@ -32,6 +32,7 @@ const MultiAgent: FC<MultiAgentProps> = ({
       <Divider />
       <Collapse ghost>
         <Panel 
+          className='[&_.ant-collapse-content-box]:px-0'
           header={<span className="text-base font-medium">Auto Multi-Agent 控制</span>} 
           key="1"
         >

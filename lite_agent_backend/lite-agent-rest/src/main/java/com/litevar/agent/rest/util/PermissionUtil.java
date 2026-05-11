@@ -3,6 +3,7 @@ package com.litevar.agent.rest.util;
 import cn.hutool.core.util.StrUtil;
 import com.litevar.agent.base.enums.RoleEnum;
 import com.litevar.agent.base.util.LoginContext;
+import com.litevar.agent.base.util.SpringUtil;
 import com.litevar.agent.core.module.workspace.WorkspaceMemberService;
 
 /**

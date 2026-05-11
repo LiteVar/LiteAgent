@@ -6,6 +6,7 @@ import React from 'react';
 import { AgentDetailVO } from '@/client';
 import { AgentType, TtsStatus } from './enums';
 import { AgentMessage, AgentMessageMap, ToolMessage, KnowledgeMessage, ReflectMessage, AgentSwitchMessage } from './messages';
+import { ChatMessageItem } from '@/hooks/chat/useChatSSE';
 
 /**
  * Chat 组件 Props
@@ -14,7 +15,6 @@ export interface ChatProps {
   mode: 'dev' | 'prod';
   agentInfo: AgentDetailVO | undefined;
   agentId: string;
-  asrEnabled: boolean;
   setAgentMap?(agentMap: AgentMessageMap): void;
 }
 
@@ -35,24 +35,28 @@ export interface ChatInputProps {
   value: string;
   mode: 'dev' | 'prod';
   agentType: AgentType;
+  agentId: string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onSend: (type: 'text' | 'execute' | 'imageUrl', text?: string) => void;
+  onSend: (messages: ChatMessageItem[]) => void;
   setAsrLoading: (value: boolean) => void;
   asrModelId: string;
+  asrStreamSupported?: boolean; // ASR 模型是否支持流式
 }
 
 /**
  * ChatMessage 组件 Props
  */
 export interface ChatMessageProps {
+  agentId: string;
   message: AgentMessage;
   agentIcon?: string;
   mode: 'dev' | 'prod';
   isLastMessage?: boolean;
   onRetry: () => void;
-  onSendMessage: (type: 'text' | 'execute' | 'imageUrl', text?: string) => Promise<void>;
+  onSendMessage: (messages: ChatMessageItem[]) => Promise<void>;
   onShowThinkMessage: (event: React.MouseEvent<HTMLDivElement>, message: AgentMessage) => void;
   ttsModelId?: string;
+  ttsStreamSupported?: boolean;
   isLastThinkMessage: boolean;
   lastThinkMessage: React.RefObject<HTMLDivElement>;
 }
@@ -61,6 +65,7 @@ export interface ChatMessageProps {
  * ChatMessages 组件 Props
  */
 export interface ChatMessagesProps {
+  agentId: string;
   onShowThinkMessage: (event: React.MouseEvent<HTMLDivElement>, message: AgentMessage) => void;
   messages: AgentMessage[];
   agentIcon?: string;
@@ -68,18 +73,22 @@ export interface ChatMessagesProps {
   onRetry: (index: number) => void;
   asrLoading: boolean;
   ttsModelId: string;
+  ttsStreamSupported: boolean;
   lastThinkMessage: React.RefObject<HTMLDivElement>;
-  onSendMessage: (type: 'text' | 'execute' | 'imageUrl', text?: string) => Promise<void>;
+  onSendMessage: (messages: ChatMessageItem[]) => Promise<void>;
 }
 
 /**
  * MessageActions 组件 Props
  */
 export interface MessageActionsProps {
-  onCopy: () => void;
+  onCopy: (event: React.MouseEvent<HTMLSpanElement>) => void;
+  onStop?: (taskId: string) => void;
   onRetry: () => void;
   show: boolean;
   copied: boolean;
+  taskId?: string;
+  responding?: boolean;
   retryDisabled?: boolean;
   showRetry?: boolean;
   isAssistant?: boolean;
@@ -108,7 +117,7 @@ export interface ChatThoughtProcessProps {
  */
 export interface ChatResultProcessProps {
   resultProcessMessages: AgentMessage[];
-  onSendMessage: (type: 'text' | 'execute' | 'imageUrl', text?: string) => Promise<void>;
+  onSendMessage: (messages: ChatMessageItem[]) => Promise<void>;
 }
 
 /**
@@ -116,7 +125,7 @@ export interface ChatResultProcessProps {
  */
 export interface ChatPlanningProps {
   message: AgentMessage;
-  onSendMessage: (type: 'text' | 'execute' | 'imageUrl', text?: string) => Promise<void>;
+  onSendMessage: (messages: ChatMessageItem[]) => Promise<void>;
 }
 
 /**

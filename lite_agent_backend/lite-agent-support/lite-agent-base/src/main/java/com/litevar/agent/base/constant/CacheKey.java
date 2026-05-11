@@ -27,12 +27,22 @@ public interface CacheKey {
     String INIT_STATUS = "initStatus";
 
     String SESSION_INFO = "session:info:%s";
-    String FUNCTION_EXECUTE_MODE = "session:function:mode:%s";
     String SESSION_CHAT = "session:chat:%s";
+    /**
+     * task上下文合并队列
+     */
+    String SESSION_CHAT_TASK_QUEUE = "session:chat:queue:%s";
+    /**
+     * task上下文合并锁
+     */
+    String SESSION_CHAT_TASK_QUEUE_LOCK = "session:chat:queue:lock:%s";
     String REFLECT_INFO = "session:reflect:%s";
     String REFLECT_TOOL_INFO = "session:reflect:tool:%s";
-    String SESSION_PLAN_INFO = "session:plan:%s";
 
+    String SESSION_PLAN_INFO = "session:plan:%s";
+    String PLAN_EXECUTION_STATE = "session:plan:execution:%s:%s";
+
+    String SESSION_AGENT_RUNTIME = "session:%s:%s";
     /**
      * agent未发布的信息
      */
@@ -46,6 +56,7 @@ public interface CacheKey {
     String TOOL_INFO = "tool:info";
     String TOOL_API_KEY_INFO = "tool:apiKey";
     String TOOL_FUNCTION_INFO = "tool:function";
+    String SECRET_KEY = "secret:key";
 
     // 重置密码-验证码缓存key
     String RESET_PASSWORD_CAPTCHA = "reset:password:captcha:%s";

@@ -70,6 +70,7 @@ const AutoAgentModelList: React.FC<ToolsListProps> = ({
       <Divider />
       <Collapse ghost>
         <Panel
+          className='[&_.ant-collapse-content-box]:px-0'
           header={<span className="text-base font-medium">模型</span>}
           collapsible="header"
           key="1"
@@ -116,7 +117,7 @@ const AutoAgentModelList: React.FC<ToolsListProps> = ({
                   type="link"
                   onClick={() => setShowAll(!showAll)}
                   icon={showAll ? <UpOutlined /> : <DownOutlined />}
-                  iconPosition="end"
+                  className="text-[#40A5EE] hover:text-[#40A5EE]/80"
                 >
                   {showAll ? '收起' : '更多'}
                 </Button>

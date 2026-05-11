@@ -10,12 +10,14 @@ public class ConversionOptions {
     private final String imageDir;
     private final ConversionProgressListener progressListener;
     private final String prefixPath;
+    private final String fileId;
 
     private ConversionOptions(Builder b) {
         this.outputDir = b.outputDir;
-        this.imageDir = b.imageDir == null ? "assets/images" : b.imageDir;
+        this.imageDir = b.imageDir == null ? "imgs" : b.imageDir;
         this.progressListener = b.progressListener;
         this.prefixPath = b.prefixPath;
+        this.fileId = b.fileId;
     }
 
     public static Builder builder() { return new Builder(); }
@@ -25,7 +27,9 @@ public class ConversionOptions {
         private String imageDir;
         private ConversionProgressListener progressListener;
         private String prefixPath;
+        private String fileId;
 
+        public Builder fileId(String fileId) { this.fileId = fileId; return this; }
         public Builder prefixPath(String prefixPath) { this.prefixPath = prefixPath; return this; }
         public Builder outputDir(Path outputDir) { this.outputDir = outputDir; return this; }
         public Builder imageDir(String imageDir) { this.imageDir = imageDir; return this; }

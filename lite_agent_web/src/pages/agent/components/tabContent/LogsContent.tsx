@@ -64,12 +64,8 @@ const LogsContent: React.FC<ILogsContentProps> = ({ agentId, visible }) => {
     setKnowledgeResultVisible(false);
   }, []);
 
-  if (!visible) {
-    return <div className="invisible w-0 h-0 m-0 p-0" />;
-  }
-
   return (
-    <div className="p-6">
+    <div className={visible ? "px-4 py-6 flex flex-col bg-white/60 rounded-2xl h-[calc(100%-48px)]" : "invisible w-0 h-0 m-0 p-0 overflow-hidden"}>
       <LogsHeader
         onRefresh={handleRefresh}
         onSearch={handleSearch}
@@ -79,11 +75,7 @@ const LogsContent: React.FC<ILogsContentProps> = ({ agentId, visible }) => {
         onPaginationChange={handlePaginationChange}
       />
 
-      <p className="mb-6 text-gray-500 text-base">
-        聊天记录包含了使用发布的agent、agent的API进行聊天后产生的对话记录
-      </p>
-
-      <div className="space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 290px)' }}>
+      <div className="space-y-6 overflow-y-auto flex-1">
         {data?.data?.list?.map((item: MessageDTO, index: number) => (
           <LogItem
             key={item.sessionId}

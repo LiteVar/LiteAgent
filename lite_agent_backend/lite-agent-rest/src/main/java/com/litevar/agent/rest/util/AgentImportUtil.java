@@ -32,7 +32,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,8 +46,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -82,7 +82,7 @@ public class AgentImportUtil {
     @Autowired
     private Validator validator;
     @Autowired
-    private UploadFileService uploadFileService;
+    private UploadFileServiceV2 uploadFileServiceV2;
     @Autowired
     private LitevarProperties litevarProperties;
     @Autowired
@@ -121,11 +121,29 @@ public class AgentImportUtil {
 
     public ImportDescriptor previewAgent(MultipartFile file, String workspaceId) {
         assertAgentFile(file);
+        try {
+            return previewAgent(file.getInputStream(), workspaceId);
+        } catch (IOException e) {
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "读取导入文件失败:" + e.getMessage());
+        }
+    }
+
+    public ImportDescriptor previewAgent(byte[] content, String filename, String workspaceId) {
+        if (content == null || content.length == 0) {
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "文件不能为空");
+        }
+        if (!StrUtil.endWith(filename, ".agent")) {
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "仅支持agent格式的导入文件");
+        }
+        return previewAgent(new ByteArrayInputStream(content), workspaceId);
+    }
+
+    private ImportDescriptor previewAgent(InputStream inputStream, String workspaceId) {
         String token = UUID.fastUUID().toString(true);
         Path tempDir = createTempDirectory(token);
 
         //读取数据
-        ImportDescriptor descriptor = readArchive(file, tempDir);
+        ImportDescriptor descriptor = readArchive(inputStream, tempDir);
         descriptor.setTempDir(tempDir.toString());
         descriptor.setToken(token);
 
@@ -137,6 +155,7 @@ public class AgentImportUtil {
 
         //暂存数据
         persistDescriptor(token, descriptor);
+        descriptor.setWorkspaceId(workspaceId);
         return descriptor;
     }
 
@@ -148,21 +167,25 @@ public class AgentImportUtil {
         Path tempDir = createTempDirectory(token);
 
         //读取数据
-        ImportDescriptor descriptor = readArchive(archive, tempDir);
-        descriptor.setTempDir(tempDir.toString());
-        descriptor.setToken(token);
+        try {
+            ImportDescriptor descriptor = readArchive(archive.getInputStream(), tempDir);
+            descriptor.setTempDir(tempDir.toString());
+            descriptor.setToken(token);
 
-        Set<String> availableModelIds = descriptor.getModelMap().keySet();
-        //校验数据
-        validateKnowledgeBases(descriptor.getKnowledgeBaseMap(), availableModelIds);
+            Set<String> availableModelIds = descriptor.getModelMap().keySet();
+            //校验数据
+            validateKnowledgeBases(descriptor.getKnowledgeBaseMap(), availableModelIds);
 
-        //查找相同的数据
-        findSimilarData(descriptor, workspaceId);
+            //查找相同的数据
+            findSimilarData(descriptor, workspaceId);
 
-        //暂存数据
-        persistDescriptor(token, descriptor);
+            //暂存数据
+            persistDescriptor(token, descriptor);
 
-        return descriptor;
+            return descriptor;
+        } catch (IOException e) {
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(), "读取导入文件失败:" + e.getMessage());
+        }
     }
 
     private void assertAgentFile(MultipartFile file) {
@@ -175,9 +198,9 @@ public class AgentImportUtil {
         }
     }
 
-    private ImportDescriptor readArchive(MultipartFile file, Path tempDir) {
+    private ImportDescriptor readArchive(InputStream inputStream, Path tempDir) {
         ImportDescriptor descriptor = new ImportDescriptor();
-        try (ZipInputStream zis = new ZipInputStream(file.getInputStream(), StandardCharsets.UTF_8)) {
+        try (ZipInputStream zis = new ZipInputStream(inputStream, StandardCharsets.UTF_8)) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
                 if (entry.isDirectory() || StrUtil.equals(entry.getName(), METADATA_FILE)) {
@@ -845,14 +868,14 @@ public class AgentImportUtil {
         try {
             Map.Entry<String, String> markdownEntry = document.getFilePathMap().entrySet().stream().filter(entry -> StrUtil.endWithIgnoreCase(entry.getKey(), ".md")).findFirst().get();
             Path markdownFile = Paths.get(markdownEntry.getValue());
-            byte[] markdownBytes = Files.readAllBytes(markdownFile);
-            //写markdown文件
-            UploadFile uploadFile = uploadFileService.saveFile(dataset.getId(), markdownEntry.getKey(), markdownBytes, "text/markdown");
-            updateMarkdownImageLinks(uploadFile);
-            //写图片
-            writeDocumentImages(uploadFile, document, dataset.getName(), documentName);
 
-            form.setFileId(uploadFile.getId());
+            //上传markdown文件
+            UploadFileV2 uploadFileV2 = uploadFileServiceV2.uploadFile(Files.newInputStream(markdownFile), markdownEntry.getKey(), dataset.getId());
+
+            //上传图片
+            uploadMarkdownImages(uploadFileV2.getFileKey(), document);
+
+            form.setFileId(uploadFileV2.getId());
 
             if (canEmbedding) {
                 documentService.createDocument(dataset.getId(), form);
@@ -869,77 +892,28 @@ public class AgentImportUtil {
         }
     }
 
-    private void writeDocumentImages(UploadFile uploadFile,
-                                     KnowledgeDocument document,
-                                     String datasetName,
-                                     String documentName) {
-        Path markdownDir = Paths.get(uploadFile.getMarkdownPath()).getParent();
-        for (Map.Entry<String, String> entry : document.getFilePathMap().entrySet()) {
-            String relativePath = entry.getKey();
-            if (!relativePath.startsWith(IMAGES_DIR)) {
-                continue;
-            }
-            Path source = Paths.get(entry.getValue());
-            if (!Files.exists(source)) {
-                continue;
-            }
-            Path target = markdownDir.resolve(relativePath);
-            try {
-                Files.createDirectories(target.getParent());
-                Files.write(target, Files.readAllBytes(source));
-            } catch (IOException e) {
-                log.error("导入失败,知识库文档写入图片失败", e);
-                throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(),
-                        StrUtil.format("导入失败，知识库{}的文档{}写入图片{}失败: {}",
-                                datasetName, documentName, relativePath, e.getMessage()));
-            }
-        }
-    }
-
-    private void updateMarkdownImageLinks(UploadFile uploadFile) {
-        Path markdownPath = Paths.get(uploadFile.getPath());
+    private void uploadMarkdownImages(String markdownFileKey, KnowledgeDocument document) {
         try {
-            String content = Files.readString(markdownPath, StandardCharsets.UTF_8);
-            Pattern pattern = Pattern.compile("(!\\[[^\\]]*]\\()(imgs[^)\\s]+)([^)]*)\\)");
-            Matcher matcher = pattern.matcher(content);
-            if (!matcher.find()) {
-                return;
-            }
-            String resourcesPrefix = buildResourcesPrefix(markdownPath.getParent());
-            StringBuilder buffer = new StringBuilder();
-            do {
-                String relativePath = matcher.group(2);
-                String normalizedRelative = StrUtil.removePrefix(relativePath, "/");
-                String newPath = resourcesPrefix + "/" + normalizedRelative;
-                matcher.appendReplacement(buffer,
-                        Matcher.quoteReplacement(matcher.group(1) + newPath + matcher.group(3) + ")"));
-            } while (matcher.find());
-            matcher.appendTail(buffer);
-            Files.writeString(markdownPath, buffer.toString(), StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (IOException e) {
-            log.error("更新Markdown图片链接失败, 文件: {}", uploadFile.getPath(), e);
-            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(),
-                    "导入失败，Markdown图片链接处理异常");
-        }
-    }
+            String keyPrefix = Paths.get(markdownFileKey).getParent().resolve("imgs").toString().replace("\\", "/");
+            keyPrefix = StrUtil.removePrefix(keyPrefix, "/");
 
-    private String buildResourcesPrefix(Path markdownDir) {
-        if (markdownDir == null) {
-            return "/resources";
+            for (Map.Entry<String, String> entry : document.getFilePathMap().entrySet()) {
+                String relativePath = entry.getKey().replace("\\", "/");
+                if (!StrUtil.startWithIgnoreCase(relativePath, IMAGES_DIR)) {
+                    continue;
+                }
+                Path source = Paths.get(entry.getValue());
+                if (!Files.exists(source)) {
+                    continue;
+                }
+                byte[] bytes = Files.readAllBytes(source);
+                uploadFileServiceV2.saveMarkdownImage(bytes, StrUtil.removePrefix(relativePath, IMAGES_DIR), keyPrefix);
+            }
+        } catch (IOException e) {
+            log.error("上传Markdown图片失败", e);
+            throw new ServiceException(ServiceExceptionEnum.OPERATE_FAILURE.getCode(),
+                    "导入失败，Markdown图片处理异常");
         }
-        String parentPath = markdownDir.toString().replace("\\", "/");
-        String datasetPrefix = Paths.get(StrUtil.emptyToDefault(litevarProperties.getUploadPath(), ""), "datasets")
-                .toString()
-                .replace("\\", "/");
-        if (StrUtil.startWith(parentPath, datasetPrefix)) {
-            parentPath = parentPath.substring(datasetPrefix.length());
-        }
-        parentPath = StrUtil.addPrefixIfNot(parentPath, "/");
-        parentPath = StrUtil.removeSuffix(parentPath, "/");
-        if (StrUtil.isBlank(parentPath) || StrUtil.equals(parentPath, "/")) {
-            return "/resources";
-        }
-        return "/resources" + parentPath;
     }
 
     private void persistDocumentForm(String datasetId, DocumentCreateForm form) {
@@ -1160,6 +1134,7 @@ public class AgentImportUtil {
         private Map<String, KnowledgeBaseDescriptor> knowledgeBaseMap = new LinkedHashMap<>();
         private String tempDir;
         private String token;
+        private String workspaceId;
     }
 
     @Getter

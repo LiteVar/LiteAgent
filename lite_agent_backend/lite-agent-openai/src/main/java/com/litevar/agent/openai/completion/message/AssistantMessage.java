@@ -19,6 +19,8 @@ public class AssistantMessage implements Message {
     //序列化时忽略该字段,反序列化时不要忽略
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String reasoningContent;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String reasoning;
     private String name;
     /**
      * The refusal message by the assistant.

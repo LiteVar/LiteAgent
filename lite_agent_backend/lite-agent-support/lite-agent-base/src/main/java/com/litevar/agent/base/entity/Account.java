@@ -1,6 +1,7 @@
 package com.litevar.agent.base.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.litevar.agent.base.enums.SystemRoleEnum;
 import com.mongoplus.annotation.ID;
 import com.mongoplus.annotation.collection.CollectionField;
 import com.mongoplus.annotation.collection.CollectionLogic;
@@ -54,6 +55,11 @@ public class Account {
      * 账号状态
      */
     private Integer status;
+
+    /**
+     * 系统角色
+     */
+    private Integer systemRole = SystemRoleEnum.ROLE_USER.getSystemRole();
 
     @CollectionField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

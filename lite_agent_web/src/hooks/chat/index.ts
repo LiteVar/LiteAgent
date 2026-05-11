@@ -1,4 +1,4 @@
-export { useChatSession } from './useChatSession';
+export { useChatSession } from './useChatSession.tsx';
 export { useChatScroll } from './useChatScroll';
 export { useChatInput } from './useChatInput';
 export { useChatKnowledge } from './useChatKnowledge';
@@ -9,3 +9,5 @@ export { useChatReducer } from './useChatReducer';
 export { useChatDeltaEvents } from './useChatDeltaEvents';
 export { useChatMessageEvents } from './useChatMessageEvents';
 export { useChatMessageFormatter } from './useChatMessageFormatter';
+export { useChatFileUpload } from './useChatFileUpload';
+export type { UploadedFile } from './useChatFileUpload';

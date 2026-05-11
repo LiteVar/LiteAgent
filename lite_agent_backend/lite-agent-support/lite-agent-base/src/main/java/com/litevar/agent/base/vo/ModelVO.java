@@ -47,6 +47,12 @@ public class ModelVO {
     private Integer maxTokens;
 
     /**
+     * 模型上下文窗口大小
+     */
+    @Min(value = 1L, message = "contextWindows必须大于0")
+    private Integer contextWindows;
+
+    /**
      * 模型类型: LLM, embedding, asr, tts, image...
      */
     @NotBlank(message = "type is required")
@@ -63,10 +69,10 @@ public class ModelVO {
      */
     private String fieldMapping = "";
     /**
-     * 响应格式: wav, mp3, pcm...
-     * 默认wav
+     * 音转文模型响应格式: wav, mp3, pcm...
+     * 默认pcm
      */
-    private String responseFormat = "wav";
+    private String responseFormat = "pcm";
 
     /**
      * 是否支持auto agent使用
@@ -81,6 +87,19 @@ public class ModelVO {
      * 是否支持深度思考
      */
     private Boolean deepThink = Boolean.FALSE;
+    /**
+     * 是否支持视觉识别(VL模型)
+     */
+    private Boolean vision = Boolean.FALSE;
+    /**
+     * 是否支持流式输出
+     */
+    private Boolean streamable = Boolean.FALSE;
+
+    /**
+     * 模型状态: 0-待启用, 1-启用, 2-禁用
+     */
+    private Integer status = 0;
 
 
     //=========== 以下字段为导入时用到

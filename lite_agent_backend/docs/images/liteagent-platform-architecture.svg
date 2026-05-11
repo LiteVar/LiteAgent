@@ -1,0 +1,128 @@
+<svg width="1960" height="1060" viewBox="0 0 1960 1060" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1960" y2="1060" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#EEF2F7"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F9FBFD"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#1A202C" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow" markerWidth="7.5" markerHeight="7.5" refX="6.2" refY="3.75" orient="auto">
+      <path d="M0 0L7.5 3.75L0 7.5V0Z" fill="#4A5568"/>
+    </marker>
+  </defs>
+
+  <rect width="1960" height="1060" fill="url(#bg)"/>
+
+  <text x="980" y="72" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#1A202C">
+    LiteAgent Agent Runtime Architecture
+  </text>
+
+  <rect x="80" y="303" width="220" height="104" rx="22" fill="url(#card)" stroke="#CBD5E0" stroke-width="2" filter="url(#shadow)"/>
+  <text x="190" y="341" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#1A202C">User Entry</text>
+  <text x="190" y="369" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#4A5568">Web / Desktop / Third-party</text>
+  <text x="190" y="395" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#4A5568">Instruction Input</text>
+
+  <rect x="630" y="280" width="360" height="150" rx="24" fill="url(#card)" stroke="#63B3ED" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="810" y="362" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#1A202C">Task Orchestration</text>
+
+  <rect x="600" y="90" width="420" height="148" rx="24" fill="url(#card)" stroke="#68D391" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="810" y="136" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#1A202C">LLM</text>
+  <text x="810" y="164" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#2F855A">Reasoning and Decision</text>
+  <text x="810" y="205" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#4A5568">Outputs: Text / Tool Calling / SubAgent / Knowledge Retrieval</text>
+
+  <rect x="145" y="140" width="290" height="78" rx="24" fill="url(#card)" stroke="#48BB78" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="290" y="173" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#1A202C">Knowledge Retrieval</text>
+  <text x="290" y="199" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#2F855A">Knowledge base and semantic search</text>
+
+  <rect x="1110" y="130" width="250" height="96" rx="24" fill="url(#card)" stroke="#48BB78" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="1235" y="166" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#1A202C">Tool Calling</text>
+  <text x="1235" y="193" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#2F855A">MCP / OpenAPI 3</text>
+  <text x="1235" y="215" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#2F855A">OpenRPC / OpenTool</text>
+  <rect x="1472" y="140" width="142" height="30" rx="15" fill="#F0FFF4"/>
+  <text x="1543" y="159" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11.5" fill="#2F855A">Sync Exec</text>
+  <rect x="1472" y="178" width="148" height="30" rx="15" fill="#F0FFF4"/>
+  <text x="1546" y="197" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11.5" fill="#2F855A">Async Callback</text>
+
+  <rect x="1080" y="560" width="260" height="78" rx="24" fill="url(#card)" stroke="#48BB78" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="1210" y="593" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#1A202C">SubAgent Dispatch</text>
+  <text x="1210" y="619" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#2F855A">Specialized agent collaboration</text>
+  <rect x="1005" y="694" width="138" height="28" rx="14" fill="#F0FFF4"/>
+  <text x="1074" y="712" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11.5" fill="#2F855A">General Agent</text>
+  <rect x="1141" y="694" width="138" height="28" rx="14" fill="#F0FFF4"/>
+  <text x="1210" y="712" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11.5" fill="#2F855A">Distributed Agent</text>
+  <rect x="1277" y="694" width="138" height="28" rx="14" fill="#F0FFF4"/>
+  <text x="1346" y="712" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11.5" fill="#2F855A">Reflection Agent</text>
+
+  <rect x="630" y="560" width="360" height="116" rx="24" fill="url(#card)" stroke="#7F9CF5" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="810" y="602" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#1A202C">Session Context</text>
+  <rect x="700" y="622" width="220" height="34" rx="17" fill="#F5F3FF"/>
+  <text x="810" y="644" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#553C9A">Session State and History</text>
+
+  <rect x="1406" y="330" width="152" height="324" rx="28" fill="url(#card)" stroke="#ED8936" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="1482" y="497" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" fill="#1A202C">Event Bus</text>
+
+  <rect x="1690" y="330" width="170" height="84" rx="22" fill="url(#card)" stroke="#F6AD55" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="1775" y="364" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#1A202C">Client Handler</text>
+  <text x="1775" y="391" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#C05621">push message to user via sse</text>
+
+  <rect x="1690" y="444" width="170" height="84" rx="22" fill="url(#card)" stroke="#F6AD55" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="1775" y="478" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#1A202C">Logs Handler</text>
+  <text x="1775" y="505" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#C05621">Runtime and usage</text>
+
+  <rect x="1690" y="558" width="170" height="96" rx="22" fill="url(#card)" stroke="#F6AD55" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="1775" y="592" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" fill="#1A202C">Message Handler</text>
+  <text x="1775" y="620" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#C05621">Message persistence</text>
+
+  <rect x="220" y="850" width="1500" height="150" rx="28" fill="#FFFFFF" stroke="#CBD5E0" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="970" y="890" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#1A202C">Data Foundation</text>
+  <rect x="390" y="920" width="170" height="42" rx="21" fill="#EDF2F7"/>
+  <text x="475" y="947" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#2D3748">Redis</text>
+  <rect x="610" y="920" width="170" height="42" rx="21" fill="#EDF2F7"/>
+  <text x="695" y="947" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#2D3748">MongoDB</text>
+  <rect x="830" y="920" width="170" height="42" rx="21" fill="#EDF2F7"/>
+  <text x="915" y="947" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#2D3748">Milvus</text>
+  <rect x="1050" y="920" width="200" height="42" rx="21" fill="#EDF2F7"/>
+  <text x="1150" y="947" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#2D3748">Local / OSS Storage</text>
+
+  <path d="M300 355H622" stroke="#2D3748" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+
+  <path d="M772 238V272" stroke="#2D3748" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M848 280V246" stroke="#2D3748" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+
+  <path d="M630 320H510V179H443" stroke="#718096" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M435 205H530V340H622" stroke="#718096" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+
+  <path d="M990 318H1046V170H1102" stroke="#718096" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1110 214H1088V348H998" stroke="#718096" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1360 174H1438" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1438 155V193" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1438 155H1464" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1438 193H1464" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+
+  <path d="M990 390H1048V599H1072" stroke="#718096" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1080 625H1040V410H998" stroke="#718096" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1210 638V672" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1074 672H1346" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1074 672V690" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1210 672V690" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1346 672V690" stroke="#718096" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+
+  <path d="M770 430V552" stroke="#718096" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M850 560V438" stroke="#718096" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <text x="752" y="500" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#718096">Write</text>
+  <text x="868" y="500" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#718096">Read</text>
+
+  <path d="M990 355H1368V492H1398" stroke="#718096" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+
+  <path d="M1558 372H1686" stroke="#718096" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1558 486H1686" stroke="#718096" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1558 606H1686" stroke="#718096" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+
+  <path d="M810 676V842" stroke="#718096" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M1775 654V690H1600V842" stroke="#718096" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+</svg>

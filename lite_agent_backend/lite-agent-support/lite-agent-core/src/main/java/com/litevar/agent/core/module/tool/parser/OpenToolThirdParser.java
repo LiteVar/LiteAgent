@@ -2,19 +2,19 @@ package com.litevar.agent.core.module.tool.parser;
 
 import cn.hutool.core.util.ObjectUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.litevar.agent.base.dto.OpenToolJsonDTO;
 import com.litevar.agent.base.entity.ToolFunction;
 import com.litevar.agent.base.enums.ToolSchemaType;
 import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.core.module.tool.ToolHandleFactory;
 import com.litevar.agent.core.module.tool.executor.FunctionExecutor;
+import com.litevar.opentool.model.OpenTool;
+import com.litevar.opentool.model.Schema;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -32,31 +32,32 @@ import java.util.Set;
 @Slf4j
 @Component
 public class OpenToolThirdParser implements ToolParser, InitializingBean {
-    private ObjectMapper objectMapper;
-
     @Autowired
     private Validator validator;
 
     @Override
     public List<ToolFunction> parse(String rawStr) {
-        OpenToolJsonDTO dto = checkData(rawStr);
-        return parse(dto, FunctionExecutor.EXTERNAL);
+        OpenTool openTool = checkData(rawStr);
+        return parse(openTool, FunctionExecutor.EXTERNAL);
     }
 
-    public List<ToolFunction> parse(OpenToolJsonDTO dto, String callProtocol) {
+    public List<ToolFunction> parse(OpenTool openTool, String callProtocol) {
         List<ToolFunction> functionList = new ArrayList<>();
-        if (ObjectUtil.isNotEmpty(dto.getFunctions())) {
-            dto.getFunctions().forEach(function -> {
+        if (ObjectUtil.isNotEmpty(openTool.getFunctions())) {
+            openTool.getFunctions().forEach(function -> {
                 ToolFunction toolFunction = new ToolFunction();
                 toolFunction.setProtocol(callProtocol);
                 toolFunction.setResource(function.getName());
                 toolFunction.setDescription(function.getDescription());
+                if (function.isStreamFunction()) {
+                    toolFunction.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
+                }
                 if (ObjectUtil.isNotEmpty(function.getParameters())) {
                     function.getParameters().forEach(param -> {
                         ToolFunction.ParameterInfo paramInfo = new ToolFunction.ParameterInfo();
                         paramInfo.setParamName(param.getName());
                         paramInfo.setDescription(param.getDescription());
-                        paramInfo.setRequired(param.getRequired());
+                        paramInfo.setRequired(param.isRequired());
                         resolveParam(paramInfo, param.getSchema());
                         toolFunction.getParameters().add(paramInfo);
                     });
@@ -67,11 +68,13 @@ public class OpenToolThirdParser implements ToolParser, InitializingBean {
         return functionList;
     }
 
-    private void resolveParam(ToolFunction.ParameterInfo paramInfo, OpenToolJsonDTO.Schema schema) {
-        OpenToolJsonDTO.ParamType type = schema.getType();
+    private void resolveParam(ToolFunction.ParameterInfo paramInfo, Schema schema) {
+        Schema.ParamType type = schema.getType();
         paramInfo.setType(type.getValue());
-        paramInfo.setEnums(schema.getEnumValue());
-        if (type == OpenToolJsonDTO.ParamType.OBJECT) {
+        if (ObjectUtil.isNotEmpty(schema.getEnumValues())) {
+            schema.getEnumValues().forEach(v -> paramInfo.getEnums().add(v));
+        }
+        if (type == Schema.ParamType.OBJECT) {
             List<String> subRequired = ObjectUtil.isNotEmpty(schema.getRequired()) ? schema.getRequired() : Collections.emptyList();
             schema.getProperties().forEach((paramName, subSchema) -> {
                 ToolFunction.ParameterInfo subParam = new ToolFunction.ParameterInfo();
@@ -81,11 +84,13 @@ public class OpenToolThirdParser implements ToolParser, InitializingBean {
                 resolveParam(subParam, subSchema);
                 paramInfo.getProperties().add(subParam);
             });
-        } else if (type == OpenToolJsonDTO.ParamType.ARRAY) {
-            OpenToolJsonDTO.Schema subSchema = schema.getItems();
+        } else if (type == Schema.ParamType.ARRAY) {
+            Schema subSchema = schema.getItems();
             ToolFunction.ParameterInfo subParam = new ToolFunction.ParameterInfo();
             subParam.setDescription(subSchema.getDescription());
-            subParam.setEnums(subSchema.getEnumValue());
+            if (ObjectUtil.isNotEmpty(subSchema.getEnumValues())) {
+                schema.getEnumValues().forEach(v -> subParam.getEnums().add(v));
+            }
             resolveParam(subParam, subSchema);
             paramInfo.getProperties().add(subParam);
         }
@@ -96,31 +101,23 @@ public class OpenToolThirdParser implements ToolParser, InitializingBean {
         ToolHandleFactory.registerParser(ToolSchemaType.OPEN_TOOL_Third, this);
     }
 
-    private ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-            objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        }
-        return objectMapper;
-    }
-
-    public OpenToolJsonDTO checkData(String rawStr) {
-        OpenToolJsonDTO dto;
+    public OpenTool checkData(String rawStr) {
+        OpenTool openTool;
         try {
-            dto = getObjectMapper().readValue(rawStr, OpenToolJsonDTO.class);
+            openTool = OpenTool.fromJsonString(rawStr);
+
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            throw new ServiceException(1000, "解析失败!");
+            throw new RuntimeException(e);
         }
-        Set<ConstraintViolation<OpenToolJsonDTO>> violations = validator.validate(dto);
-        if (!violations.isEmpty()) {
-            String violationMessage = violations.stream()
+        Set<ConstraintViolation<OpenTool>> validate = validator.validate(openTool);
+        if (!validate.isEmpty()) {
+            String violationMessage = validate.stream()
                     .map(ConstraintViolation::getMessage)
                     .reduce((msg1, msg2) -> msg1 + "; " + msg2)
                     .orElse("验证失败");
             log.error("工具解析失败:{}", violationMessage);
             throw new ServiceException(1000, "解析异常");
         }
-        return dto;
+        return openTool;
     }
 }

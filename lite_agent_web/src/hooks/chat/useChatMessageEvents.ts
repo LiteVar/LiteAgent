@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { MessageRole, TaskMessageType } from '@/types/Message';
 import { FN_CALL_LIST, TOOL_RETURN } from '@/constants/message';
-import { UseChatMessageEventProps, SSEEventData, AgentMessage, ToolCall, ToolMessage } from '@/types/chat';
+import { UseChatMessageEventProps, SSEEventData, AgentMessage, ToolCall } from '@/types/chat';
 import { OutMessage } from '@/client';
 import { debounce } from 'lodash';
 
@@ -85,15 +85,44 @@ const updateMessageArray = (
 };
 
 const handleUserMessage = (jsonData: SSEEventData, id: string, messageActions: MessageActions): void => {
-  messageActions.addMessage(jsonData.agentId, jsonData as AgentMessage);
-  messageActions.addMessage(jsonData.agentId, {
+  const userMessage = jsonData as AgentMessage;
+  const loadingMessage: AgentMessage = {
     role: MessageRole.SYSTEM,
     type: 'loading',
     content: '正在处理中...',
     agentId: jsonData.agentId,
     taskId: jsonData.taskId,
     id: id,
-  } as AgentMessage);
+  } as AgentMessage;
+
+  // 使用 complexMessageUpdate 来检查并插入消息
+  messageActions.complexMessageUpdate(jsonData.agentId, id, (prev) => {
+    const msgsMap = deepClone(prev);
+    const currentMessages = prev?.[jsonData.agentId]?.messages || [];
+    
+    // 查找最后一个 role === 'user' 的消息位置
+    let lastUserMessageIndex = -1;
+    for (let i = currentMessages.length - 1; i >= 0; i--) {
+      if (currentMessages[i].role === MessageRole.USER && currentMessages[i].taskId === jsonData.taskId) {
+        lastUserMessageIndex = i;
+        break;
+      }
+    }
+
+    const newMessages = [...currentMessages];
+    
+    if (lastUserMessageIndex === -1) {
+      // 如果没有找到用户消息，直接添加到末尾
+      newMessages.push(userMessage);
+      newMessages.push(loadingMessage);
+    } else {
+      // 如果找到了用户消息，在其后面插入
+      newMessages.splice(lastUserMessageIndex + 1, 0, userMessage);
+    }
+
+    msgsMap[jsonData.agentId] = { messages: newMessages };
+    return msgsMap;
+  });
 };
 
 const updateSubAgentFunctionCallList = (
@@ -127,6 +156,7 @@ const handleFunctionCallList = (
     agentId: jsonData.agentId,
     role: MessageRole.TOOL,
     req: { ...jsonData, tool },
+    res: [],
     createTime: jsonData.createTime,
     responding: true,
   }));
@@ -142,6 +172,13 @@ const handleFunctionCallList = (
         msg.parentTaskId === jsonData.parentTaskId
       );
       messages[assistantMessageIndex.index].responding = true;
+      // 找到所有匹配的用户消息并全部设置 responding = true
+      const taskId = messages[assistantMessageIndex.index].taskId;
+      messages.forEach((msg: AgentMessage, msgIndex: number) => {
+        if (msg.taskId === taskId && msg.role === MessageRole.USER) {
+          messages[msgIndex].responding = true;
+        }
+      });
       if (agentSwitchIndex !== -1 && jsonData.parentTaskId) {
         messages[assistantMessageIndex.index].thoughtProcessMessages = updateSubAgentFunctionCallList(messages[assistantMessageIndex.index].thoughtProcessMessages || [], toolRequestMessages);
       } else {
@@ -162,14 +199,16 @@ const handleFunctionCallList = (
 
 const updateSubAgentToolReturn = (
   messages: AgentMessage[],
-  message: ToolMessage
+  message: OutMessage
 ): AgentMessage[] => {
   for (let index = 0; index < messages.length; index++) {
     const element = messages[index];
-    //@ts-ignore
     if (message.role === MessageRole.TOOL && element.req?.tool?.id === message.toolCallId) {
-      //@ts-ignore
-      element.res = message;
+      // 确保 res 是数组
+      if (!element.res) {
+        element.res = [];
+      }
+      element.res.push(message);
       break;
     } else if (element.type === TaskMessageType.AGENT_SWITCH) {
       updateSubAgentToolReturn(element.messages || [], message);
@@ -190,7 +229,14 @@ const handleToolReturn = (
 
     if (assistantMessageIndex.found) {
       messages[assistantMessageIndex.index].responding = true;
-      messages[assistantMessageIndex.index].thoughtProcessMessages = updateSubAgentToolReturn(messages[assistantMessageIndex.index].thoughtProcessMessages || [], jsonData as ToolMessage);
+      // 找到所有匹配的用户消息并全部设置 responding = true
+      const taskId = messages[assistantMessageIndex.index].taskId;
+      messages.forEach((msg: AgentMessage, msgIndex: number) => {
+        if (msg.taskId === taskId && msg.role === MessageRole.USER) {
+          messages[msgIndex].responding = true;
+        }
+      });
+      messages[assistantMessageIndex.index].thoughtProcessMessages = updateSubAgentToolReturn(messages[assistantMessageIndex.index].thoughtProcessMessages || [], jsonData as OutMessage);
     }
     return messages;
   });
@@ -236,6 +282,13 @@ const updateExistingMessage = (
   agentSwitchRef: AgentSwitchRef
 ): void => {
   messages[index].responding = true;
+  // 找到所有匹配的用户消息并全部设置 responding = true
+  const taskId = messages[index].taskId;
+  messages.forEach((msg: AgentMessage, msgIndex: number) => {
+    if (msg.taskId === taskId && msg.role === MessageRole.USER) {
+      messages[msgIndex].responding = true;
+    }
+  });
 
   const isThoughtMessage =
     message.role === MessageRole.TOOL ||
@@ -377,6 +430,27 @@ export const useChatMessageEvents = (props: UseChatMessageEventProps): UseChatMe
 
   const handleMessageEvent = useCallback(
     (jsonData: SSEEventData, id: string, agentId: string) => {
+      //由于stream流后端模型返回无意义的‘\n\n’，导致提前占位，所以在获取到message类型时过滤掉之前的提前占位的思考跟总结，避免输出错位
+      updateMessageArray(agentId, id, messageActions, (messages) => {
+        const assistantMessageIndex = findMessageIndex(messages, id, MessageRole.ASSISTANT, TaskMessageType.TEXT);
+        if (assistantMessageIndex.found) {
+          const agentSwitchIndex = messages[assistantMessageIndex.index].thoughtProcessMessages!.findIndex(
+            (msg) =>
+              msg.type === TaskMessageType.AGENT_SWITCH
+          );
+          if (agentSwitchIndex !== -1) {
+            const agentSwitchMessage = messages[assistantMessageIndex.index].thoughtProcessMessages![agentSwitchIndex];
+            if (agentSwitchMessage.messages) {
+              agentSwitchMessage.messages = agentSwitchMessage.messages?.filter(msg => !((msg.type === TaskMessageType.TEXT || msg.type === TaskMessageType.THINK) && !msg.content.trim())) || [];
+            }
+          }
+
+          const currentMessage = messages[assistantMessageIndex.index];
+          messages[assistantMessageIndex.index].thoughtProcessMessages = currentMessage.thoughtProcessMessages?.filter(msg => !((msg.type === TaskMessageType.TEXT || msg.type === TaskMessageType.THINK) && !msg.content.trim())) || [];
+        }
+        return messages;
+      });
+
       if (jsonData.role === 'user' && jsonData.content) {
         handleUserMessage(jsonData, id, messageActions);
       } else if (jsonData.type === FN_CALL_LIST && jsonData.toolCalls) {

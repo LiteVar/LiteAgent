@@ -58,6 +58,7 @@ public class CompletionStreamResponseBuilder {
         }
         String content = delta.getContent();
         String reasoningContent = delta.getReasoningContent();
+        String reasoning = delta.getReasoning();
         if (StrUtil.isNotEmpty(content)) {
             if (StrUtil.equals(content, "<think>")) {
                 thinkFlag.set(1);
@@ -77,6 +78,9 @@ public class CompletionStreamResponseBuilder {
             }
         } else if (StrUtil.isNotEmpty(reasoningContent)) {
             this.reasonBuilder.append(reasoningContent);
+        } else if (StrUtil.isNotEmpty(reasoning)) {
+            delta.setReasoningContent(reasoning);
+            this.reasonBuilder.append(reasoning);
         }
         String refusal = delta.getRefusal();
         if (StrUtil.isNotEmpty(refusal)) {

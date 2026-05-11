@@ -94,7 +94,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
         executor.setQueueCapacity(150);
         executor.setThreadNamePrefix("asyncExecutor-");
         //线程空闲存活时间
-        executor.setKeepAliveSeconds(60);
+        executor.setKeepAliveSeconds(120);
 
         //允许回收核心线程
         executor.setAllowCoreThreadTimeOut(true);
@@ -102,7 +102,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(true);
         //线程池中任务等待时间,超过等待时间直接销毁
-        executor.setAwaitTerminationSeconds(60);
+        executor.setAwaitTerminationSeconds(180);
 
         executor.initialize();
 
@@ -127,7 +127,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
      */
     @Bean(name = "customScheduler", destroyMethod = "dispose")
     public Scheduler customScheduler() {
-        return Schedulers.newParallel("custom-scheduler", 300, true);
+        return Schedulers.newBoundedElastic(300, 600, "custom-scheduler");
     }
 
     @Override

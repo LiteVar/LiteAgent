@@ -9,6 +9,7 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - [Web端](lite_agent_web/README_zh-CN.md): 用于管理和配置agent、工具、大模型、知识库以及用户等。
 - [桌面端](lite_agent_client/README-zh_CN.md): 用于管理agent、工具、大模型等。
 - [后端](lite_agent_backend/README-zh_CN.md)：web、desktop和sdk的后端服务。
+- [插件引擎](lite_agent_plugin_runner/README-zh_CN.md): 运行插件，如微信、钉钉机器人等
 - [SDK](https://github.com/LiteVar/LiteAgent/tree/master/lite_agent_sdk): C#/LabVIEW/TypeScript/Dart/Java sdk，帮助开发者快速集成LiteAgent。
 
 ## 特性
@@ -24,6 +25,8 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - Agent模式支持：并行、串行、拒绝
 - Auto Multi Agent(Web, Desktop)
 - 支持导出/导入配置
+- 支持设置并保留最近对话轮次（默认5轮）
+- 聊天支持上传图片、视频
 
 ### 2. 工具支持
 
@@ -37,6 +40,7 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - 协议：OpenTool
   - 支持OpenTool格式的描述文档
   - 支持OpenTool Server的调用
+  - 支持 StreamCall 调用方式
 - 支持工具的导出
 
 ### 3. 功能
@@ -49,13 +53,17 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - 增加Reasoning区分
 - 编辑界面提示词与知识库文档增加预览模式
 - 新增sdk（C#/LabVIEW/TypeScript/Dart/Java）
+- 系统级模型管理(Web)
+- 系统级插件管理(Web)
 
 ### 4. 模型支持
 
 - 仅支持OpenAI风格API，其他模型(如Zhipu-AI、QianFan、ChatGLM、Kimi、Ollama、qwen等)，请使用例如OpenAPI等工具转换为OpenAI风格。
-- 音转文（ASR模型）
-- 文转音（TTS模型）
+- 音转文（ASR模型），支持流式音文互转
+- 文转音（TTS模型），支持流式音文互转
 - LLM支持导出/导入JSON格式的配置
+- 支持新增系统级大模型，供系统所有用户使用
+ -支持新增 VL 模型（视觉语言模型）
 
 ### 5.知识库支持
 
@@ -63,6 +71,18 @@ LiteAgent是一个面向工业的开源AI Agent平台，旨在帮助用户快速
 - 增加文档内容摘要(Web)
 - 知识库检索，可“查看原文”和“下载原文档”(web, Desktop)
 - 知识库列表，可“下载markdown格式”文档(web, Desktop)
+
+### 6.插件智连
+- 提供增删查改等功能
+- 实现 Agent与Wechat(MP)、DingTalk(Robot)、Website平台连接，让平台实现智能化
+- 支持多维度会话数据统计与趋势分析
+
+### 7.ChatKit 组件
+- 支持组件化聊天窗口自定义配置
+- 主页/官网轻松接入智能agent
+
+## 向量数据库迁移到Qdrant
+- 请参考 [lite_agent_backend/docs/milvus-qdrant-migrate/README.md](lite_agent_backend/docs/milvus-qdrant-migrate/README.md)
 
 ## 快速开始
 

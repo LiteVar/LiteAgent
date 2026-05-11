@@ -9,10 +9,6 @@ import lombok.Data;
 @Data
 public class ReflectMessageInfo {
     /**
-     * 用户输入的消息
-     */
-    private String input;
-    /**
      * 最高分
      */
     private Double score = -1d;

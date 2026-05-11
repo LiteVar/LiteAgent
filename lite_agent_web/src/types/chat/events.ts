@@ -56,7 +56,7 @@ export interface AudioTranscriptionResponse {
 /**
  * 消息发送类型
  */
-export type MessageSendType = 'text' | 'execute' | 'imageUrl';
+export type MessageSendType = 'text' | 'execute' | 'imageUrl' | 'videoUrl';
 
 /**
  * Agent 类型模式

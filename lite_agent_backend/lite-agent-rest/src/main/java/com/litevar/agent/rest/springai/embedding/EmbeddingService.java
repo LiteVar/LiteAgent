@@ -3,9 +3,10 @@ package com.litevar.agent.rest.springai.embedding;
 
 import cn.hutool.core.util.StrUtil;
 import com.litevar.agent.base.entity.LlmModel;
-import com.litevar.agent.base.enums.ServiceExceptionEnum;
-import com.litevar.agent.base.exception.ServiceException;
+import com.litevar.agent.base.util.LlmContext;
+import com.litevar.agent.base.util.LoginContext;
 import com.litevar.agent.core.module.llm.ModelService;
+import com.litevar.agent.core.module.llm.TokenUsageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.document.MetadataMode;
@@ -34,6 +35,8 @@ public class EmbeddingService {
 
     @Autowired
     private ModelService modelService;
+    @Autowired
+    private TokenUsageService tokenUsageService;
 
     public List<Embedding> embedSegments(List<Document> segments, String llmModelId) {
         return embed(segments.stream().map(Document::getText).toList(), llmModelId);
@@ -47,10 +50,20 @@ public class EmbeddingService {
         if (texts.isEmpty()) {
             return Collections.emptyList();
         }
+        String userId;
+        String agentId = LlmContext.getAgentId();
+        try {
+            userId = LoginContext.currentUserId();
+        } catch (Exception e) {
+            userId = LlmContext.getUserId();
+        }
 
-        EmbeddingModel embeddingModel = buildEmbeddingModel(modelId);
+        EmbeddingModel embeddingModel = buildEmbeddingModel(modelId, userId);
         List<List<String>> batches = partition(texts);
         log.info("开始embedding数据，总数:{}，批次:{}", texts.size(), batches.size());
+
+        int promptTokens = 0;
+        int completionTokens = 0;
 
         List<Embedding> embeddings = new ArrayList<>(texts.size());
         for (int i = 0; i < batches.size(); i++) {
@@ -60,15 +73,22 @@ public class EmbeddingService {
             EmbeddingResponse response = embeddingModel.call(new EmbeddingRequest(batch, null));
             log.info("结束embedding第{}批", i + 1);
             embeddings.addAll(response.getResults());
+
+            promptTokens += response.getMetadata().getUsage().getPromptTokens();
+            completionTokens += response.getMetadata().getUsage().getCompletionTokens();
         }
 
+        tokenUsageService.addUsage(userId, modelId, agentId, promptTokens, completionTokens);
         return embeddings;
     }
 
-    EmbeddingModel buildEmbeddingModel(String modelId) {
+    EmbeddingModel buildEmbeddingModel(String modelId, String userId) {
         LlmModel model = modelService.findById(modelId);
-        if (model == null) {
-            throw new ServiceException(ServiceExceptionEnum.MODEL_NOT_EXIST_OR_NOT_SHARE);
+        modelService.checkModelAvailable(model.getId(), "");
+
+        if (model.getWorkspaceId().equalsIgnoreCase("0")) {
+            //系统级模型,判断用户积分余额
+            tokenUsageService.checkEnoughPoints(userId, modelId);
         }
 
         log.info("向量模型:{},url:{}", model.getName(), model.getBaseUrl());

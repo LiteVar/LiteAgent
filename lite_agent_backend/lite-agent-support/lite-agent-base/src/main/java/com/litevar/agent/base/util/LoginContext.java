@@ -1,6 +1,9 @@
 package com.litevar.agent.base.util;
 
+import com.litevar.agent.base.exception.ServiceException;
 import com.litevar.agent.base.vo.LoginUser;
+
+import java.util.Optional;
 
 /**
  * 当前登录用户上下文
@@ -15,7 +18,7 @@ public class LoginContext {
     private static final ThreadLocal<LoginUser> THREAD_LOCAL = new ThreadLocal<>();
 
     public static LoginUser me() {
-        return THREAD_LOCAL.get();
+        return Optional.ofNullable(THREAD_LOCAL.get()).orElseThrow(() -> new ServiceException("当前线程无法获取登录态"));
     }
 
     public static void set(LoginUser loginUser) {

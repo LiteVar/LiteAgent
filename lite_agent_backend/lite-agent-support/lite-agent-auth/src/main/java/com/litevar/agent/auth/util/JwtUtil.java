@@ -22,29 +22,19 @@ import java.util.concurrent.TimeUnit;
  */
 public class JwtUtil {
     //默认7天过期
-    static int expire = 1000 * 3600 * 24 * 7;
+    static Duration expireDuration = Duration.ofDays(7);
 
     public static String createToken(LoginUser loginUser) {
-        Date expirationDate = new Date(System.currentTimeMillis() + expire);
-        String token = JWT.create()
-            .addPayloads(BeanUtil.beanToMap(loginUser))
-            .setKey(CommonConstant.JWT_SECRET.getBytes())
-            .setExpiresAt(expirationDate)
-            .sign();
-
-        //将token存入redis
-        RedisUtil.setValue(String.format(CacheKey.LOGIN_TOKEN, loginUser.getUuid()), token, expire, TimeUnit.MILLISECONDS);
-
-        return token;
+        return createToken(loginUser, expireDuration);
     }
 
     public static String createToken(LoginUser loginUser, Duration duration) {
         Date expirationDate = new Date(System.currentTimeMillis() + duration.toMillis());
         String token = JWT.create()
-            .addPayloads(BeanUtil.beanToMap(loginUser))
-            .setKey(CommonConstant.JWT_SECRET.getBytes())
-            .setExpiresAt(expirationDate)
-            .sign();
+                .addPayloads(BeanUtil.beanToMap(loginUser))
+                .setKey(CommonConstant.JWT_SECRET.getBytes())
+                .setExpiresAt(expirationDate)
+                .sign();
 
         //将token存入redis
         RedisUtil.setValue(String.format(CacheKey.LOGIN_TOKEN, loginUser.getUuid()), token, duration.toMillis(), TimeUnit.MILLISECONDS);

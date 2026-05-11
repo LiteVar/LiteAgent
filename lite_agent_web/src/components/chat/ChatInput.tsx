@@ -1,178 +1,106 @@
-import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
-import { Space, Divider, Button, message } from 'antd';
-import { PlusOutlined, AudioOutlined } from '@ant-design/icons';
-import sendSvg from '@/assets/dashboard/send-normal.png';
-import sendDisableSvg from '@/assets/dashboard/send-disable.png';
-import ResponseCode from '@/constants/ResponseCode';
-import RecordWave from '../record-wave';
-import { ChatInputProps, InputMode, AgentType } from '@/types/chat';
-import { getAccessToken } from '@/utils/cache';
-
-interface TranscriptionResponse {
-  code: number;
-  message: string;
-  data: string;
-}
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { Button, Dropdown } from 'antd';
+import { AudioOutlined } from '@ant-design/icons';
+import { ChatInputProps, InputMode } from '@/types/chat';
+import { useChatFileUpload } from '@/hooks/chat/useChatFileUpload';
+import { useChatInputAudio } from './chatInput/useChatInputAudio';
+import { useChatInputComposer } from './chatInput/useChatInputComposer';
+import { UploadedFilesPreview } from './chatInput/UploadedFilesPreview';
+import { ChatInputModeContent } from './chatInput/ChatInputModeContent';
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
   value, 
   mode, 
-  agentType, 
+  agentType,
+  agentId,
   onChange, 
   onSend, 
   setAsrLoading,
-  asrModelId 
+  asrModelId,
+  asrStreamSupported = false // 默认不支持流式
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [inputMode, setInputMode] = useState<InputMode>(InputMode.NORMAL);
   const [isComposing, setIsComposing] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
   // 用于防止长按空格多次触发
   const isSpacePressedRef = useRef(false);
+  
+  // 使用文件上传 hook
+  const {
+    uploadedFiles,
+    uploading,
+    handleFileSelect,
+    handleRemoveFile,
+    buildFileMessages,
+    clearFiles,
+    handleUrlUpload,
+    detectUrlType,
+  } = useChatFileUpload();
 
-  const isReflectionAgent = useMemo(() => agentType === AgentType.REFLECTION, [agentType]);
+  const {
+    startRecording,
+    stopRecording,
+  } = useChatInputAudio({
+    agentId,
+    asrModelId,
+    asrStreamSupported,
+    onChange,
+    onSend,
+    setAsrLoading,
+    setInputMode,
+  });
 
-  const textareaPlaceholder = useMemo(() => {
-    return isReflectionAgent ? '反思 Agent 不能进行聊天对话' : '请输入聊天内容';
-  }, [isReflectionAgent]);
+  const {
+    disabledUpload,
+    handlePaste,
+    handleSend,
+    isReflectionAgent,
+    menuItems,
+    textareaPlaceholder,
+  } = useChatInputComposer({
+    value,
+    onChange,
+    onSend,
+    agentType,
+    inputMode,
+    uploading,
+    uploadedFiles,
+    buildFileMessages,
+    clearFiles,
+    handleFileSelect,
+    handleUrlUpload,
+    detectUrlType,
+    textareaRef,
+    fileInputRef,
+    videoInputRef,
+  });
 
+  // 组件卸载时清理所有本地预览URL
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [value]);
-
-  useEffect(() => {
-    if (agentType === AgentType.REFLECTION && textareaRef.current) {
-      onChange({ target: { value: '' } } as React.ChangeEvent<HTMLTextAreaElement>);
-    }
-  }, [agentType, onChange]);
-
-  // 语音转文字
-  const handleConvertAudio = useCallback(async () => {
-
-    try {
-      if (audioChunksRef.current.length === 0) {
-        message.warning('未检测到语音内容');
-        setInputMode(InputMode.VOICE_INIT);
-        setAsrLoading(false);
-        return;
-      }
-      setAsrLoading(true);
-
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
-      
-      // 使用 FormData 来上传音频文件
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'audio.mp3');
-      
-      // 获取访问令牌
-      const token = getAccessToken();
-      
-      // 添加 30 秒超时处理
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('语音转文字请求超时'));
-        }, 1000 * 30);
-      });
-
-      // 使用 fetch 发送 multipart/form-data 请求
-      const apiPromise = fetch(`/v1/chat/audio/transcriptions?modelId=${asrModelId}`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        // 不要手动设置 Content-Type，让浏览器自动设置（包括 boundary）
-      }).then(response => response.json());
-
-      const res = await Promise.race([apiPromise, timeoutPromise]) as TranscriptionResponse;
-
-      // fetch 返回的数据结构是 { code, message, data }
-      if (res.code !== ResponseCode.S_OK) {
-        message.error(res.message || '语音转化失败');
-        setInputMode(InputMode.VOICE_INIT);
-        setAsrLoading(false);
-        return;
-      }
-
-      const rawData = res.data || '';
-      const parsed = JSON.parse(rawData);
-      // 如果解析后有 text 字段且内容则判定为有效语音内容
-      if (typeof parsed === 'object' && parsed !== null && typeof parsed.text === 'string') {
-        setInputMode(InputMode.VOICE_INIT);
-
-        const text = parsed.text.trim();
-        setTimeout(() => {
-          setAsrLoading(false);
-          onSend('text', text);
-        }, 1000);
-      } else {
-        message.warning('未检测到有效语音内容');
-        setAsrLoading(false);
-        setInputMode(InputMode.VOICE_INIT);
-      }
-    } catch (e) {
-      console.log(e);
-      message.error('网络异常，语音转化失败');
-      setAsrLoading(false);
-      setInputMode(InputMode.VOICE_INIT);
-    }
-  }, [asrModelId, onSend, setAsrLoading]);
-
-  // 语音录制
-  const startRecording = useCallback(async () => {
-    try {
-      console.log('开始录音');
-      setInputMode(InputMode.VOICE_RECORDING);
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new window.MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+    return () => {
+      uploadedFiles.forEach((file) => {
+        URL.revokeObjectURL(file.url);
+        if (file.thumbnail && file.thumbnail !== file.url) {
+          if (file.thumbnail.startsWith('blob:')) {
+            URL.revokeObjectURL(file.thumbnail);
+          }
         }
-      };
+      });
+    };
+  }, [uploadedFiles]);
 
-      mediaRecorder.onstop = () => {
-        console.log('录音结束');
-        handleConvertAudio();
-      };
+  const handleVoiceMouseUp = useCallback(() => {
+    stopRecording();
+    document.removeEventListener('mouseup', handleVoiceMouseUp);
+  }, [stopRecording]);
 
-      mediaRecorder.start();
-      
-    } catch (err) {
-      console.error('录音错误', err);
-      message.warning('无法访问麦克风，请检查麦克风权限');
-    }
-  }, [handleConvertAudio]);
-
-  const stopRecording = useCallback(() => {
-    setInputMode(InputMode.VOICE_INIT);
-
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
-    }
-  }, []);
-
-  // 语音输入区域鼠标按下时的处理
-  const handleVoiceMouseDown = () => {
+  const handleVoiceMouseDown = useCallback(() => {
     // 绑定全局 mouseup，确保移出区域也能结束
     document.addEventListener('mouseup', handleVoiceMouseUp);
     startRecording();
-  };
-
-  // 鼠标松开时的处理
-  const handleVoiceMouseUp = () => {
-    stopRecording();
-    document.removeEventListener('mouseup', handleVoiceMouseUp);
-  };
+  }, [handleVoiceMouseUp, startRecording]);
 
   useEffect(() => {
     if (inputMode !== InputMode.VOICE_INIT && 
@@ -214,94 +142,98 @@ const ChatInput: React.FC<ChatInputProps> = ({
   }, [inputMode, startRecording, stopRecording]);
 
   return (
-    <div className={`rounded-[16px] bg-[#f5f5f5] p-3 m-4 
-      ${mode === 'dev' ? 'w-full' : 'w-[806px]'}`}
+    <div className={`rounded-2xl bg-white p-4 mx-6 shadow-sm border border-white
+      ${mode === 'dev' ? 'w-[calc(100%-80px)]' : 'w-[760px]'}`}
     >
-      {inputMode === InputMode.NORMAL && (
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={onChange}
-          onCompositionStart={() => setIsComposing(true)}
-          onCompositionEnd={() => setIsComposing(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
-              e.preventDefault();
-              if (value.trim()) onSend('text');
-            }
-          }}
-          className="border-0 text-[16px] w-full flex-1 outline-none resize-none overflow-y-auto rounded-[8px]"
-          placeholder={textareaPlaceholder}
-          style={{ minHeight: '24px', maxHeight: '240px', background: 'transparent' }}
-          disabled={agentType === AgentType.REFLECTION}
-        />
-      )}
+      {/* 隐藏的文件输入 */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => handleFileSelect(e, 'image')}
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={(e) => handleFileSelect(e, 'video')}
+      />
 
-      {inputMode === InputMode.VOICE_INIT && (
-        <div
-          className="flex justify-center items-center mb-5  rounded-[10px] bg-[#dedede] h-10 text-gray-600 text-sm select-none cursor-pointer"
-          onMouseDown={handleVoiceMouseDown}
-          onTouchStart={startRecording}
-          onTouchEnd={stopRecording}
-        >
-          <span>按在此处或者空格说话</span>
+      <UploadedFilesPreview
+        uploadedFiles={uploadedFiles}
+        onRemoveFile={handleRemoveFile}
+      />
+
+      <ChatInputModeContent
+        agentType={agentType}
+        inputMode={inputMode}
+        isComposing={isComposing}
+        onChange={onChange}
+        onPaste={handlePaste}
+        onSetIsComposing={setIsComposing}
+        onSend={() => handleSend('text')}
+        onStartRecording={handleVoiceMouseDown}
+        onStopRecording={stopRecording}
+        textareaPlaceholder={textareaPlaceholder}
+        textareaRef={textareaRef}
+        value={value}
+        uploadedFilesCount={uploadedFiles.length}
+      />
+
+      <div className="flex justify-between items-center w-full mt-2">
+        <div className="flex items-center gap-2">
+          <Dropdown
+            menu={{ items: menuItems }}
+            trigger={['click']}
+            placement="topLeft"
+            disabled={disabledUpload}
+          >
+            <div className={`w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors ${disabledUpload ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 3C13.4288 3 10.9154 3.76244 8.77759 5.1909C6.63975 6.61935 4.97351 8.64968 3.98957 11.0251C3.00563 13.4006 2.74819 16.0144 3.2498 18.5362C3.75141 21.0579 4.98953 23.3743 6.80762 25.1924C8.6257 27.0105 10.9421 28.2486 13.4638 28.7502C15.9856 29.2518 18.5995 28.9944 20.9749 28.0104C23.3503 27.0265 25.3807 25.3603 26.8091 23.2224C28.2376 21.0846 29 18.5712 29 16C28.9964 12.5533 27.6256 9.24882 25.1884 6.81163C22.7512 4.37445 19.4467 3.00364 16 3ZM16 27C13.8244 27 11.6977 26.3549 9.88873 25.1462C8.07979 23.9375 6.66989 22.2195 5.83733 20.2095C5.00477 18.1995 4.78693 15.9878 5.21137 13.854C5.63581 11.7202 6.68345 9.7602 8.22183 8.22183C9.76021 6.68345 11.7202 5.6358 13.854 5.21136C15.9878 4.78692 18.1995 5.00476 20.2095 5.83733C22.2195 6.66989 23.9375 8.07979 25.1462 9.88873C26.3549 11.6977 27 13.8244 27 16C26.9967 18.9164 25.8367 21.7123 23.7745 23.7745C21.7123 25.8367 18.9164 26.9967 16 27ZM22 16C22 16.2652 21.8946 16.5196 21.7071 16.7071C21.5196 16.8946 21.2652 17 21 17H17V21C17 21.2652 16.8946 21.5196 16.7071 21.7071C16.5196 21.8946 16.2652 22 16 22C15.7348 22 15.4804 21.8946 15.2929 21.7071C15.1054 21.5196 15 21.2652 15 21V17H11C10.7348 17 10.4804 16.8946 10.2929 16.7071C10.1054 16.5196 10 16.2652 10 16C10 15.7348 10.1054 15.4804 10.2929 15.2929C10.4804 15.1054 10.7348 15 11 15H15V11C15 10.7348 15.1054 10.4804 15.2929 10.2929C15.4804 10.1054 15.7348 10 16 10C16.2652 10 16.5196 10.1054 16.7071 10.2929C16.8946 10.4804 17 10.7348 17 11V15H21C21.2652 15 21.5196 15.1054 21.7071 15.2929C21.8946 15.4804 22 15.7348 22 16Z" fill="#383F44"/>
+              </svg>
+            </div>
+          </Dropdown>
+          {(asrModelId && !isReflectionAgent && inputMode === InputMode.NORMAL) && (
+            <div
+              onClick={() => setInputMode(InputMode.VOICE_INIT)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#F5F7F9] cursor-pointer hover:bg-gray-100 transition-colors"
+            >
+              <AudioOutlined className="text-[#58636C]" />
+            </div>
+          )}
         </div>
-      )}
 
-      {inputMode === InputMode.VOICE_RECORDING && (
-        <div className="flex items-center rounded-[10px] h-10 text-gray-600 px-4 mb-5 cursor-pointer" onMouseUp={stopRecording}>
-          <RecordWave />
-        </div>
-      )}
-
-      <div className="flex justify-between  w-full">
-        <Space size={2} split={<Divider type="vertical" />}>
-          <Button 
-            icon={<PlusOutlined />} 
-            shape="circle"  
-            style={{ 
-              borderRadius: '30%',
-              width: '36px',
-              height: '36px'
-            }}
-          />
-        </Space>
         {inputMode === InputMode.NORMAL ? (
-          <Space size={12}>
-            {(asrModelId && !isReflectionAgent) && (
-              <Button 
-                icon={<AudioOutlined style={{ fontSize: '16px' }} />} 
-                onClick={() => setInputMode(InputMode.VOICE_INIT)} 
-                shape="circle" 
-                style={{ 
-                  borderRadius: '30%',
-                  width: '36px',
-                  height: '36px'
-                }}
-              />
-            )}
+          <div className="flex items-center">
             <button
-              onClick={() => onSend('text')}
-              disabled={!value.trim()}
-              className={`flex-none border-none w-8 h-8 flex items-center justify-center bg-inherit ${
-                !value.trim() ? 'cursor-not-allowed' : 'cursor-pointer'
+              onClick={() => handleSend('text')}
+              disabled={!value.trim() && uploadedFiles.length === 0}
+              className={`flex-none border-none w-9 h-9 p-0 flex items-center justify-center bg-transparent transition-transform active:scale-90 ${
+                (!value.trim() && uploadedFiles.length === 0) ? 'cursor-not-allowed grayscale' : 'cursor-pointer hover:brightness-110'
               }`}
             >
-              {!value.trim() ? (
-                <img src={sendDisableSvg} alt="send" className="w-8" />
-              ) : (
-                <img src={sendSvg} alt="send" className="w-8" />
-              )}
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 3C13.4288 3 10.9154 3.76244 8.77759 5.1909C6.63975 6.61935 4.97351 8.64968 3.98957 11.0251C3.00563 13.4006 2.74819 16.0144 3.2498 18.5362C3.75141 21.0579 4.98953 23.3743 6.80762 25.1924C8.6257 27.0105 10.9421 28.2486 13.4638 28.7502C15.9856 29.2518 18.5995 28.9944 20.9749 28.0104C23.3503 27.0265 25.3807 25.3603 26.8091 23.2224C28.2376 21.0846 29 18.5712 29 16C28.9964 12.5533 27.6256 9.24882 25.1884 6.81163C22.7512 4.37445 19.4467 3.00364 16 3ZM20.7075 15.7075C20.6146 15.8005 20.5043 15.8742 20.3829 15.9246C20.2615 15.9749 20.1314 16.0008 20 16.0008C19.8686 16.0008 19.7385 15.9749 19.6171 15.9246C19.4957 15.8742 19.3854 15.8005 19.2925 15.7075L17 13.4137V21C17 21.2652 16.8946 21.5196 16.7071 21.7071C16.5196 21.8946 16.2652 22 16 22C15.7348 22 15.4804 21.8946 15.2929 21.7071C15.1054 21.5196 15 21.2652 15 21V13.4137L12.7075 15.7075C12.5199 15.8951 12.2654 16.0006 12 16.0006C11.7346 16.0006 11.4801 15.8951 11.2925 15.7075C11.1049 15.5199 10.9994 15.2654 10.9994 15C10.9994 14.7346 11.1049 14.4801 11.2925 14.2925L15.2925 10.2925C15.3854 10.1995 15.4957 10.1258 15.6171 10.0754C15.7385 10.0251 15.8686 9.99921 16 9.99921C16.1314 9.99921 16.2615 10.0251 16.3829 10.0754C16.5043 10.1258 16.6146 10.1995 16.7075 10.2925L20.7075 14.2925C20.8005 14.3854 20.8742 14.4957 20.9246 14.6171C20.9749 14.7385 21.0008 14.8686 21.0008 15C21.0008 15.1314 20.9749 15.2615 20.9246 15.3829C20.8742 15.5043 20.8005 15.6146 20.7075 15.7075Z" fill={(!value.trim() && uploadedFiles.length === 0) ? "#E0E3E6" : "#40A5EE"}/>
+              </svg>
             </button>
-          </Space>
+          </div>
         ) : (
-          <Button type="primary" ghost onClick={() => setInputMode(InputMode.NORMAL)}>
-            键盘
+          <Button
+            type="text"
+            onClick={() => setInputMode(InputMode.NORMAL)}
+            className="text-[#40A5EE] font-medium"
+          >
+            键盘输入
           </Button>
         )}
       </div>
     </div>
   );
+
 };
 
 export default ChatInput;

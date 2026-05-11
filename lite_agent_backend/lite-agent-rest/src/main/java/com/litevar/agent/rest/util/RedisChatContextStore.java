@@ -4,6 +4,7 @@ import com.litevar.agent.base.constant.CacheKey;
 import com.litevar.agent.base.util.RedisUtil;
 import com.litevar.agent.openai.completion.ChatContextStore;
 import com.litevar.agent.openai.completion.message.Message;
+import com.litevar.agent.rest.agentflow.AgentSessionManager;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 public class RedisChatContextStore implements ChatContextStore {
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<Message> getMessage(String sessionId) {
         Object value = RedisUtil.getValue(String.format(CacheKey.SESSION_CHAT, sessionId));
         if (value == null) {
@@ -28,7 +30,7 @@ public class RedisChatContextStore implements ChatContextStore {
 
     @Override
     public void updateMessage(String sessionId, List<Message> messages) {
-        RedisUtil.setValue(String.format(CacheKey.SESSION_CHAT, sessionId), messages, 1L, TimeUnit.HOURS);
+        RedisUtil.setValue(String.format(CacheKey.SESSION_CHAT, sessionId), messages, AgentSessionManager.sessionExpireTime, TimeUnit.HOURS);
     }
 
     @Override

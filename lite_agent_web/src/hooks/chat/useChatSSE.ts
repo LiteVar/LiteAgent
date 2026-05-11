@@ -8,6 +8,14 @@ import pLimit from 'p-limit';
 
 const sseQueueLimit = pLimit(3);
 
+/**
+ * 聊天消息项类型
+ */
+export interface ChatMessageItem {
+  type: 'text' | 'imageUrl' | 'videoUrl' | 'execute';
+  message: string; // text 时为文本内容，imageUrl/videoUrl 时为 fileId 或 url，execute 时为 planId
+}
+
 interface UseChatSSEProps {
   agentId: string;
   getCurrentSession: () => string;
@@ -17,7 +25,6 @@ interface UseChatSSEProps {
   handleErrorEvent: (data: SSEEventData, id: string) => void;
   handleEndEvent: (id: string) => void;
   resetAudioFlag: () => void;
-  inputValue: string;
   clearInput: () => void;
   agentStatusRef: React.MutableRefObject<AgentStatusRef[]>;
 }
@@ -31,12 +38,12 @@ export const useChatSSE = ({
   handleErrorEvent,
   handleEndEvent,
   resetAudioFlag,
-  inputValue,
   clearInput,
   agentStatusRef,
 }: UseChatSSEProps) => {
   const errorRetryCountRef = useRef(0);
   const sendMessageTipEnableRef = useRef(true);
+  const activeControllersRef = useRef<AbortController[]>([]);
   const token = getAccessToken();
 
   const onmessage = useCallback(
@@ -65,14 +72,16 @@ export const useChatSSE = ({
           break;
       }
     },
-    [handleMessageEvent, handleDeltaEvent, handleErrorEvent, handleEndEvent]
+    [handleMessageEvent, handleDeltaEvent, handleErrorEvent, handleEndEvent, agentStatusRef]
   );
 
-  const enqueueSSERequest = useCallback((agentId: string, type: 'text' | 'execute' | 'imageUrl', text?: string) => {
+  const enqueueSSERequest = useCallback((agentId: string, messages: ChatMessageItem[]) => {
     const id = Date.now().toString();
     const sessionId = getCurrentSession();
     
-    if (type !== 'execute') {
+    // 如果消息中包含非 execute 类型，清空输入
+    const hasNonExecuteMessage = messages.some(msg => msg.type !== 'execute');
+    if (hasNonExecuteMessage) {
       clearInput();
     }
     
@@ -85,7 +94,11 @@ export const useChatSSE = ({
     resetAudioFlag();
     sendMessageTipEnableRef.current = true;
     const controller = new AbortController();
-    const inputMes = inputValue || text;
+    activeControllersRef.current.push(controller);
+
+    const removeController = () => {
+      activeControllersRef.current = activeControllersRef.current.filter(c => c !== controller);
+    };
     
     return sseQueueLimit(() => {
       return fetchEventSource(`/v1/chat/stream/${sessionId}`, {
@@ -96,43 +109,30 @@ export const useChatSSE = ({
           Authorization: 'Bearer ' + token,
         },
         openWhenHidden: true,
-        body: JSON.stringify([
-          {
-            type: type,
-            message: type === 'execute' ? text : inputMes,
-          },
-        ]),
+        body: JSON.stringify(messages),
         signal: controller.signal,
         onmessage: (e) => onmessage(e, id, agentId),
         onopen: async (response) => {
-          console.log('onopen', response);
           if (response.status === 500) {
-            console.log('request fail---500');
             response.text()?.then(async (data) => {
-              console.log('data----', data);
               if (data && typeof data === 'string') {
                 sendMessageTipEnableRef.current = false;
                 const responseData = JSON.parse(data);
-                //判断是否session过期
                 if (responseData?.code === 30002) {
                   await initializeSession();
                   message.error('会话已过期，请重新发送');
                 } else {
                   message.error(responseData?.message || responseData?.data || '消息发送失败');
                 }
-                console.log('response data', responseData);
               } else {
                 message.error('消息发送失败');
               }
             });
           } else if (response.status !== 200) {
-            console.log('request fail---', response.status);
             response.text()?.then(async (data) => {
-              console.log('data----', data);
               if (data && typeof data === 'string') {
                 sendMessageTipEnableRef.current = false;
                 const responseData = JSON.parse(data);
-                console.log('response data', responseData);
                 message.error(responseData?.message || responseData?.data || '消息发送失败');
               } else {
                 message.error('消息发送失败');
@@ -141,10 +141,12 @@ export const useChatSSE = ({
           }
         },
         onerror(err) {
-          handleEndEvent(id)
+          handleEndEvent(id);
+          removeController();
           console.error('Error:', err);
           errorRetryCountRef.current = errorRetryCountRef.current + 1;
-          if (errorRetryCountRef.current > 1 || type === 'execute') {
+          const hasExecuteMessage = messages.some(msg => msg.type === 'execute');
+          if (errorRetryCountRef.current > 1 || hasExecuteMessage) {
             setTimeout(() => {
               if (sendMessageTipEnableRef.current) {
                 message.error('消息发送失败');
@@ -154,12 +156,12 @@ export const useChatSSE = ({
             throw err;
           }
         },
-        onclose: () => handleEndEvent(id),
+        onclose: () => { handleEndEvent(id); removeController(); },
       });
     })
-  }, [getCurrentSession, clearInput, resetAudioFlag, inputValue, token, onmessage, handleEndEvent, initializeSession]);
+  }, [getCurrentSession, clearInput, resetAudioFlag, token, onmessage, handleEndEvent, initializeSession, agentStatusRef]);
 
-  const sendMessage = useCallback(async (type: 'text' | 'execute' | 'imageUrl', text?: string) => {
+  const sendMessage = useCallback(async (messages: ChatMessageItem[]) => {
     const sessionId = getCurrentSession();
     
     if (!sessionId) {
@@ -167,11 +169,22 @@ export const useChatSSE = ({
       if (!sessionInitialized) return;
     }
     
-    enqueueSSERequest(agentId, type, text);
+    // 验证消息数组不为空
+    if (!messages || messages.length === 0) {
+      return;
+    }
+    
+    enqueueSSERequest(agentId, messages);
   }, [agentId, getCurrentSession, initializeSession, enqueueSSERequest]);
+
+  const abortAllSSE = useCallback(() => {
+    activeControllersRef.current.forEach(c => c.abort());
+    activeControllersRef.current = [];
+  }, []);
 
   return {
     sendMessage,
     enqueueSSERequest,
+    abortAllSSE,
   };
 };

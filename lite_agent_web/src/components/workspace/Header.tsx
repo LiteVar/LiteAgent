@@ -1,5 +1,6 @@
 import React from 'react';
 import { Input, Button } from 'antd';
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 
 interface HeaderProps {
   title: string;
@@ -28,27 +29,38 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
 
   return (
-    <div className="flex items-center py-4 px-8" style={{ borderBottom: '1px solid #e0e0e0' }}>
-      <h2 className="text-xl font-bold">{title}</h2>
-      <Input
-        placeholder={placeholder}
-        className={`ml-6 mr-6 flex-1 bg-gray-100 p-3 rounded-md ${showSearch ? 'opacity-100' : 'opacity-0'}`}
-        value={searchValue}
-        onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && onSearch && onSearch()}
-      />
-      {showCreateButton && (
-        <Button
-          type="primary"
-          size='large'
-          onClick={(e) => onCreateClick && onCreateClick(e)}
+    <div className="flex items-center justify-between p-4">
+      <div className="flex items-center flex-1">
+        <h2 className="text-[18px] font-medium text-[#1D4A6B] whitespace-nowrap m-0">{title}</h2>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 px-4 h-10 rounded-xl bg-white/60 backdrop-blur-[4px] border border-white/80">
+          <input
+            type="text"
+            placeholder={placeholder}
+            className="bg-transparent border-none outline-none text-sm text-[#383F44] placeholder-[#58636C] w-48"
+            value={searchValue}
+            onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onSearch && onSearch()}
+          />
+          <SearchOutlined 
+            className="text-[#58636C] text-base flex-none" 
+            onClick={() => onSearch && onSearch?.()} 
+          />
+        </div>
+        {showCreateButton && (
+          <Button 
+          type="primary" 
+          size="large"
+          className="rounded-xl bg-[#40A5EE] hover:!bg-[#40A5EE]/90 border-none shadow-md shadow-blue-200/50 flex items-center gap-2 h-10"
+          icon={<PlusOutlined />} 
+          onClick={(e) => onCreateClick && onCreateClick(e as any)}
         >
           {createButtonText}
         </Button>
-      )}
-
-      {!!createButton && createButton}
-
+        )}
+        {!!createButton && createButton}
+      </div>
     </div>
   );
 };

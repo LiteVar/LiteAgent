@@ -23,6 +23,8 @@ import {
 import { DEFAULT_Max_TOKENS } from './components/AdvancedSettingsPopover';
 import { getAccessToken } from '@/utils/cache';
 import FileExportModal from '@/components/workspace/FileExportModal';
+import Bg from '@/assets/common/bg';
+import { CloseCircleOutlined } from '@ant-design/icons';
 
 const AgentDetailPage: React.FC = () => {
   const agentId = useLocation().pathname.split('/')[2];
@@ -79,6 +81,18 @@ const AgentDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (isDataReady) {
+      if (!!agentDetails?.model && agentDetails?.model?.status === 2 && agentDetails?.model?.id === agentDetails?.agent?.llmModelId) {
+        Modal.error({
+          className: '[&_.ant-modal-body]:px-8 [&_.ant-modal-body]:py-6',
+          title: <div className="font-medium text-base leading-6">当前模型已停用，请在设置中切换至其他可用模型后重试。</div>,
+          centered: true,
+          icon: <CloseCircleOutlined className="text-red-500 text-2xl" />,
+          okText: '确定',
+          okButtonProps: {
+            className: 'bg-blue-400 text-white text-sm border-none shadow-none outline-none',
+          },
+        });
+      }
       setAgentInfo({
         ...agentDetails,
         agent: setDefaultAgentProperty(agentDetails?.agent!),
@@ -282,9 +296,10 @@ const AgentDetailPage: React.FC = () => {
   if (!agentInfo) return <div>Loading...</div>;
 
   return (
-    <div className="flex flex-col h-[100vh] overflow-hidden bg-gray-100">
+    <div className="flex flex-col h-[100vh] overflow-hidden bg-white relative">
+      <Bg/>
       <Header
-        className={'flex-none'}
+        className={'flex-none relative z-10'}
         agentInfo={agentInfo}
         onSave={handleSave}
         handlePublish={handlePublish}
@@ -292,14 +307,12 @@ const AgentDetailPage: React.FC = () => {
         hasUnsavedChanges={hasUnsavedChanges}
         showMaxTokenWarning={showMaxTokenWarning}
         showExportModal={showExportModal}
+        visibleButtons={(selectedTab === 'edit' || selectedTab === 'setting')}
       />
-      <main
-        style={{ borderTop: '1px solid #ddd' }}
-        className="flex flex-1 overflow-hidden bg-white"
-      >
+      <main className="flex flex-1 overflow-hidden relative z-10 p-4 pt-0">
         <SideMenu canEdit={agentInfo.canEdit!} selectedTab={selectedTab} onTabChange={handleTabChange} />
 
-        <div className="flex-1 h-full overflow-hidden">
+        <div className="flex-1 h-full overflow-hidden backdrop-blur-[4px] border border-white ml-4">
           <EditContent
             visible={selectedTab === 'edit'}
             agentInfo={agentInfo}
@@ -318,5 +331,7 @@ const AgentDetailPage: React.FC = () => {
     </div>
   );
 };
+
+
 
 export default AgentDetailPage;

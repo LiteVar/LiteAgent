@@ -2,6 +2,17 @@
 
 import { createClient, createConfig, type Options, formDataBodySerializer } from '@hey-api/client-fetch';
 import type {
+  GetV1RegisterPicCaptchaError,
+  GetV1RegisterPicCaptchaResponse,
+  PostV1RegisterSubmitRegisterEmailData,
+  PostV1RegisterSubmitRegisterEmailError,
+  PostV1RegisterSubmitRegisterEmailResponse,
+  GetV1RegisterVerifyEmailCodeData,
+  GetV1RegisterVerifyEmailCodeError,
+  GetV1RegisterVerifyEmailCodeResponse,
+  PostV1RegisterCompleteRegisterData,
+  PostV1RegisterCompleteRegisterError,
+  PostV1RegisterCompleteRegisterResponse,
   PostV1AuthLoginData,
   PostV1AuthLoginError,
   PostV1AuthLoginResponse,
@@ -61,6 +72,27 @@ import type {
   PostV1ModelImportData,
   PostV1ModelImportError,
   PostV1ModelImportResponse,
+  PostV1ModelAddForSystemData,
+  PostV1ModelAddForSystemError,
+  PostV1ModelAddForSystemResponse,
+  GetV1ModelListForSystemData,
+  GetV1ModelListForSystemError,
+  GetV1ModelListForSystemResponse,
+  DeleteV1ModelDeleteForSystemByIdData,
+  DeleteV1ModelDeleteForSystemByIdError,
+  DeleteV1ModelDeleteForSystemByIdResponse,
+  PutV1ModelUpdateForSystemData,
+  PutV1ModelUpdateForSystemError,
+  PutV1ModelUpdateForSystemResponse,
+  PostV1ModelImportForSystemData,
+  PostV1ModelImportForSystemError,
+  PostV1ModelImportForSystemResponse,
+  PostV1ModelByIdPriceData,
+  PostV1ModelByIdPriceError,
+  PostV1ModelByIdPriceResponse,
+  PostV1ModelByIdStatusToggleData,
+  PostV1ModelByIdStatusToggleError,
+  PostV1ModelByIdStatusToggleResponse,
   PostV1WorkspaceAddData,
   PostV1WorkspaceAddError,
   PostV1WorkspaceAddResponse,
@@ -130,6 +162,9 @@ import type {
   GetV1AgentImportProgressByTokenData,
   GetV1AgentImportProgressByTokenError,
   GetV1AgentImportProgressByTokenResponse,
+  GetV1AgentImportPreviewFromDownloadData,
+  GetV1AgentImportPreviewFromDownloadError,
+  GetV1AgentImportPreviewFromDownloadResponse,
   GetV1ChatStreamData,
   GetV1ChatStreamError,
   GetV1ChatStreamResponse,
@@ -160,15 +195,21 @@ import type {
   PostV1ChatAudioSpeechData,
   PostV1ChatAudioSpeechError,
   PostV1ChatAudioSpeechResponse,
-  GetV1ChatAudioSpeechData,
-  GetV1ChatAudioSpeechError,
-  GetV1ChatAudioSpeechResponse,
   GetV1ChatAgentChatData,
   GetV1ChatAgentChatError,
   GetV1ChatAgentChatResponse,
   PostV1ChatStreamBySessionIdData,
   PostV1ChatStreamBySessionIdError,
   PostV1ChatStreamBySessionIdResponse,
+  PostV1ChatStopData,
+  PostV1ChatStopError,
+  PostV1ChatStopResponse,
+  PostV1ChatAudioTranscriptionsStreamData,
+  PostV1ChatAudioTranscriptionsStreamError,
+  PostV1ChatAudioTranscriptionsStreamResponse,
+  PostV1ChatAudioSpeechStreamData,
+  PostV1ChatAudioSpeechStreamError,
+  PostV1ChatAudioSpeechStreamResponse,
   GetV1UserInfoData,
   GetV1UserInfoError,
   GetV1UserInfoResponse,
@@ -223,6 +264,15 @@ import type {
   GetV1FileDatasetImagesByFileIdByFilenameData,
   GetV1FileDatasetImagesByFileIdByFilenameError,
   GetV1FileDatasetImagesByFileIdByFilenameResponse,
+  PostV1FileChatUploadData,
+  PostV1FileChatUploadError,
+  PostV1FileChatUploadResponse,
+  GetV1FileResourceGenerateUrlData,
+  GetV1FileResourceGenerateUrlError,
+  GetV1FileResourceGenerateUrlResponse,
+  GetV1FileResourceDownloadData,
+  GetV1FileResourceDownloadError,
+  GetV1FileResourceDownloadResponse,
   PostV1DatasetAddData,
   PostV1DatasetAddError,
   PostV1DatasetAddResponse,
@@ -313,35 +363,204 @@ import type {
   GetV1DatasetDocumentsInfoByDocumentIdData,
   GetV1DatasetDocumentsInfoByDocumentIdError,
   GetV1DatasetDocumentsInfoByDocumentIdResponse,
-  GetV1PhoneHasBindData,
-  GetV1PhoneHasBindError,
-  GetV1PhoneHasBindResponse,
-  PostV1PhoneSendSmsData,
-  PostV1PhoneSendSmsError,
-  PostV1PhoneSendSmsResponse,
-  PostV1PhoneVerifyCodeData,
-  PostV1PhoneVerifyCodeError,
-  PostV1PhoneVerifyCodeResponse,
-  PostV1PhoneBindData,
-  PostV1PhoneBindError,
-  PostV1PhoneBindResponse,
-  PostV1PhoneRebindData,
-  PostV1PhoneRebindError,
-  PostV1PhoneRebindResponse,
-  GetV1RegisterPicCaptchaError,
-  GetV1RegisterPicCaptchaResponse,
-  PostV1RegisterSubmitRegisterEmailData,
-  PostV1RegisterSubmitRegisterEmailError,
-  PostV1RegisterSubmitRegisterEmailResponse,
-  GetV1RegisterVerifyEmailCodeData,
-  GetV1RegisterVerifyEmailCodeError,
-  GetV1RegisterVerifyEmailCodeResponse,
-  PostV1RegisterCompleteRegisterData,
-  PostV1RegisterCompleteRegisterError,
-  PostV1RegisterCompleteRegisterResponse,
+  GetV1PointsRechargesData,
+  GetV1PointsRechargesError,
+  GetV1PointsRechargesResponse,
+  GetV1PointsUsagesData,
+  GetV1PointsUsagesError,
+  GetV1PointsUsagesResponse,
+  GetV1PointsBalanceData,
+  GetV1PointsBalanceError,
+  GetV1PointsBalanceResponse,
+  GetV1PointsStrategyData,
+  GetV1PointsStrategyError,
+  GetV1PointsStrategyResponse,
+  PutV1PointsStrategyData,
+  PutV1PointsStrategyError,
+  PutV1PointsStrategyResponse,
+  GetV1PointsActiveActivitiesData,
+  GetV1PointsActiveActivitiesError,
+  GetV1PointsActiveActivitiesResponse,
+  GetV1PointsCalculateDiscountData,
+  GetV1PointsCalculateDiscountError,
+  GetV1PointsCalculateDiscountResponse,
+  GetV1RegisterHasBindData,
+  GetV1RegisterHasBindError,
+  GetV1RegisterHasBindResponse,
+  PostV1RegisterSendSmsData,
+  PostV1RegisterSendSmsError,
+  PostV1RegisterSendSmsResponse,
+  PostV1RegisterVerifyCodeData,
+  PostV1RegisterVerifyCodeError,
+  PostV1RegisterVerifyCodeResponse,
+  PostV1RegisterBindData,
+  PostV1RegisterBindError,
+  PostV1RegisterBindResponse,
+  PostV1RegisterRebindData,
+  PostV1RegisterRebindError,
+  PostV1RegisterRebindResponse,
+  GetV1PayPaymentByIdData,
+  GetV1PayPaymentByIdError,
+  GetV1PayPaymentByIdResponse,
+  PostV1PayWechatNativeData,
+  PostV1PayWechatNativeError,
+  PostV1PayWechatNativeResponse,
+  PostV1PayAlipayWebData,
+  PostV1PayAlipayWebError,
+  PostV1PayAlipayWebResponse,
+  GetV1PayPaymentsData,
+  GetV1PayPaymentsError,
+  GetV1PayPaymentsResponse,
+  GetV1PayInvoiceAmountData,
+  GetV1PayInvoiceAmountError,
+  GetV1PayInvoiceAmountResponse,
+  PostV1PayInvoiceApplyData,
+  PostV1PayInvoiceApplyError,
+  PostV1PayInvoiceApplyResponse,
+  GetV1PayInvoiceListData,
+  GetV1PayInvoiceListError,
+  GetV1PayInvoiceListResponse,
+  PostV1PayCloseOrderData,
+  PostV1PayCloseOrderError,
+  PostV1PayCloseOrderResponse,
+  GetV1PluginListData,
+  GetV1PluginListError,
+  GetV1PluginListResponse,
+  PostV1PluginAddData,
+  PostV1PluginAddError,
+  PostV1PluginAddResponse,
+  PutV1PluginByIdData,
+  PutV1PluginByIdError,
+  PutV1PluginByIdResponse,
+  DeleteV1PluginByIdData,
+  DeleteV1PluginByIdError,
+  DeleteV1PluginByIdResponse,
+  PostV1PluginByIdEnableData,
+  PostV1PluginByIdEnableError,
+  PostV1PluginByIdEnableResponse,
+  PostV1PluginByIdDisableData,
+  PostV1PluginByIdDisableError,
+  PostV1PluginByIdDisableResponse,
+  GetV1PluginConnectorData,
+  GetV1PluginConnectorError,
+  GetV1PluginConnectorResponse,
+  PostV1PluginConnectorData,
+  PostV1PluginConnectorError,
+  PostV1PluginConnectorResponse,
+  PutV1PluginConnectorByIdData,
+  PutV1PluginConnectorByIdError,
+  PutV1PluginConnectorByIdResponse,
+  DeleteV1PluginConnectorByIdData,
+  DeleteV1PluginConnectorByIdError,
+  DeleteV1PluginConnectorByIdResponse,
+  GetV1PluginByPluginIdSchemaData,
+  GetV1PluginByPluginIdSchemaError,
+  GetV1PluginByPluginIdSchemaResponse,
+  GetV1PluginConnectorByIdDataData,
+  GetV1PluginConnectorByIdDataError,
+  GetV1PluginConnectorByIdDataResponse,
+  PostV1PluginConnectorByIdStatusData,
+  PostV1PluginConnectorByIdStatusError,
+  PostV1PluginConnectorByIdStatusResponse,
+  PostV1PluginConnectorAnalyzeData,
+  PostV1PluginConnectorAnalyzeError,
+  PostV1PluginConnectorAnalyzeResponse,
+  GetV1PluginAgentListData,
+  GetV1PluginAgentListError,
+  GetV1PluginAgentListResponse,
+  PostV2FileUploadData,
+  PostV2FileUploadError,
+  PostV2FileUploadResponse,
+  GetV2FilePreviewData,
+  GetV2FilePreviewError,
+  GetV2FilePreviewResponse,
+  DeleteV2FileByIdData,
+  DeleteV2FileByIdError,
+  DeleteV2FileByIdResponse,
+  GetV2FileDownloadData,
+  GetV2FileDownloadError,
+  GetV2FileDownloadResponse,
+  GetV2FileDownloadMarkdownData,
+  GetV2FileDownloadMarkdownError,
+  GetV2FileDownloadMarkdownResponse,
+  GetV2FileMarkdownProgressData,
+  GetV2FileMarkdownProgressError,
+  GetV2FileMarkdownProgressResponse,
+  GetV2FileMarkdownPreviewData,
+  GetV2FileMarkdownPreviewError,
+  GetV2FileMarkdownPreviewResponse,
+  PostV1NotifyMockNotifyData,
+  PostV1NotifyMockNotifyError,
+  PostV1NotifyMockNotifyResponse,
 } from './types.gen';
 
 export const client = createClient(createConfig());
+
+/**
+ * 1.生成图形验证码
+ * <p>有效时间:15分钟</p>
+ */
+export const getV1RegisterPicCaptcha = <ThrowOnError extends boolean = false>(
+  options?: Options<unknown, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1RegisterPicCaptchaResponse,
+    GetV1RegisterPicCaptchaError
+  >({
+    ...options,
+    url: '/v1/register/picCaptcha',
+  });
+};
+
+/**
+ * 2.邮箱注册提交
+ * 验证通过会向邮箱发送验证码
+ */
+export const postV1RegisterSubmitRegisterEmail = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1RegisterSubmitRegisterEmailData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1RegisterSubmitRegisterEmailResponse,
+    PostV1RegisterSubmitRegisterEmailError
+  >({
+    ...options,
+    url: '/v1/register/submitRegisterEmail',
+  });
+};
+
+/**
+ * 3.验证邮箱验证码是否正确
+ */
+export const getV1RegisterVerifyEmailCode = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1RegisterVerifyEmailCodeData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1RegisterVerifyEmailCodeResponse,
+    GetV1RegisterVerifyEmailCodeError
+  >({
+    ...options,
+    url: '/v1/register/verifyEmailCode',
+  });
+};
+
+/**
+ * 4.完成邮箱注册
+ */
+export const postV1RegisterCompleteRegister = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1RegisterCompleteRegisterData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1RegisterCompleteRegisterResponse,
+    PostV1RegisterCompleteRegisterError
+  >({
+    ...options,
+    url: '/v1/register/completeRegister',
+  });
+};
 
 /**
  * 登录
@@ -613,6 +832,122 @@ export const postV1ModelImport = <ThrowOnError extends boolean = false>(
       'Content-Type': null,
     },
     url: '/v1/model/import',
+  });
+};
+
+/**
+ * 新建模型(系统管理员)
+ */
+export const postV1ModelAddForSystem = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ModelAddForSystemData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ModelAddForSystemResponse,
+    PostV1ModelAddForSystemError
+  >({
+    ...options,
+    url: '/v1/model/addForSystem',
+  });
+};
+
+/**
+ * 模型列表(系统管理员)
+ */
+export const getV1ModelListForSystem = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1ModelListForSystemData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1ModelListForSystemResponse,
+    GetV1ModelListForSystemError
+  >({
+    ...options,
+    url: '/v1/model/listForSystem',
+  });
+};
+
+/**
+ * 删除模型(系统管理员)
+ */
+export const deleteV1ModelDeleteForSystemById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteV1ModelDeleteForSystemByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).delete<
+    ThrowOnError,
+    DeleteV1ModelDeleteForSystemByIdResponse,
+    DeleteV1ModelDeleteForSystemByIdError
+  >({
+    ...options,
+    url: '/v1/model/deleteForSystem/{id}',
+  });
+};
+
+/**
+ * 修改模型(系统管理员)
+ */
+export const putV1ModelUpdateForSystem = <ThrowOnError extends boolean = false>(
+  options: Options<PutV1ModelUpdateForSystemData, ThrowOnError>
+) => {
+  return (options?.client ?? client).put<
+    ThrowOnError,
+    PutV1ModelUpdateForSystemResponse,
+    PutV1ModelUpdateForSystemError
+  >({
+    ...options,
+    url: '/v1/model/updateForSystem',
+  });
+};
+
+/**
+ * 导入模型配置(系统管理员)
+ */
+export const postV1ModelImportForSystem = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ModelImportForSystemData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ModelImportForSystemResponse,
+    PostV1ModelImportForSystemError
+  >({
+    ...options,
+    ...formDataBodySerializer,
+    headers: {
+      'Content-Type': null,
+    },
+    url: '/v1/model/importForSystem',
+  });
+};
+
+/**
+ * 设置模型定价
+ */
+export const postV1ModelByIdPrice = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ModelByIdPriceData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ModelByIdPriceResponse,
+    PostV1ModelByIdPriceError
+  >({
+    ...options,
+    url: '/v1/model/{id}/price',
+  });
+};
+
+/**
+ * 切换模型状态(启用/禁用)
+ */
+export const postV1ModelByIdStatusToggle = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ModelByIdStatusToggleData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ModelByIdStatusToggleResponse,
+    PostV1ModelByIdStatusToggleError
+  >({
+    ...options,
+    url: '/v1/model/{id}/status/toggle',
   });
 };
 
@@ -960,6 +1295,22 @@ export const getV1AgentImportProgressByToken = <ThrowOnError extends boolean = f
 };
 
 /**
+ * 一键运行导入agent
+ */
+export const getV1AgentImportPreviewFromDownload = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1AgentImportPreviewFromDownloadData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1AgentImportPreviewFromDownloadResponse,
+    GetV1AgentImportPreviewFromDownloadError
+  >({
+    ...options,
+    url: '/v1/agent/import/previewFromDownload',
+  });
+};
+
+/**
  * @deprecated
  * chat
  */
@@ -1124,22 +1475,6 @@ export const postV1ChatAudioSpeech = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * 文字转音频
- */
-export const getV1ChatAudioSpeech = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1ChatAudioSpeechData, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1ChatAudioSpeechResponse,
-    GetV1ChatAudioSpeechError
-  >({
-    ...options,
-    url: '/v1/chat/audio/speech',
-  });
-};
-
-/**
  * agent聊天记录
  * 该agent在本系统调试端、用户端、api调用产生的数据
  */
@@ -1165,6 +1500,54 @@ export const postV1ChatStreamBySessionId = <ThrowOnError extends boolean = false
   >({
     ...options,
     url: '/v1/chat/stream/{sessionId}',
+  });
+};
+
+/**
+ * 停止执行
+ */
+export const postV1ChatStop = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatStopData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<ThrowOnError, PostV1ChatStopResponse, PostV1ChatStopError>({
+    ...options,
+    url: '/v1/chat/stop',
+  });
+};
+
+/**
+ * 音频转文字-流式
+ */
+export const postV1ChatAudioTranscriptionsStream = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatAudioTranscriptionsStreamData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ChatAudioTranscriptionsStreamResponse,
+    PostV1ChatAudioTranscriptionsStreamError
+  >({
+    ...options,
+    ...formDataBodySerializer,
+    headers: {
+      'Content-Type': null,
+    },
+    url: '/v1/chat/audio/transcriptions/stream',
+  });
+};
+
+/**
+ * 文字转音频-流式
+ */
+export const postV1ChatAudioSpeechStream = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1ChatAudioSpeechStreamData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1ChatAudioSpeechStreamResponse,
+    PostV1ChatAudioSpeechStreamError
+  >({
+    ...options,
+    url: '/v1/chat/audio/speech/stream',
   });
 };
 
@@ -1285,6 +1668,7 @@ export const postV1UserResetPwdConfirm = <ThrowOnError extends boolean = false>(
 };
 
 /**
+ * @deprecated
  * 文件上传
  */
 export const postV1FileUpload = <ThrowOnError extends boolean = false>(
@@ -1301,6 +1685,7 @@ export const postV1FileUpload = <ThrowOnError extends boolean = false>(
 };
 
 /**
+ * @deprecated
  * 文件下载
  */
 export const getV1FileDownload = <ThrowOnError extends boolean = false>(
@@ -1437,6 +1822,58 @@ export const getV1FileDatasetImagesByFileIdByFilename = <ThrowOnError extends bo
   >({
     ...options,
     url: '/v1/file/dataset/images/{fileId}/{filename}',
+  });
+};
+
+/**
+ * Chat临时文件上传
+ */
+export const postV1FileChatUpload = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1FileChatUploadData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1FileChatUploadResponse,
+    PostV1FileChatUploadError
+  >({
+    ...options,
+    ...formDataBodySerializer,
+    headers: {
+      'Content-Type': null,
+    },
+    url: '/v1/file/chat/upload',
+  });
+};
+
+/**
+ * 生成文件访问url
+ */
+export const getV1FileResourceGenerateUrl = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1FileResourceGenerateUrlData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1FileResourceGenerateUrlResponse,
+    GetV1FileResourceGenerateUrlError
+  >({
+    ...options,
+    url: '/v1/file/resource/generateUrl',
+  });
+};
+
+/**
+ * 本地文件下载
+ */
+export const getV1FileResourceDownload = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1FileResourceDownloadData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1FileResourceDownloadResponse,
+    GetV1FileResourceDownloadError
+  >({
+    ...options,
+    url: '/v1/file/resource/download',
   });
 };
 
@@ -1905,131 +2342,643 @@ export const getV1DatasetDocumentsInfoByDocumentId = <ThrowOnError extends boole
 };
 
 /**
+ * 积分充值列表
+ */
+export const getV1PointsRecharges = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PointsRechargesData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1PointsRechargesResponse,
+    GetV1PointsRechargesError
+  >({
+    ...options,
+    url: '/v1/points/recharges',
+  });
+};
+
+/**
+ * 积分消耗列表
+ */
+export const getV1PointsUsages = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PointsUsagesData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1PointsUsagesResponse, GetV1PointsUsagesError>({
+    ...options,
+    url: '/v1/points/usages',
+  });
+};
+
+/**
+ * 查询积分余额
+ */
+export const getV1PointsBalance = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PointsBalanceData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1PointsBalanceResponse, GetV1PointsBalanceError>({
+    ...options,
+    url: '/v1/points/balance',
+  });
+};
+
+/**
+ * 积分策略配置
+ */
+export const getV1PointsStrategy = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PointsStrategyData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1PointsStrategyResponse, GetV1PointsStrategyError>(
+    {
+      ...options,
+      url: '/v1/points/strategy',
+    }
+  );
+};
+
+/**
+ * 保存积分策略配置（JSON）
+ */
+export const putV1PointsStrategy = <ThrowOnError extends boolean = false>(
+  options: Options<PutV1PointsStrategyData, ThrowOnError>
+) => {
+  return (options?.client ?? client).put<ThrowOnError, PutV1PointsStrategyResponse, PutV1PointsStrategyError>(
+    {
+      ...options,
+      url: '/v1/points/strategy',
+    }
+  );
+};
+
+/**
+ * 查询可用的活动
+ */
+export const getV1PointsActiveActivities = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PointsActiveActivitiesData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1PointsActiveActivitiesResponse,
+    GetV1PointsActiveActivitiesError
+  >({
+    ...options,
+    url: '/v1/points/activeActivities',
+  });
+};
+
+/**
+ * 计算优惠数据
+ */
+export const getV1PointsCalculateDiscount = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PointsCalculateDiscountData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1PointsCalculateDiscountResponse,
+    GetV1PointsCalculateDiscountError
+  >({
+    ...options,
+    url: '/v1/points/calculateDiscount',
+  });
+};
+
+/**
  * 当前账号是否已绑定手机号
  */
-export const getV1PhoneHasBind = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1PhoneHasBindData, ThrowOnError>
+export const getV1RegisterHasBind = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1RegisterHasBindData, ThrowOnError>
 ) => {
-  return (options?.client ?? client).get<ThrowOnError, GetV1PhoneHasBindResponse, GetV1PhoneHasBindError>({
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1RegisterHasBindResponse,
+    GetV1RegisterHasBindError
+  >({
     ...options,
-    url: '/v1/phone/hasBind',
+    url: '/v1/register/hasBind',
   });
 };
 
 /**
  * 发送短信验证码
  */
-export const postV1PhoneSendSms = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1PhoneSendSmsData, ThrowOnError>
+export const postV1RegisterSendSms = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1RegisterSendSmsData, ThrowOnError>
 ) => {
-  return (options?.client ?? client).post<ThrowOnError, PostV1PhoneSendSmsResponse, PostV1PhoneSendSmsError>({
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1RegisterSendSmsResponse,
+    PostV1RegisterSendSmsError
+  >({
     ...options,
-    url: '/v1/phone/sendSms',
+    url: '/v1/register/sendSms',
   });
 };
 
 /**
  * 验证短信验证码
  */
-export const postV1PhoneVerifyCode = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1PhoneVerifyCodeData, ThrowOnError>
+export const postV1RegisterVerifyCode = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1RegisterVerifyCodeData, ThrowOnError>
 ) => {
   return (options?.client ?? client).post<
     ThrowOnError,
-    PostV1PhoneVerifyCodeResponse,
-    PostV1PhoneVerifyCodeError
+    PostV1RegisterVerifyCodeResponse,
+    PostV1RegisterVerifyCodeError
   >({
     ...options,
-    url: '/v1/phone/verifyCode',
+    url: '/v1/register/verifyCode',
   });
 };
 
 /**
  * 绑定手机号
  */
-export const postV1PhoneBind = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1PhoneBindData, ThrowOnError>
+export const postV1RegisterBind = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1RegisterBindData, ThrowOnError>
 ) => {
-  return (options?.client ?? client).post<ThrowOnError, PostV1PhoneBindResponse, PostV1PhoneBindError>({
+  return (options?.client ?? client).post<ThrowOnError, PostV1RegisterBindResponse, PostV1RegisterBindError>({
     ...options,
-    url: '/v1/phone/bind',
+    url: '/v1/register/bind',
   });
 };
 
 /**
  * 换绑手机号
  */
-export const postV1PhoneRebind = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1PhoneRebindData, ThrowOnError>
-) => {
-  return (options?.client ?? client).post<ThrowOnError, PostV1PhoneRebindResponse, PostV1PhoneRebindError>({
-    ...options,
-    url: '/v1/phone/rebind',
-  });
-};
-
-/**
- * 1.生成图形验证码
- * <p>有效时间:15分钟</p>
- */
-export const getV1RegisterPicCaptcha = <ThrowOnError extends boolean = false>(
-  options?: Options<unknown, ThrowOnError>
-) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1RegisterPicCaptchaResponse,
-    GetV1RegisterPicCaptchaError
-  >({
-    ...options,
-    url: '/v1/register/picCaptcha',
-  });
-};
-
-/**
- * 2.邮箱注册提交
- * 验证通过会向邮箱发送验证码
- */
-export const postV1RegisterSubmitRegisterEmail = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1RegisterSubmitRegisterEmailData, ThrowOnError>
+export const postV1RegisterRebind = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1RegisterRebindData, ThrowOnError>
 ) => {
   return (options?.client ?? client).post<
     ThrowOnError,
-    PostV1RegisterSubmitRegisterEmailResponse,
-    PostV1RegisterSubmitRegisterEmailError
+    PostV1RegisterRebindResponse,
+    PostV1RegisterRebindError
   >({
     ...options,
-    url: '/v1/register/submitRegisterEmail',
+    url: '/v1/register/rebind',
   });
 };
 
 /**
- * 3.验证邮箱验证码是否正确
+ * 支付记录详情
  */
-export const getV1RegisterVerifyEmailCode = <ThrowOnError extends boolean = false>(
-  options: Options<GetV1RegisterVerifyEmailCodeData, ThrowOnError>
+export const getV1PayPaymentById = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PayPaymentByIdData, ThrowOnError>
 ) => {
-  return (options?.client ?? client).get<
-    ThrowOnError,
-    GetV1RegisterVerifyEmailCodeResponse,
-    GetV1RegisterVerifyEmailCodeError
-  >({
-    ...options,
-    url: '/v1/register/verifyEmailCode',
-  });
+  return (options?.client ?? client).get<ThrowOnError, GetV1PayPaymentByIdResponse, GetV1PayPaymentByIdError>(
+    {
+      ...options,
+      url: '/v1/pay/payment/{id}',
+    }
+  );
 };
 
 /**
- * 4.完成邮箱注册
+ * 微信native支付
  */
-export const postV1RegisterCompleteRegister = <ThrowOnError extends boolean = false>(
-  options: Options<PostV1RegisterCompleteRegisterData, ThrowOnError>
+export const postV1PayWechatNative = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PayWechatNativeData, ThrowOnError>
 ) => {
   return (options?.client ?? client).post<
     ThrowOnError,
-    PostV1RegisterCompleteRegisterResponse,
-    PostV1RegisterCompleteRegisterError
+    PostV1PayWechatNativeResponse,
+    PostV1PayWechatNativeError
   >({
     ...options,
-    url: '/v1/register/completeRegister',
+    url: '/v1/pay/wechat/native',
+  });
+};
+
+/**
+ * 支付宝网页支付
+ */
+export const postV1PayAlipayWeb = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PayAlipayWebData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<ThrowOnError, PostV1PayAlipayWebResponse, PostV1PayAlipayWebError>({
+    ...options,
+    url: '/v1/pay/alipay/web',
+  });
+};
+
+/**
+ * 支付记录列表
+ */
+export const getV1PayPayments = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PayPaymentsData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1PayPaymentsResponse, GetV1PayPaymentsError>({
+    ...options,
+    url: '/v1/pay/payments',
+  });
+};
+
+/**
+ * 可开发票金额查询
+ */
+export const getV1PayInvoiceAmount = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PayInvoiceAmountData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1PayInvoiceAmountResponse,
+    GetV1PayInvoiceAmountError
+  >({
+    ...options,
+    url: '/v1/pay/invoice/amount',
+  });
+};
+
+/**
+ * 发票申请
+ */
+export const postV1PayInvoiceApply = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PayInvoiceApplyData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1PayInvoiceApplyResponse,
+    PostV1PayInvoiceApplyError
+  >({
+    ...options,
+    url: '/v1/pay/invoice/apply',
+  });
+};
+
+/**
+ * 发票记录列表
+ */
+export const getV1PayInvoiceList = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PayInvoiceListData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1PayInvoiceListResponse, GetV1PayInvoiceListError>(
+    {
+      ...options,
+      url: '/v1/pay/invoice/list',
+    }
+  );
+};
+
+/**
+ * 关闭支付订单
+ */
+export const postV1PayCloseOrder = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PayCloseOrderData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1PayCloseOrderResponse,
+    PostV1PayCloseOrderError
+  >({
+    ...options,
+    url: '/v1/pay/closeOrder',
+  });
+};
+
+/**
+ * 插件列表
+ * 智连中选择插件应只查已启用状态的插件
+ */
+export const getV1PluginList = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PluginListData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV1PluginListResponse, GetV1PluginListError>({
+    ...options,
+    url: '/v1/plugin/list',
+  });
+};
+
+/**
+ * 新增插件（系统管理员）
+ */
+export const postV1PluginAdd = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PluginAddData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<ThrowOnError, PostV1PluginAddResponse, PostV1PluginAddError>({
+    ...options,
+    ...formDataBodySerializer,
+    headers: {
+      'Content-Type': null,
+    },
+    url: '/v1/plugin/add',
+  });
+};
+
+/**
+ * 编辑插件（系统管理员）
+ */
+export const putV1PluginById = <ThrowOnError extends boolean = false>(
+  options: Options<PutV1PluginByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).put<ThrowOnError, PutV1PluginByIdResponse, PutV1PluginByIdError>({
+    ...options,
+    url: '/v1/plugin/{id}',
+  });
+};
+
+/**
+ * 删除插件（系统管理员）
+ */
+export const deleteV1PluginById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteV1PluginByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).delete<
+    ThrowOnError,
+    DeleteV1PluginByIdResponse,
+    DeleteV1PluginByIdError
+  >({
+    ...options,
+    url: '/v1/plugin/{id}',
+  });
+};
+
+/**
+ * 启用插件（系统管理员）
+ */
+export const postV1PluginByIdEnable = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PluginByIdEnableData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1PluginByIdEnableResponse,
+    PostV1PluginByIdEnableError
+  >({
+    ...options,
+    url: '/v1/plugin/{id}/enable',
+  });
+};
+
+/**
+ * 关闭插件（系统管理员）
+ */
+export const postV1PluginByIdDisable = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PluginByIdDisableData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1PluginByIdDisableResponse,
+    PostV1PluginByIdDisableError
+  >({
+    ...options,
+    url: '/v1/plugin/{id}/disable',
+  });
+};
+
+/**
+ * 智连列表
+ */
+export const getV1PluginConnector = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PluginConnectorData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1PluginConnectorResponse,
+    GetV1PluginConnectorError
+  >({
+    ...options,
+    url: '/v1/plugin/connector',
+  });
+};
+
+/**
+ * 新增智连
+ */
+export const postV1PluginConnector = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PluginConnectorData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1PluginConnectorResponse,
+    PostV1PluginConnectorError
+  >({
+    ...options,
+    url: '/v1/plugin/connector',
+  });
+};
+
+/**
+ * 编辑智连
+ */
+export const putV1PluginConnectorById = <ThrowOnError extends boolean = false>(
+  options: Options<PutV1PluginConnectorByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).put<
+    ThrowOnError,
+    PutV1PluginConnectorByIdResponse,
+    PutV1PluginConnectorByIdError
+  >({
+    ...options,
+    url: '/v1/plugin/connector/{id}',
+  });
+};
+
+/**
+ * 删除智连
+ */
+export const deleteV1PluginConnectorById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteV1PluginConnectorByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).delete<
+    ThrowOnError,
+    DeleteV1PluginConnectorByIdResponse,
+    DeleteV1PluginConnectorByIdError
+  >({
+    ...options,
+    url: '/v1/plugin/connector/{id}',
+  });
+};
+
+/**
+ * 获取插件配置 schema
+ */
+export const getV1PluginByPluginIdSchema = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PluginByPluginIdSchemaData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1PluginByPluginIdSchemaResponse,
+    GetV1PluginByPluginIdSchemaError
+  >({
+    ...options,
+    url: '/v1/plugin/{pluginId}/schema',
+  });
+};
+
+/**
+ * 智连配置回显数据
+ */
+export const getV1PluginConnectorByIdData = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PluginConnectorByIdDataData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1PluginConnectorByIdDataResponse,
+    GetV1PluginConnectorByIdDataError
+  >({
+    ...options,
+    url: '/v1/plugin/connector/{id}/data',
+  });
+};
+
+/**
+ * 设置智连上下线
+ */
+export const postV1PluginConnectorByIdStatus = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PluginConnectorByIdStatusData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1PluginConnectorByIdStatusResponse,
+    PostV1PluginConnectorByIdStatusError
+  >({
+    ...options,
+    url: '/v1/plugin/connector/{id}/status',
+  });
+};
+
+/**
+ * 统计数据
+ */
+export const postV1PluginConnectorAnalyze = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1PluginConnectorAnalyzeData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1PluginConnectorAnalyzeResponse,
+    PostV1PluginConnectorAnalyzeError
+  >({
+    ...options,
+    url: '/v1/plugin/connector/analyze',
+  });
+};
+
+/**
+ * agent列表(智连)
+ */
+export const getV1PluginAgentList = <ThrowOnError extends boolean = false>(
+  options: Options<GetV1PluginAgentListData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV1PluginAgentListResponse,
+    GetV1PluginAgentListError
+  >({
+    ...options,
+    url: '/v1/plugin/agentList',
+  });
+};
+
+/**
+ * 文件上传
+ */
+export const postV2FileUpload = <ThrowOnError extends boolean = false>(
+  options: Options<PostV2FileUploadData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<ThrowOnError, PostV2FileUploadResponse, PostV2FileUploadError>({
+    ...options,
+    ...formDataBodySerializer,
+    headers: {
+      'Content-Type': null,
+    },
+    url: '/v2/file/upload',
+  });
+};
+
+/**
+ * 文件预览
+ */
+export const getV2FilePreview = <ThrowOnError extends boolean = false>(
+  options: Options<GetV2FilePreviewData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV2FilePreviewResponse, GetV2FilePreviewError>({
+    ...options,
+    url: '/v2/file/preview',
+  });
+};
+
+/**
+ * 删除文件
+ */
+export const deleteV2FileById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteV2FileByIdData, ThrowOnError>
+) => {
+  return (options?.client ?? client).delete<ThrowOnError, DeleteV2FileByIdResponse, DeleteV2FileByIdError>({
+    ...options,
+    url: '/v2/file/{id}',
+  });
+};
+
+/**
+ * 文件下载
+ */
+export const getV2FileDownload = <ThrowOnError extends boolean = false>(
+  options: Options<GetV2FileDownloadData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<ThrowOnError, GetV2FileDownloadResponse, GetV2FileDownloadError>({
+    ...options,
+    url: '/v2/file/download',
+  });
+};
+
+/**
+ * 下载markdown zip
+ */
+export const getV2FileDownloadMarkdown = <ThrowOnError extends boolean = false>(
+  options: Options<GetV2FileDownloadMarkdownData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV2FileDownloadMarkdownResponse,
+    GetV2FileDownloadMarkdownError
+  >({
+    ...options,
+    url: '/v2/file/download/markdown',
+  });
+};
+
+/**
+ * 查询异步markdown转换进度
+ */
+export const getV2FileMarkdownProgress = <ThrowOnError extends boolean = false>(
+  options: Options<GetV2FileMarkdownProgressData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV2FileMarkdownProgressResponse,
+    GetV2FileMarkdownProgressError
+  >({
+    ...options,
+    url: '/v2/file/markdown/progress',
+  });
+};
+
+/**
+ * 预览markdown文件内容
+ */
+export const getV2FileMarkdownPreview = <ThrowOnError extends boolean = false>(
+  options: Options<GetV2FileMarkdownPreviewData, ThrowOnError>
+) => {
+  return (options?.client ?? client).get<
+    ThrowOnError,
+    GetV2FileMarkdownPreviewResponse,
+    GetV2FileMarkdownPreviewError
+  >({
+    ...options,
+    url: '/v2/file/markdown/preview',
+  });
+};
+
+/**
+ * 模拟支付成功回调
+ * 只适用于测试环境
+ */
+export const postV1NotifyMockNotify = <ThrowOnError extends boolean = false>(
+  options: Options<PostV1NotifyMockNotifyData, ThrowOnError>
+) => {
+  return (options?.client ?? client).post<
+    ThrowOnError,
+    PostV1NotifyMockNotifyResponse,
+    PostV1NotifyMockNotifyError
+  >({
+    ...options,
+    url: '/v1/notify/mockNotify',
   });
 };

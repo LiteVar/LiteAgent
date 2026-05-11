@@ -3,7 +3,7 @@ import SelectSource from './components/SelectSource';
 import DataProcess from './components/DataProcess';
 import UploadData from './components/UploadData';
 import Header from './components/Header';
-import { DatasetDocument, deleteV1FileById } from '@/client';
+import { DatasetDocument, deleteV2FileById } from '@/client';
 import { useDatasetContext } from '@/contexts/datasetContext';
 import { DocumentSourceType } from '@/types/dataset';
 import { message } from 'antd';
@@ -32,7 +32,7 @@ const CreateDocument = () => {
     // 如果存在旧的 fileId，先删除
     if (documentData?.fileId) {
       try {
-        await deleteV1FileById({ path: { id: documentData.fileId } });
+        await deleteV2FileById({ path: { id: documentData.fileId } });
       } catch (error) {
         console.error('删除旧文件失败:', error);
       }
@@ -42,7 +42,7 @@ const CreateDocument = () => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch(`/v1/file/dataset/upload?datasetId=${datasetId}`, {
+    const response = await fetch(`/v2/file/upload?datasetId=${datasetId}`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -90,7 +90,7 @@ const CreateDocument = () => {
   const handleBackWithCleanup = useCallback(async () => {
     if (documentData?.fileId) {
       try {
-        await deleteV1FileById({ path: { id: documentData.fileId } });
+        await deleteV2FileById({ path: { id: documentData.fileId } });
         setDocumentData(prev => prev ? { ...prev, fileId: undefined } : null);
         uploadedFileIdRef.current = undefined;
       } catch (error) {
@@ -149,7 +149,7 @@ const CreateDocument = () => {
     return () => {
       // 组件卸载时，如果存在 fileId，删除文件
       if (fileIdRef.current) {
-        deleteV1FileById({ path: { id: fileIdRef.current } })
+        deleteV2FileById({ path: { id: fileIdRef.current } })
           .catch(error => {
             console.error('组件卸载时删除文件失败:', error);
           });
@@ -158,14 +158,14 @@ const CreateDocument = () => {
   }, []); 
 
   return (
-    <div className="flex flex-col h-full p-2 pt-4">
+    <div className="flex flex-col h-[calc(100%-32px)] bg-white/60 p-4">
       <Header 
         currentStep={currentStep} 
         steps={steps} 
         documentData={documentData} 
         onBackWithCleanup={handleBackWithCleanup} 
       />
-      <div className="flex-1 px-8 border-0 border-t border-t-gray-200 border-solid">
+      <div className="flex-1 border-0 overflow-hidden">
         <div className="steps-content h-full">{steps[currentStep].content}</div>
       </div>
     </div>

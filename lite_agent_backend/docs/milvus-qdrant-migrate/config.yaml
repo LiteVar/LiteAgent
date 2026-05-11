@@ -1,0 +1,18 @@
+milvus:
+  url: "127.0.0.1:19530"
+  username: "root"
+  password: "password"
+  db_name: "lite_agent"
+  enable_tls_auth: false
+
+qdrant:
+  url: "http://127.0.0.1:6334"
+  api_key: "xxx"
+  collection_prefix: ""
+
+migration:
+  batch_size: 50
+  restart: false
+  create_collection: true
+  offsets_collection: "_migration_offsets"
+  batch_delay: 0

@@ -1,19 +1,13 @@
 import React, { useCallback } from 'react';
-import { Button, Input, Checkbox, Space, message } from 'antd';
-import { PlusOutlined, SearchOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Button, message } from 'antd';
+import { PlusOutlined, LeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getAccessToken } from '@/utils/cache';
 
 interface FragmentListHeaderProps {
-  total: number;
   canEdit: boolean;
   canDelete: boolean;
-  onSearch: (value: string) => void;
   onCreateNew: () => void;
-  selectedCount: number;
-  onBatchDelete?: () => void;
-  onSelectAll: (checked: boolean) => void;
-  selectAll: boolean;
   onViewSummary: () => void;
   onUpdateSummary: () => void;
   isUpdateingSummary?: boolean;
@@ -25,15 +19,8 @@ const FragmentListHeader: React.FC<FragmentListHeaderProps> = (props) => {
   const navigate = useNavigate();
   const token = getAccessToken();
   const {
-    total,
     canEdit,
-    canDelete,
-    onSearch,
     onCreateNew,
-    selectedCount,
-    onBatchDelete,
-    onSelectAll,
-    selectAll,
     onViewSummary,
     onUpdateSummary,
     isUpdateingSummary,
@@ -42,7 +29,7 @@ const FragmentListHeader: React.FC<FragmentListHeaderProps> = (props) => {
   } = props;
 
   const onDownloadMarkdown = useCallback((fileId: string) => {
-    fetch(`/v1/file/dataset/markdown/download?fileId=${fileId}`, {
+    fetch(`/v2/file/download/markdown?fileId=${fileId}`, {
       method: 'GET',
       headers: {
         Accept: 'application/zip,application/octet-stream',
@@ -88,21 +75,28 @@ const FragmentListHeader: React.FC<FragmentListHeaderProps> = (props) => {
       });
   }, [token]);
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4 mb-6">
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} className="hover:bg-gray-100">
-            返回
-          </Button>
-          <div className="h-4 w-[1px] bg-gray-200" />
-          <h2 className="text-xl m-0">片段列表</h2>
+        <div className="flex items-center gap-4">
+          <div 
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/80 border border-white/60 shadow-sm hover:bg-white cursor-pointer transition-all"
+          >
+            <LeftOutlined className="text-gray-600" />
+          </div>
+          <p className="text-xl m-0">片段列表</p>
         </div>
+        
         {canEdit && (
-          <Space>          
-            <Button onClick={onViewSummary}>
+          <div className="flex items-center gap-3">
+            <Button 
+              className="rounded-xl bg-transparent text-[#40A5EE] border-[#40A5EE] flex items-center h-10"
+              onClick={onViewSummary}
+            >
               查看文档摘要
             </Button>        
             <Button 
+              className="rounded-xl bg-transparent text-[#40A5EE] border-[#40A5EE] flex items-center h-10"
               onClick={onUpdateSummary} 
               loading={isUpdateingSummary}
               disabled={!showSummary}
@@ -110,45 +104,24 @@ const FragmentListHeader: React.FC<FragmentListHeaderProps> = (props) => {
               更新文档摘要
             </Button>
             {fileId && (
-              <Button onClick={() => onDownloadMarkdown(fileId)}>
-                下载Markdown文档
+              <Button 
+                className="rounded-xl bg-transparent text-[#40A5EE] border-[#40A5EE] flex items-center h-10"
+                onClick={() => onDownloadMarkdown(fileId)}
+              >
+                下载Markdown
               </Button>
             )}
-            <Button type="primary" icon={<PlusOutlined />} onClick={onCreateNew}>
+            <Button 
+              type="primary" 
+              size="large"
+              className="rounded-xl bg-[#40A5EE] hover:!bg-[#40A5EE]/90 border-none shadow-md shadow-blue-200/50 flex items-center gap-2 h-10"
+              icon={<PlusOutlined />} 
+              onClick={onCreateNew}
+            >
               新建片段
             </Button>
-          </Space>
+          </div>
         )}
-      </div>
-
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <Checkbox checked={selectAll} onChange={(e) => onSelectAll(e.target.checked)}>
-            全选
-          </Checkbox>
-          <div className="h-4 w-[1px] bg-gray-200" />
-          <span className="text-gray-500">共 {total} 个片段</span>
-          {selectedCount > 0 && (
-            <>
-              <div className="h-4 w-[1px] bg-gray-200" />
-              <span className="text-gray-500">
-                已选择 {selectedCount} 项
-                {canDelete && (
-                  <Button danger onClick={onBatchDelete} className="ml-4">
-                    批量删除
-                  </Button>
-                )}
-              </span>
-            </>
-          )}
-        </div>
-        <Input.Search
-          placeholder="搜索片段内容"
-          onSearch={onSearch}
-          enterButton={<SearchOutlined />}
-          allowClear
-          className="max-w-sm"
-        />
       </div>
     </div>
   );
